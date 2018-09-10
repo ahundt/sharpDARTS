@@ -135,8 +135,4 @@ class Performance(object):
       self.data = data
   
   def save(self):
-    if os.path.exists(self.path):
-      print('File %s already exists, will remove it.' %self.path)
-      os.remove(self.path)
-    else:
-      np.save(self.path, self.data)
+    np.save(self.path, self.data)
