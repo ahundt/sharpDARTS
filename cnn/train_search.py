@@ -121,14 +121,14 @@ def main():
     # training
     train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor)
     logging.info('train_acc %f', train_acc)
+    
+    perfor.save()
 
     # validation
     valid_acc, valid_obj = infer(valid_queue, model, criterion)
     logging.info('valid_acc %f', valid_acc)
 
     utils.save(model, os.path.join(args.save, 'weights.pt'))
-  
-  perfor.save()
 
 def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor):
   objs = utils.AvgrageMeter()
