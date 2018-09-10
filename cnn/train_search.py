@@ -105,7 +105,7 @@ def main():
 
   architect = Architect(model, args)
 
-  perfor = Performance('cifar10_performance.npy')
+  perfor = utils.Performance('cifar10_performance.npy')
 
   for epoch in range(args.epochs):
     scheduler.step()
