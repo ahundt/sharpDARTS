@@ -119,3 +119,25 @@ def create_exp_dir(path, scripts_to_save=None):
       dst_file = os.path.join(path, 'scripts', os.path.basename(script))
       shutil.copyfile(script, dst_file)
 
+
+class Performance(object):
+  def __init__(self, path):
+    self.path = path
+    self.data = None
+
+  def update(self, alphas_normal, alphas_reduce, val_loss):
+    data = np.concatenate([alphas_normal.view(1, -1), 
+                           alphas_reduce.view(1, -1), 
+                           np.array([val_loss]).view(1,-1)], 
+                          axis=1)
+    if self.data is not None:
+      self.data = np.concatenate([self.data, data], axis=0)
+    else:
+      self.data = data
+  
+  def save(self):
+    if os.path.exists(self.path):
+      print('File %s already exists, will remove it.' %self.path)
+      os.remove(self.path)
+    else:
+      np.save(self.path, self.data)
