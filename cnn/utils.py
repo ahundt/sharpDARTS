@@ -128,8 +128,8 @@ class Performance(object):
     self.data = None
 
   def update(self, alphas_normal, alphas_reduce, val_loss):
-    a_normal = F.softmax(model.alphas_normal, dim=-1)
-    a_reduce = F.softmax(model.alphas_reduce, dim=-1)
+    a_normal = F.softmax(alphas_normal, dim=-1)
+    a_reduce = F.softmax(alphas_reduce, dim=-1)
     data = np.concatenate([a_normal.data.view(-1), 
                            a_reduce.data.view(-1), 
                            np.array([val_loss.data])]).reshape(1,-1)
