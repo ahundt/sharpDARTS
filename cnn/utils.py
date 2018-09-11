@@ -128,9 +128,9 @@ class Performance(object):
   def update(self, alphas_normal, alphas_reduce, val_loss):
     data = np.concatenate([alphas_normal.data.view(-1), 
                            alphas_reduce.data.view(-1), 
-                           np.array([val_loss.data])])
+                           np.array([val_loss.data])]).reshape(1,-1)
     if self.data is not None:
-      self.data = np.concatenate([self.data, data], axis=1)
+      self.data = np.concatenate([self.data, data], axis=0)
     else:
       self.data = data
   
