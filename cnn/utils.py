@@ -4,6 +4,8 @@ import torch
 import shutil
 import torchvision.transforms as transforms
 from torch.autograd import Variable
+import torch.nn.functional as F
+from fanova import fANOVA
 
 
 class AvgrageMeter(object):
@@ -126,8 +128,10 @@ class Performance(object):
     self.data = None
 
   def update(self, alphas_normal, alphas_reduce, val_loss):
-    data = np.concatenate([alphas_normal.data.view(-1), 
-                           alphas_reduce.data.view(-1), 
+    a_normal = F.softmax(model.alphas_normal, dim=-1)
+    a_reduce = F.softmax(model.alphas_reduce, dim=-1)
+    data = np.concatenate([a_normal.data.view(-1), 
+                           a_reduce.data.view(-1), 
                            np.array([val_loss.data])]).reshape(1,-1)
     if self.data is not None:
       self.data = np.concatenate([self.data, data], axis=0)
@@ -136,3 +140,38 @@ class Performance(object):
   
   def save(self):
     np.save(self.path, self.data)
+
+def importance(path, config):
+  assert os.path.exists(path), 'File %s does not exist' %path
+  assert isinstance(config, dict), 'Input argument config is wrong'
+
+  data = np.load(path)
+  X = data[:, :-1].astype(np.double)
+  Y = data[:, -1].astype(np.double)
+  n_data, n_params = X.shape
+  print(X.shape)
+  imps = []
+
+  if config['mode'] == 'incremental':
+    interval = config['interval']
+    for i in range(n_data // interval):
+      print('Iteration %d: \n' %i)
+      f = fANOVA(X[:(i+1)*interval, :50], Y[:(i+1)*interval])
+      imp_dic = f.quantify_importance((10, ))
+      print(imp_dic)
+      imps.append(imp_dic)
+  elif config['mode'] == 'fixed':
+    interval = config['interval']
+    for i in range(n_data // interval):
+      print('Iteration %d: \n' %i)
+      f = fANOVA(X[i*interval:(i+1)*interval, :50], Y[i*interval:(i+1)*interval])
+      imp_dic = f.quantify_importance((10, ))
+      print(imp_dic)
+      imps.append(imp_dic)
+  return imps
+    
+# if __name__ == '__main__':
+#   path = '/home/zero/Downloads/cifar10_performance.npy'
+#   config = {'mode': 'fixed', 'interval': 1000}
+#   # config = {'mode': 'incremental', 'interval': 1000}
+#   imps = importance(path, config)
