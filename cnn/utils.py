@@ -130,7 +130,7 @@ class Performance(object):
                            alphas_reduce.data.view(-1), 
                            np.array([val_loss.data])])
     if self.data is not None:
-      self.data = np.concatenate([self.data, data], axis=0)
+      self.data = np.concatenate([self.data, data], axis=1)
     else:
       self.data = data
   
