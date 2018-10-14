@@ -96,7 +96,7 @@ def get_training_queues(args, train_transform):
     # Ensure dataset is present in the directory args.data. Does not support auto download
     train_data = dset.ImageFolder(root=args.data, transform=train_transform, loader = grey_pil_loader)
   else:
-    assert False. "Cannot get training queue for dataset"
+    assert False, "Cannot get training queue for dataset"
 
   num_train = len(train_data)
   indices = list(range(num_train))
