@@ -18,8 +18,10 @@ from model_search import Network
 from architect import Architect
 
 
-parser = argparse.ArgumentParser("cifar")
+parser = argparse.ArgumentParser("Common Argument Parser")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
+parser.add_argument('--dataset', type=str, default='cifar10', help='which dataset:\
+                    cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
 parser.add_argument('--batch_size', type=int, default=64, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
 parser.add_argument('--learning_rate_min', type=float, default=0.001, help='min learning rate')
@@ -53,9 +55,64 @@ fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
 fh.setFormatter(logging.Formatter(log_format))
 logging.getLogger().addHandler(fh)
 
-
 CIFAR_CLASSES = 10
+MNIST_CLASSES = 10
+FASHION_CLASSES = 10
+EMNIST_CLASSES = 47
+SVHN_CLASSES = 10
+STL10_CLASSES = 10
+DEVANAGARI_CLASSES = 46 
 
+class_dictionary = {'cifar10': CIFAR_CLASSES,
+                    'mnist' : MNIST_CLASSES,
+                    'emnist': EMNIST_CLASSES,
+                    'fashion': FASHION_CLASSES,
+                    'svhn': SVHN_CLASSES,
+                    'stl10': STL10_CLASSES,
+                    'devanagari' : DEVANAGARI_CLASSES}
+
+def get_training_queues(args, train_transform):
+  print("Getting",args.dataset,"data")
+  if args.dataset == 'cifar10':
+    train_data = dset.CIFAR10(root=args.data, train=True, download=True, transform=train_transform)
+  elif args.dataset == 'mnist':
+    train_data = dset.MNIST(root=args.data, train=True, download=True, transform=train_transform)
+  elif args.dataset == 'emnist':
+    train_data = dset.EMNIST(root=args.data, split='balanced', train=True, download=True, transform=train_transform)
+  elif args.dataset == 'fashion':
+    train_data = dset.FashionMNIST(root=args.data, train=True, download=True, transform=train_transform)
+  elif args.dataset == 'svhn':
+    train_data = dset.SVHN(root=args.data, split='train', download=True, transform=train_transform)
+  elif args.dataset == 'stl10':
+    train_data = dset.STL10(root=args.data, split='train', download=True, transform=train_transform)
+  elif args.dataset == 'devanagari':
+    def grey_pil_loader(path):
+      # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+      with open(path, 'rb') as f:
+          img = Image.open(f)
+          img = np.array(img.convert('L'))
+          img = (img.astype('float') - 0) / (255 - 0)
+          return img
+    # Ensure dataset is present in the directory args.data. Does not support auto download
+    train_data = dset.ImageFolder(root=args.data, transform=train_transform, loader = grey_pil_loader)
+  else:
+    assert False. "Cannot get training queue for dataset"
+
+  num_train = len(train_data)
+  indices = list(range(num_train))
+  split = int(np.floor(args.train_portion * num_train))
+
+  train_queue = torch.utils.data.DataLoader(
+      train_data, batch_size=args.batch_size,
+      sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[:split]),
+      pin_memory=True, num_workers=2)
+
+  valid_queue = torch.utils.data.DataLoader(
+      train_data, batch_size=args.batch_size,
+      sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train]),
+      pin_memory=True, num_workers=2)
+
+  return train_queue, valid_queue
 
 def main():
   if not torch.cuda.is_available():
@@ -73,7 +130,8 @@ def main():
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
-  model = Network(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
+  number_of_classes = class_dictionary[args.dataset]
+  model = Network(args.init_channels, number_of_classes, args.layers, criterion)
   model = model.cuda()
   logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
@@ -83,23 +141,11 @@ def main():
       momentum=args.momentum,
       weight_decay=args.weight_decay)
 
-  train_transform, valid_transform = utils._data_transforms_cifar10(args)
-  train_data = dset.CIFAR10(root=args.data, train=True, download=True, transform=train_transform)
+  # Get transforms to apply on data
+  train_transform, valid_transform = utils.get_data_transforms(args)
 
-  num_train = len(train_data)
-  indices = list(range(num_train))
-  split = int(np.floor(args.train_portion * num_train))
-
-  train_queue = torch.utils.data.DataLoader(
-      train_data, batch_size=args.batch_size,
-      sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[:split]),
-      pin_memory=True, num_workers=2)
-
-  valid_queue = torch.utils.data.DataLoader(
-      train_data, batch_size=args.batch_size,
-      sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train]),
-      pin_memory=True, num_workers=2)
-
+  # Get the training queue
+  train_queue, valid_queue = get_training_queues(args, train_transform)
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
