@@ -63,13 +63,21 @@ SVHN_CLASSES = 10
 STL10_CLASSES = 10
 DEVANAGARI_CLASSES = 46 
 
-class_dictionary = {'cifar10': CIFAR_CLASSES,
-                    'mnist' : MNIST_CLASSES,
-                    'emnist': EMNIST_CLASSES,
-                    'fashion': FASHION_CLASSES,
-                    'svhn': SVHN_CLASSES,
-                    'stl10': STL10_CLASSES,
-                    'devanagari' : DEVANAGARI_CLASSES}
+class_dict = {'cifar10': CIFAR_CLASSES,
+              'mnist' : MNIST_CLASSES,
+              'emnist': EMNIST_CLASSES,
+              'fashion': FASHION_CLASSES,
+              'svhn': SVHN_CLASSES,
+              'stl10': STL10_CLASSES,
+              'devanagari' : DEVANAGARI_CLASSES}
+
+inp_channel_dict = {'cifar10': 3,
+                    'mnist' : 1,
+                    'emnist': 1,
+                    'fashion': 1,
+                    'svhn': 3,
+                    'stl10': 3,
+                    'devanagari' : 1}
 
 def get_training_queues(args, train_transform):
   print("Getting",args.dataset,"data")
@@ -130,8 +138,9 @@ def main():
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
-  number_of_classes = class_dictionary[args.dataset]
-  model = Network(args.init_channels, number_of_classes, args.layers, criterion)
+  number_of_classes = class_dict[args.dataset]
+  in_channels = inp_channel_dict[args.dataset]
+  model = Network(args.init_channels, number_of_classes, args.layers, criterion, in_channels)
   model = model.cuda()
   logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
