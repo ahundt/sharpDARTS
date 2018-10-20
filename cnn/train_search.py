@@ -16,6 +16,7 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 from model_search import Network
 from architect import Architect
+from PIL import Image
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")
@@ -98,8 +99,7 @@ def get_training_queues(args, train_transform):
       # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
       with open(path, 'rb') as f:
           img = Image.open(f)
-          img = np.array(img.convert('L'))
-          img = (img.astype('float') - 0) / (255 - 0)
+          img = img.convert('L')
           return img
     # Ensure dataset is present in the directory args.data. Does not support auto download
     train_data = dset.ImageFolder(root=args.data, transform=train_transform, loader = grey_pil_loader)
