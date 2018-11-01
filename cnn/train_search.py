@@ -83,18 +83,25 @@ inp_channel_dict = {'cifar10': 3,
 def get_training_queues(args, train_transform):
   print("Getting",args.dataset,"data")
   if args.dataset == 'cifar10':
+    print("Using CIFAR10")
     train_data = dset.CIFAR10(root=args.data, train=True, download=True, transform=train_transform)
   elif args.dataset == 'mnist':
+    print("Using MNIST")
     train_data = dset.MNIST(root=args.data, train=True, download=True, transform=train_transform)
   elif args.dataset == 'emnist':
+    print("Using EMNIST")
     train_data = dset.EMNIST(root=args.data, split='balanced', train=True, download=True, transform=train_transform)
   elif args.dataset == 'fashion':
+    print("Using Fashion")
     train_data = dset.FashionMNIST(root=args.data, train=True, download=True, transform=train_transform)
   elif args.dataset == 'svhn':
+    print("Using SVHN")
     train_data = dset.SVHN(root=args.data, split='train', download=True, transform=train_transform)
   elif args.dataset == 'stl10':
+    print("Using STL10")
     train_data = dset.STL10(root=args.data, split='train', download=True, transform=train_transform)
   elif args.dataset == 'devanagari':
+    print("Using DEVANAGARI")
     def grey_pil_loader(path):
       # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
       with open(path, 'rb') as f:
@@ -109,6 +116,9 @@ def get_training_queues(args, train_transform):
   num_train = len(train_data)
   indices = list(range(num_train))
   split = int(np.floor(args.train_portion * num_train))
+  print("Total Training size",num_train)
+  print("Training set size",split)
+  print("Validation set size",num_train-split)
 
   train_queue = torch.utils.data.DataLoader(
       train_data, batch_size=args.batch_size,
