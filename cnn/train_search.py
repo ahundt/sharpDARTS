@@ -17,6 +17,7 @@ from torch.autograd import Variable
 from model_search import Network
 from architect import Architect
 from PIL import Image
+import random
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")
@@ -119,6 +120,12 @@ def get_training_queues(args, train_transform):
   print("Total Training size",num_train)
   print("Training set size",split)
   print("Validation set size",num_train-split)
+
+  if args.dataset == 'devanagari':
+    print("SHUFFLE INDEX LIST BEFORE BATCHING")
+    print("Before Shuffle", indices[-10:num_train])
+    random.shuffle(indices)
+    print("After Shuffle", indices[-10:num_train])
 
   train_queue = torch.utils.data.DataLoader(
       train_data, batch_size=args.batch_size,
