@@ -167,7 +167,7 @@ def main():
       momentum=args.momentum,
       weight_decay=args.weight_decay)
 
-  # Get transforms to apply on data
+  # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
 
   # Get the training queue
