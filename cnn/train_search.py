@@ -47,7 +47,7 @@ parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='lear
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
 args = parser.parse_args()
 
-args.save = 'search-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
+args.save = 'search-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset)
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_format = '%(asctime)s %(message)s'
@@ -63,7 +63,7 @@ FASHION_CLASSES = 10
 EMNIST_CLASSES = 47
 SVHN_CLASSES = 10
 STL10_CLASSES = 10
-DEVANAGARI_CLASSES = 46 
+DEVANAGARI_CLASSES = 46
 
 class_dict = {'cifar10': CIFAR_CLASSES,
               'mnist' : MNIST_CLASSES,
@@ -177,7 +177,7 @@ def main():
 
   architect = Architect(model, args)
 
-  perfor = utils.Performance('cifar10_performance.npy')
+  perfor = utils.Performance(os.path.join(args.save, 'architecture_performance_history.npy'))
 
   for epoch in range(args.epochs):
     scheduler.step()
@@ -193,7 +193,7 @@ def main():
     # training
     train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor)
     logging.info('train_acc %f', train_acc)
-    
+
     perfor.save()
 
     # validation
@@ -269,5 +269,5 @@ def infer(valid_queue, model, criterion):
 
 
 if __name__ == '__main__':
-  main() 
+  main()
 
