@@ -16,7 +16,7 @@ class Cell(nn.Module):
     else:
       self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0)
     self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0)
-    
+
     if reduction:
       op_names, indices = zip(*genotype.reduce)
       concat = genotype.reduce_concat
@@ -97,7 +97,7 @@ class AuxiliaryHeadImageNet(nn.Module):
       nn.Conv2d(128, 768, 2, bias=False),
       # NOTE: This batchnorm was omitted in my earlier implementation due to a typo.
       # Commenting it out for consistency with the experiments in the paper.
-      # nn.BatchNorm2d(768),
+      nn.BatchNorm2d(768),
       nn.ReLU(inplace=True)
     )
     self.classifier = nn.Linear(768, num_classes)
@@ -121,7 +121,7 @@ class NetworkCIFAR(nn.Module):
       nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
       nn.BatchNorm2d(C_curr)
     )
-    
+
     C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
     self.cells = nn.ModuleList()
     reduction_prev = False
