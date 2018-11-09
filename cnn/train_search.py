@@ -18,7 +18,7 @@ from model_search import Network
 from architect import Architect
 from PIL import Image
 import random
-
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser("Common Argument Parser")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
@@ -50,12 +50,8 @@ args = parser.parse_args()
 args.save = 'search-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset)
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
-log_format = '%(asctime)s %(message)s'
-logging.basicConfig(stream=sys.stdout, level=logging.INFO,
-    format=log_format, datefmt='%m/%d %I:%M:%S %p')
-fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
-fh.setFormatter(logging.Formatter(log_format))
-logging.getLogger().addHandler(fh)
+log_file_path = os.path.join(args.save, 'log.txt')
+logger = utils.logging_setup(log_file_path)
 
 CIFAR_CLASSES = 10
 MNIST_CLASSES = 10
@@ -141,7 +137,7 @@ def get_training_queues(args, train_transform):
 
 def main():
   if not torch.cuda.is_available():
-    logging.info('no gpu device available')
+    logger.info('no gpu device available, exiting')
     sys.exit(1)
 
   np.random.seed(args.seed)
@@ -150,8 +146,8 @@ def main():
   torch.manual_seed(args.seed)
   cudnn.enabled=True
   torch.cuda.manual_seed(args.seed)
-  logging.info('gpu device = %d' % args.gpu)
-  logging.info("args = %s", args)
+  logger.info('gpu device = %d' % args.gpu)
+  logger.info("args = %s", args)
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
@@ -159,7 +155,7 @@ def main():
   in_channels = inp_channel_dict[args.dataset]
   model = Network(args.init_channels, number_of_classes, args.layers, criterion, in_channels)
   model = model.cuda()
-  logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
+  logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
   optimizer = torch.optim.SGD(
       model.parameters(),
@@ -179,26 +175,26 @@ def main():
 
   perfor = utils.Performance(os.path.join(args.save, 'architecture_performance_history.npy'))
 
-  for epoch in range(args.epochs):
+  for epoch in tqdm(range(args.epochs)):
     scheduler.step()
     lr = scheduler.get_lr()[0]
-    logging.info('epoch %d lr %e', epoch, lr)
+    logger.info('epoch %d lr %e', epoch, lr)
 
     genotype = model.genotype()
-    logging.info('genotype = %s', genotype)
+    logger.info('genotype = %s', genotype)
 
     # print(F.softmax(model.alphas_normal, dim=-1))
     # print(F.softmax(model.alphas_reduce, dim=-1))
 
     # training
     train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor)
-    logging.info('train_acc %f', train_acc)
+    logger.info('train_acc %f', train_acc)
 
     perfor.save()
 
     # validation
     valid_acc, valid_obj = infer(valid_queue, model, criterion)
-    logging.info('valid_acc %f', valid_acc)
+    logger.info('valid_acc %f', valid_acc)
 
     utils.save(model, os.path.join(args.save, 'weights.pt'))
 
@@ -238,7 +234,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
     top5.update(prec5.data[0], n)
 
     if step % args.report_freq == 0:
-      logging.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+      logger.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
 
   return top1.avg, objs.avg
 
@@ -263,7 +259,7 @@ def infer(valid_queue, model, criterion):
     top5.update(prec5.data[0], n)
 
     if step % args.report_freq == 0:
-      logging.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+      logger.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
 
   return top1.avg, objs.avg
 

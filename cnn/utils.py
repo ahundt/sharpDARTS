@@ -6,6 +6,38 @@ import torchvision.transforms as transforms
 from torch.autograd import Variable
 import torch.nn.functional as F
 from fanova import fANOVA
+from tqdm import tqdm
+
+class TqdmHandler(logging.StreamHandler):
+    def __init__(self):
+        logging.StreamHandler.__init__(self)
+
+    def emit(self, record):
+        msg = self.format(record)
+        tqdm.write(msg)
+
+def logging_setup(log_file_path):
+    # setup logging for tqdm compatibility
+    # based on https://github.com/tqdm/tqdm/issues/193#issuecomment-232887740
+    logger = colorlog.getLogger("SQUARE")
+    logger.setLevel(logging.DEBUG)
+    handler = TqdmHandler()
+    handler.setFormatter(colorlog.ColoredFormatter(
+        '%(log_color)s%(name)s | %(asctime)s | %(levelname)s | %(message)s',
+        datefmt='%Y_%m_%d_%H_%M_%S',
+        log_colors={
+            'DEBUG': 'cyan',
+            'INFO': 'white',
+            'SUCCESS:': 'green',
+            'WARNING': 'yellow',
+            'ERROR': 'red',
+            'CRITICAL': 'red,bg_white'},))
+
+    logger.addHandler(handler)
+    fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
+    fh.setFormatter(logging.Formatter(log_format))
+    logger.addhandler(fh)
+    return logger
 
 
 class AvgrageMeter(object):
@@ -278,14 +310,14 @@ class Performance(object):
     # print("alpha normal size: ", a_normal.data.size())
     a_reduce = F.softmax(alphas_reduce, dim=-1)
     # print("alpha reduce size: ", a_reduce.data.size())
-    data = np.concatenate([a_normal.data.view(-1), 
-                           a_reduce.data.view(-1), 
+    data = np.concatenate([a_normal.data.view(-1),
+                           a_reduce.data.view(-1),
                            np.array([val_loss.data])]).reshape(1,-1)
     if self.data is not None:
       self.data = np.concatenate([self.data, data], axis=0)
     else:
       self.data = data
-  
+
   def save(self):
     np.save(self.path, self.data)
 
@@ -317,7 +349,7 @@ def importance(path, config):
       print(imp_dic)
       imps.append(imp_dic)
   return imps
-    
+
 # if __name__ == '__main__':
 #   path = '/home/zero/Downloads/cifar10_performance.npy'
 #   config = {'mode': 'fixed', 'interval': 1000}
