@@ -203,11 +203,11 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
 
-  for step, (input, target) in enumerate(train_queue):
+  for step, (input_batch, target) in enumerate(tqdm(train_queue)):
     model.train()
-    n = input.size(0)
+    n = input_batch.size(0)
 
-    input = Variable(input, requires_grad=False).cuda()
+    input_batch = Variable(input_batch, requires_grad=False).cuda()
     target = Variable(target, requires_grad=False).cuda(async=True)
 
     # get a random minibatch from the search queue with replacement
@@ -216,12 +216,12 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
     target_search = Variable(target_search, requires_grad=False).cuda(async=True)
 
     # define validation loss for analyzing the importance of hyperparameters
-    val_loss = architect.step(input, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
+    val_loss = architect.step(input_batch, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
     # add current performance config into performance array
     perfor.update(model.alphas_normal, model.alphas_reduce, val_loss)
 
     optimizer.zero_grad()
-    logits = model(input)
+    logits = model(input_batch)
     loss = criterion(logits, target)
 
     loss.backward()
