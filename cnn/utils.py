@@ -50,7 +50,7 @@ def logging_setup(log_file_path):
     logger.addHandler(handler)
     fh = logging.FileHandler(log_file_path)
     fh.setFormatter(log_format)
-    logger.addhandler(fh)
+    logger.addHandler(fh)
     return logger
 
 
