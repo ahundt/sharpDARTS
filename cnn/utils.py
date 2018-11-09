@@ -59,6 +59,26 @@ class Cutout(object):
         return img
 
 
+# Function to fetch the transforms based on the dataset
+def get_data_transforms(args):
+  print("Getting",args.dataset,"Transforms")
+  if args.dataset == 'cifar10':
+    return _data_transforms_cifar10(args)
+  if args.dataset == 'mnist':
+    return _data_transforms_mnist(args)
+  if args.dataset == 'emnist':
+    return _data_transforms_emnist(args)
+  if args.dataset == 'fashion':
+    return _data_transforms_fashion(args)
+  if args.dataset == 'svhn':
+    return _data_transforms_svhn(args)
+  if args.dataset == 'stl10':
+    return _data_transforms_stl10(args)
+  if args.dataset == 'devanagari':
+    return _data_transforms_devanagari(args)
+  assert False, "Cannot get Transform for dataset"
+
+# Transform defined for cifar-10
 def _data_transforms_cifar10(args):
   CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
   CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
@@ -75,6 +95,132 @@ def _data_transforms_cifar10(args):
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
+    ])
+  return train_transform, valid_transform
+
+
+# Transform defined for mnist
+def _data_transforms_mnist(args):
+  MNIST_MEAN = (0.1307,)
+  MNIST_STD = (0.3081,)
+
+  train_transform = transforms.Compose([
+    transforms.RandomCrop(28, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(MNIST_MEAN, MNIST_STD),
+  ])
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
+
+  valid_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(MNIST_MEAN, MNIST_STD),
+    ])
+  return train_transform, valid_transform
+
+
+# Transform defined for fashion mnist
+def _data_transforms_fashion(args):
+  FASHION_MEAN = (0.2860405969887955,)
+  FASHION_STD = (0.35302424825650003,)
+
+  train_transform = transforms.Compose([
+    transforms.RandomCrop(28, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(FASHION_MEAN, FASHION_STD),
+  ])
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
+
+  valid_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(FASHION_MEAN, FASHION_STD),
+    ])
+  return train_transform, valid_transform
+
+
+# Transform defined for emnist
+def _data_transforms_emnist(args):
+  EMNIST_MEAN = (0.17510417052459282,)
+  EMNIST_STD = (0.33323714976320795,)
+
+  train_transform = transforms.Compose([
+    transforms.RandomCrop(28, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(EMNIST_MEAN, EMNIST_STD),
+  ])
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
+
+  valid_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(EMNIST_MEAN, EMNIST_STD),
+    ])
+  return train_transform, valid_transform
+
+
+# Transform defined for svhn
+def _data_transforms_svhn(args):
+  SVHN_MEAN = [ 0.4376821,   0.4437697,   0.47280442]
+  SVHN_STD = [ 0.19803012,  0.20101562,  0.19703614]
+
+  train_transform = transforms.Compose([
+    transforms.RandomCrop(32, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(SVHN_MEAN, SVHN_STD),
+  ])
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
+
+  valid_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(SVHN_MEAN, SVHN_STD),
+    ])
+  return train_transform, valid_transform
+
+
+# Transform defined for stl10
+def _data_transforms_stl10(args):
+  STL_MEAN = [ 0.44671062,  0.43980984,  0.40664645]
+  STL_STD = [ 0.26034098,  0.25657727,  0.27126738]
+
+  train_transform = transforms.Compose([
+    transforms.RandomCrop(96, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(STL_MEAN, STL_STD),
+  ])
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
+
+  valid_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(STL_MEAN, STL_STD),
+    ])
+  return train_transform, valid_transform
+
+
+# Transform defined for devanagari hand written symbols
+def _data_transforms_devanagari(args):
+  DEVANAGARI_MEAN = (0.240004663268,)
+  DEVANAGARI_STD = (0.386530114768,)
+
+  train_transform = transforms.Compose([
+    transforms.RandomCrop(32, padding=2), #Already has padding 2 and size is 32x32
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(DEVANAGARI_MEAN, DEVANAGARI_STD),
+  ])
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
+
+  valid_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(DEVANAGARI_MEAN, DEVANAGARI_STD),
     ])
   return train_transform, valid_transform
 

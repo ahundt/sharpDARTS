@@ -17,7 +17,23 @@ OPS = {
     nn.Conv2d(C, C, (7,1), stride=(stride, 1), padding=(3, 0), bias=False),
     nn.BatchNorm2d(C, affine=affine)
     ),
+  'nor_conv_3x3' : lambda C, stride, affine: ConvBNReLU(C, C, 3, stride, 1, affine=affine),
+  'nor_conv_5x5' : lambda C, stride, affine: ConvBNReLU(C, C, 5, stride, 2, affine=affine),
+  'nor_conv_7x7' : lambda C, stride, affine: ConvBNReLU(C, C, 7, stride, 3, affine=affine),
 }
+
+class ConvBNReLU(nn.Module):
+
+  def __init__(self, C_in, C_out, kernel_size, stride, padding, affine=True):
+    super(ConvBNReLU, self).__init__()
+    self.op = nn.Sequential(
+      nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False),
+      nn.BatchNorm2d(C_out, affine=affine),
+      nn.ReLU(inplace=False)
+    )
+
+  def forward(self, x):
+    return self.op(x)
 
 class ReLUConvBN(nn.Module):
 
