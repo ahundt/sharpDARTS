@@ -36,7 +36,8 @@ def logging_setup(log_file_path):
     logger.setLevel(logging.DEBUG)
     handler = TqdmHandler()
     log_format = colorlog.ColoredFormatter(
-        '%(log_color)s%(name)s | %(asctime)s | %(levelname)s | %(message)s',
+        # '%(log_color)s%(name)s | %(asctime)s | %(levelname)s | %(message)s',
+        '%(asctime)s %(message)s',
         datefmt='%Y_%m_%d_%H_%M_%S',
         log_colors={
             'DEBUG': 'cyan',
