@@ -75,10 +75,11 @@ class Network(nn.Module):
       nn.Conv2d(in_channels, C_curr, 3, padding=1, bias=False),
       nn.BatchNorm2d(C_curr)
     )
- 
+
     C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
     self.cells = nn.ModuleList()
     reduction_prev = False
+    # create each cell
     for i in range(layers):
       if i in [layers//3, 2*layers//3]:
         C_curr *= 2
@@ -115,12 +116,14 @@ class Network(nn.Module):
 
   def _loss(self, input, target):
     logits = self(input)
-    return self._criterion(logits, target) 
+    return self._criterion(logits, target)
 
   def _initialize_alphas(self):
     k = sum(1 for i in range(self._steps) for n in range(2+i))
     num_ops = len(PRIMITIVES)
 
+    # the quantity of alphas is the number of primitives * k
+    # and k is based on the number of steps
     self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
     self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
     self._arch_parameters = [
