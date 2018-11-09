@@ -15,6 +15,7 @@ except ImportError:
     fanova = None
 
 from tqdm import tqdm
+import colorlog
 
 class TqdmHandler(logging.StreamHandler):
     def __init__(self):
