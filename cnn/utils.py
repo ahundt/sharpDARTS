@@ -314,9 +314,11 @@ class Performance(object):
 
   def update(self, alphas_normal, alphas_reduce, val_loss):
     a_normal = F.softmax(alphas_normal, dim=-1)
-    # print("alpha normal size: ", a_normal.data.size())
+    if fanova is None:
+      print("alpha normal size: ", a_normal.data.size())
     a_reduce = F.softmax(alphas_reduce, dim=-1)
-    # print("alpha reduce size: ", a_reduce.data.size())
+    if fanova is None:
+      print("alpha reduce size: ", a_reduce.data.size())
     data = np.concatenate([a_normal.data.view(-1),
                            a_reduce.data.view(-1),
                            np.array([val_loss.data])]).reshape(1,-1)
@@ -329,8 +331,11 @@ class Performance(object):
     np.save(self.path, self.data)
 
 def importance(path, config):
-  assert os.path.exists(path), 'File %s does not exist' %path
+  assert os.path.exists(path), 'File %s does not exist' % path
   assert isinstance(config, dict), 'Input argument config is wrong'
+  if fanova is None:
+        print('fanova is disabled, skipping hyperparameter importance estimate')
+        return []
 
   data = np.load(path)
   X = data[:, :-1].astype(np.double)
