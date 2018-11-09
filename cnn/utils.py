@@ -31,7 +31,7 @@ def logging_setup(log_file_path):
     logger = colorlog.getLogger("SQUARE")
     logger.setLevel(logging.DEBUG)
     handler = TqdmHandler()
-    handler.setFormatter(colorlog.ColoredFormatter(
+    log_format = colorlog.ColoredFormatter(
         '%(log_color)s%(name)s | %(asctime)s | %(levelname)s | %(message)s',
         datefmt='%Y_%m_%d_%H_%M_%S',
         log_colors={
@@ -40,11 +40,12 @@ def logging_setup(log_file_path):
             'SUCCESS:': 'green',
             'WARNING': 'yellow',
             'ERROR': 'red',
-            'CRITICAL': 'red,bg_white'},))
+            'CRITICAL': 'red,bg_white'},)
+    handler.setFormatter(log_format)
 
     logger.addHandler(handler)
-    fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
-    fh.setFormatter(logging.Formatter(log_format))
+    fh = logging.FileHandler(os.path.join(log_file_path, 'log.txt'))
+    fh.setFormatter(log_format)
     logger.addhandler(fh)
     return logger
 
