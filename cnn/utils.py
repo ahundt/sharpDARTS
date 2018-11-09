@@ -26,6 +26,10 @@ class TqdmHandler(logging.StreamHandler):
         tqdm.write(msg)
 
 def logging_setup(log_file_path):
+    """ setup logging to a file and support for tqdm progress bar
+
+      log_file_path: path to log file which will be created as a txt to output printed information
+    """
     # setup logging for tqdm compatibility
     # based on https://github.com/tqdm/tqdm/issues/193#issuecomment-232887740
     logger = colorlog.getLogger("SQUARE")
@@ -44,7 +48,7 @@ def logging_setup(log_file_path):
     handler.setFormatter(log_format)
 
     logger.addHandler(handler)
-    fh = logging.FileHandler(os.path.join(log_file_path, 'log.txt'))
+    fh = logging.FileHandler(log_file_path)
     fh.setFormatter(log_format)
     logger.addhandler(fh)
     return logger
