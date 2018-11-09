@@ -31,14 +31,17 @@ class Architect(object):
   def step(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer, unrolled):
     self.optimizer.zero_grad()
     if unrolled:
-        self._backward_step_unrolled(input_train, target_train, input_valid, target_valid, eta, network_optimizer)
+        loss = self._backward_step_unrolled(input_train, target_train, input_valid, target_valid, eta, network_optimizer)
     else:
-        self._backward_step(input_valid, target_valid)
+        loss = self._backward_step(input_valid, target_valid)
     self.optimizer.step()
+    return loss
 
   def _backward_step(self, input_valid, target_valid):
     loss = self.model._loss(input_valid, target_valid)
     loss.backward()
+    # return loss for impoartance analysis of hyperparametr alphas
+    return loss
 
   def _backward_step_unrolled(self, input_train, target_train, input_valid, target_valid, eta, network_optimizer):
     unrolled_model = self._compute_unrolled_model(input_train, target_train, eta, network_optimizer)
@@ -57,6 +60,8 @@ class Architect(object):
         v.grad = Variable(g.data)
       else:
         v.grad.data.copy_(g.data)
+     # return loss for impoartance analysis of hyperparametr alphas
+    return unrolled_loss
 
   def _construct_model_from_theta(self, theta):
     model_new = self.model.new()

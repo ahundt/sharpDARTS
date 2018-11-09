@@ -177,6 +177,8 @@ def main():
 
   architect = Architect(model, args)
 
+  perfor = utils.Performance('cifar10_performance.npy')
+
   for epoch in range(args.epochs):
     scheduler.step()
     lr = scheduler.get_lr()[0]
@@ -185,12 +187,14 @@ def main():
     genotype = model.genotype()
     logging.info('genotype = %s', genotype)
 
-    print(F.softmax(model.alphas_normal, dim=-1))
-    print(F.softmax(model.alphas_reduce, dim=-1))
+    # print(F.softmax(model.alphas_normal, dim=-1))
+    # print(F.softmax(model.alphas_reduce, dim=-1))
 
     # training
-    train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr)
+    train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor)
     logging.info('train_acc %f', train_acc)
+    
+    perfor.save()
 
     # validation
     valid_acc, valid_obj = infer(valid_queue, model, criterion)
@@ -198,8 +202,7 @@ def main():
 
     utils.save(model, os.path.join(args.save, 'weights.pt'))
 
-
-def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr):
+def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
@@ -216,7 +219,10 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr):
     input_search = Variable(input_search, requires_grad=False).cuda()
     target_search = Variable(target_search, requires_grad=False).cuda(async=True)
 
-    architect.step(input, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
+    # define validation loss for analyzing the importance of hypeperameters
+    val_loss = architect.step(input, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
+    # add current performance config into performance array
+    perfor.update(model.alphas_normal, model.alphas_reduce, val_loss)
 
     optimizer.zero_grad()
     logits = model(input)
