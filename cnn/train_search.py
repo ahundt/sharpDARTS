@@ -215,7 +215,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
     input_search = Variable(input_search, requires_grad=False).cuda()
     target_search = Variable(target_search, requires_grad=False).cuda(async=True)
 
-    # define validation loss for analyzing the importance of hypeperameters
+    # define validation loss for analyzing the importance of hyperparameters
     val_loss = architect.step(input, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
     # add current performance config into performance array
     perfor.update(model.alphas_normal, model.alphas_reduce, val_loss)

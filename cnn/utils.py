@@ -5,7 +5,14 @@ import shutil
 import torchvision.transforms as transforms
 from torch.autograd import Variable
 import torch.nn.functional as F
-from fanova import fANOVA
+try:
+    import fanova
+except ImportError:
+    print('fanova not available, skipping components ranking hyperparam importance, try:'
+          '    pip install fanova --user --upgrade'
+          'or follow the instructions at https://github.com/automl/fanova')
+    fanova = None
+
 from tqdm import tqdm
 
 class TqdmHandler(logging.StreamHandler):
@@ -331,21 +338,24 @@ def importance(path, config):
   n_data, n_params = X.shape
   print(X.shape)
   imps = []
+  # TODO: make dims, max_cols more clear & automatically deduce them, may be related to search space
+  dims = (10, )
+  max_cols = 50
 
   if config['mode'] == 'incremental':
     interval = config['interval']
     for i in range(n_data // interval):
       print('Iteration %d: \n' %i)
-      f = fANOVA(X[:(i+1)*interval, :50], Y[:(i+1)*interval])
-      imp_dic = f.quantify_importance((10, ))
+      f = fanova.fANOVA(X[:(i+1)*interval, :max_cols], Y[:(i+1)*interval])
+      imp_dic = f.quantify_importance(dims)
       print(imp_dic)
       imps.append(imp_dic)
   elif config['mode'] == 'fixed':
     interval = config['interval']
     for i in range(n_data // interval):
       print('Iteration %d: \n' %i)
-      f = fANOVA(X[i*interval:(i+1)*interval, :50], Y[i*interval:(i+1)*interval])
-      imp_dic = f.quantify_importance((10, ))
+      f = fanova.fANOVA(X[i*interval:(i+1)*interval, :max_cols], Y[i*interval:(i+1)*interval])
+      imp_dic = f.quantify_importance(dims)
       print(imp_dic)
       imps.append(imp_dic)
   return imps
