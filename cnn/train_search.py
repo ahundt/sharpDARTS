@@ -42,7 +42,7 @@ parser.add_argument('--drop_path_prob', type=float, default=0.3, help='drop path
 parser.add_argument('--save', type=str, default='EXP', help='experiment name')
 parser.add_argument('--seed', type=int, default=2, help='random seed')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
-parser.add_argument('--train_portion', type=float, default=0.5, help='portion of training data')
+parser.add_argument('--train_portion', type=float, default=0.9, help='portion of training data')
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
@@ -85,8 +85,8 @@ def main():
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
 
-  # Get the training queue
-  train_queue, valid_queue = dataset.get_training_queues(args, train_transform)
+  # Get the training queue, select training and validation from training set
+  train_queue, valid_queue = dataset.get_training_queues(args.dataset, train_transform, args.data, args.batch_size, args.train_portion)
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 

@@ -19,7 +19,7 @@ from tqdm import tqdm
 import dataset
 
 
-parser = argparse.ArgumentParser("cifar")
+parser = argparse.ArgumentParser("Common Argument Parser")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
 parser.add_argument('--dataset', type=str, default='cifar10', help='which dataset:\
                     cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
@@ -49,9 +49,6 @@ utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_file_path = os.path.join(args.save, 'log.txt')
 logger = utils.logging_setup(log_file_path)
-
-CIFAR_CLASSES = 10
-
 
 def main():
   if not torch.cuda.is_available():
@@ -87,8 +84,9 @@ def main():
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
 
-  # Get the training queue
-  train_queue, valid_queue = dataset.get_training_queues(args, train_transform)
+  # Get the training queue, use full training and test set
+  train_queue, valid_queue = dataset.get_training_queues(
+    args.dataset, train_transform, args.data, args.batch_size, args.train_portion, train=False)
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
