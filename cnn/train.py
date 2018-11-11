@@ -15,10 +15,14 @@ import torch.backends.cudnn as cudnn
 
 from torch.autograd import Variable
 from model import NetworkCIFAR as Network
+from tqdm import tqdm
+import dataset
 
 
 parser = argparse.ArgumentParser("cifar")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
+parser.add_argument('--dataset', type=str, default='cifar10', help='which dataset:\
+                    cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
 parser.add_argument('--batch_size', type=int, default=96, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
@@ -43,19 +47,15 @@ args = parser.parse_args()
 args.save = 'eval-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
-log_format = '%(asctime)s %(message)s'
-logging.basicConfig(stream=sys.stdout, level=logging.INFO,
-    format=log_format, datefmt='%m/%d %I:%M:%S %p')
-fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
-fh.setFormatter(logging.Formatter(log_format))
-logging.getLogger().addHandler(fh)
+log_file_path = os.path.join(args.save, 'log.txt')
+logger = utils.logging_setup(log_file_path)
 
 CIFAR_CLASSES = 10
 
 
 def main():
   if not torch.cuda.is_available():
-    logging.info('no gpu device available')
+    logger.info('no gpu device available')
     sys.exit(1)
 
   np.random.seed(args.seed)
@@ -64,14 +64,16 @@ def main():
   torch.manual_seed(args.seed)
   cudnn.enabled=True
   torch.cuda.manual_seed(args.seed)
-  logging.info('gpu device = %d' % args.gpu)
-  logging.info("args = %s", args)
+  logger.info('gpu device = %d' % args.gpu)
+  logger.info("args = %s", args)
 
   genotype = eval("genotypes.%s" % args.arch)
-  model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype)
+  number_of_classes = dataset.class_dict[args.dataset]
+  in_channels = dataset.inp_channel_dict[args.dataset]
+  model = Network(args.init_channels, number_of_classes, args.layers, args.auxiliary, genotype)
   model = model.cuda()
 
-  logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
+  logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
@@ -82,28 +84,24 @@ def main():
       weight_decay=args.weight_decay
       )
 
-  train_transform, valid_transform = utils._data_transforms_cifar10(args)
-  train_data = dset.CIFAR10(root=args.data, train=True, download=True, transform=train_transform)
-  valid_data = dset.CIFAR10(root=args.data, train=False, download=True, transform=valid_transform)
+  # Get preprocessing functions (i.e. transforms) to apply on data
+  train_transform, valid_transform = utils.get_data_transforms(args)
 
-  train_queue = torch.utils.data.DataLoader(
-      train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=2)
-
-  valid_queue = torch.utils.data.DataLoader(
-      valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=2)
+  # Get the training queue
+  train_queue, valid_queue = dataset.get_training_queues(args, train_transform)
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
-  for epoch in range(args.epochs):
+  for epoch in range(tqdm(args.epochs)):
     scheduler.step()
-    logging.info('epoch %d lr %e', epoch, scheduler.get_lr()[0])
+    logger.info('epoch %d lr %e', epoch, scheduler.get_lr()[0])
     model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
     train_acc, train_obj = train(train_queue, model, criterion, optimizer)
-    logging.info('train_acc %f', train_acc)
+    logger.info('train_acc %f', train_acc)
 
     valid_acc, valid_obj = infer(valid_queue, model, criterion)
-    logging.info('valid_acc %f', valid_acc)
+    logger.info('valid_acc %f', valid_acc)
 
     utils.save(model, os.path.join(args.save, 'weights.pt'))
 
@@ -114,7 +112,7 @@ def train(train_queue, model, criterion, optimizer):
   top5 = utils.AvgrageMeter()
   model.train()
 
-  for step, (input, target) in enumerate(train_queue):
+  for step, (input, target) in enumerate(tqdm(train_queue)):
     input = Variable(input).cuda()
     target = Variable(target).cuda(async=True)
 
@@ -135,7 +133,7 @@ def train(train_queue, model, criterion, optimizer):
     top5.update(prec5.data[0], n)
 
     if step % args.report_freq == 0:
-      logging.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+      logger.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
 
   return top1.avg, objs.avg
 
@@ -160,11 +158,11 @@ def infer(valid_queue, model, criterion):
     top5.update(prec5.data[0], n)
 
     if step % args.report_freq == 0:
-      logging.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+      logger.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
 
   return top1.avg, objs.avg
 
 
 if __name__ == '__main__':
-  main() 
+  main()
 
