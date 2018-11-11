@@ -104,7 +104,7 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
         print("Using DEVANAGARI")
         def grey_pil_loader(path):
         # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
-        with open(path, 'rb') as f:
+          with open(path, 'rb') as f:
             img = Image.open(f)
             img = img.convert('L')
             return img
