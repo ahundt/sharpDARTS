@@ -41,22 +41,22 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
   print("Getting " + dataset_name + " data")
   if dataset_name == 'cifar10':
     print("Using CIFAR10")
-    train_data = dset.CIFAR10(root=dataset_name, train=True, download=True, transform=train_transform)
+    train_data = dset.CIFAR10(root=dataset_location, train=True, download=True, transform=train_transform)
   elif dataset_name == 'mnist':
     print("Using MNIST")
-    train_data = dset.MNIST(root=dataset_name, train=True, download=True, transform=train_transform)
+    train_data = dset.MNIST(root=dataset_location, train=True, download=True, transform=train_transform)
   elif dataset_name == 'emnist':
     print("Using EMNIST")
-    train_data = dset.EMNIST(root=dataset_name, split='balanced', train=True, download=True, transform=train_transform)
+    train_data = dset.EMNIST(root=dataset_location, split='balanced', train=True, download=True, transform=train_transform)
   elif dataset_name == 'fashion':
     print("Using Fashion")
-    train_data = dset.FashionMNIST(root=dataset_name, train=True, download=True, transform=train_transform)
+    train_data = dset.FashionMNIST(root=dataset_location, train=True, download=True, transform=train_transform)
   elif dataset_name == 'svhn':
     print("Using SVHN")
-    train_data = dset.SVHN(root=dataset_name, split='train', download=True, transform=train_transform)
+    train_data = dset.SVHN(root=dataset_location, split='train', download=True, transform=train_transform)
   elif dataset_name == 'stl10':
     print("Using STL10")
-    train_data = dset.STL10(root=dataset_name, split='train', download=True, transform=train_transform)
+    train_data = dset.STL10(root=dataset_location, split='train', download=True, transform=train_transform)
   elif dataset_name == 'devanagari':
     print("Using DEVANAGARI")
     def grey_pil_loader(path):
@@ -84,22 +84,22 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
     # get the actual train/test set
     if dataset_name == 'cifar10':
         print("Using CIFAR10")
-        valid_data = dset.CIFAR10(root=dataset_name, train=train, download=True, transform=train_transform)
+        valid_data = dset.CIFAR10(root=dataset_location, train=train, download=True, transform=train_transform)
     elif dataset_name == 'mnist':
         print("Using MNIST")
-        valid_data = dset.MNIST(root=dataset_name, train=train, download=True, transform=train_transform)
+        valid_data = dset.MNIST(root=dataset_location, train=train, download=True, transform=train_transform)
     elif dataset_name == 'emnist':
         print("Using EMNIST")
-        valid_data = dset.EMNIST(root=dataset_name, split='balanced', train=train, download=True, transform=train_transform)
+        valid_data = dset.EMNIST(root=dataset_location, split='balanced', train=train, download=True, transform=train_transform)
     elif dataset_name == 'fashion':
         print("Using Fashion")
-        valid_data = dset.FashionMNIST(root=dataset_name, train=train, download=True, transform=train_transform)
+        valid_data = dset.FashionMNIST(root=dataset_location, train=train, download=True, transform=train_transform)
     elif dataset_name == 'svhn':
         print("Using SVHN")
-        valid_data = dset.SVHN(root=dataset_name, split='train', download=True, transform=train_transform)
+        valid_data = dset.SVHN(root=dataset_location, split='test', download=True, transform=train_transform)
     elif dataset_name == 'stl10':
         print("Using STL10")
-        valid_data = dset.STL10(root=dataset_name, split='train', download=True, transform=train_transform)
+        valid_data = dset.STL10(root=dataset_location, split='test', download=True, transform=train_transform)
     elif dataset_name == 'devanagari':
         print("Using DEVANAGARI")
         def grey_pil_loader(path):
@@ -124,9 +124,16 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
       sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[:split]),
       pin_memory=True, num_workers=2)
 
-  valid_queue = torch.utils.data.DataLoader(
-      valid_data, batch_size=batch_size,
-      sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train]),
-      pin_memory=True, num_workers=2)
+  if train:
+    # validation sampled from training set
+    valid_queue = torch.utils.data.DataLoader(
+        valid_data, batch_size=batch_size,
+        sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train]),
+        pin_memory=True, num_workers=2)
+  else:
+    # test set
+    valid_queue = torch.utils.data.DataLoader(
+        valid_data, batch_size=batch_size,
+        pin_memory=True, num_workers=2)
 
   return train_queue, valid_queue
