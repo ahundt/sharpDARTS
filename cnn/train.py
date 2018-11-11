@@ -86,7 +86,7 @@ def main():
 
   # Get the training queue, use full training and test set
   train_queue, valid_queue = dataset.get_training_queues(
-    args.dataset, train_transform, args.data, args.batch_size, args.train_portion, train=False)
+    args.dataset, train_transform, args.data, args.batch_size, train_proportion=1.0, train=False)
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
