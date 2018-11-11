@@ -67,7 +67,9 @@ def main():
   genotype = eval("genotypes.%s" % args.arch)
   number_of_classes = dataset.class_dict[args.dataset]
   in_channels = dataset.inp_channel_dict[args.dataset]
-  model = Network(args.init_channels, number_of_classes, args.layers, args.auxiliary, genotype)
+  model = Network(
+    args.init_channels, number_of_classes, args.layers,
+    args.auxiliary, genotype, in_channels=in_channels)
   model = model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
