@@ -90,7 +90,7 @@ def main():
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
-  for epoch in range(tqdm(args.epochs)):
+  for epoch in tqdm(range(args.epochs)):
     scheduler.step()
     logger.info('epoch %d lr %e', epoch, scheduler.get_lr()[0])
     model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
