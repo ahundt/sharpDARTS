@@ -12,6 +12,12 @@ import genotypes
 import torch.utils
 import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
+try:
+  import costar_dataset
+except ImportError:
+  print('The costar dataset is not available, so it is being skipped.'
+        'see https://github.com/ahundt/costar_dataset for details')
+  costar_dataset = None
 
 CIFAR_CLASSES = 10
 MNIST_CLASSES = 10
