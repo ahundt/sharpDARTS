@@ -9,11 +9,15 @@ from genotypes import Genotype
 
 class MixedOp(nn.Module):
 
-  def __init__(self, C, stride):
+  def __init__(self, C, stride, primitives=None, operations=None):
     super(MixedOp, self).__init__()
     self._ops = nn.ModuleList()
-    for primitive in PRIMITIVES:
-      op = OPS[primitive](C, stride, False)
+    if primitives is None:
+          primitives = PRIMITIVES
+    if operations is None:
+          operations = OPS
+    for primitive in primitives:
+      op = operations[primitive](C, stride, False)
       if 'pool' in primitive:
         op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
       self._ops.append(op)
@@ -60,7 +64,7 @@ class Cell(nn.Module):
 
 class Network(nn.Module):
 
-  def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4, multiplier=4, stem_multiplier=3):
+  def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4, multiplier=4, stem_multiplier=3, primitives=None):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -69,6 +73,10 @@ class Network(nn.Module):
     self._steps = steps
     self._multiplier = multiplier
     self._in_channels = in_channels
+    if primitives is None:
+          self.primitives = PRIMITIVES
+    self._primitives = primitives
+    self._num_primitives = len(primitives)
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
@@ -120,7 +128,7 @@ class Network(nn.Module):
 
   def _initialize_alphas(self):
     k = sum(1 for i in range(self._steps) for n in range(2+i))
-    num_ops = len(PRIMITIVES)
+    num_ops = self._num_primitives
 
     # the quantity of alphas is the number of primitives * k
     # and k is based on the number of steps
@@ -143,14 +151,14 @@ class Network(nn.Module):
       for i in range(self._steps):
         end = start + n
         W = weights[start:end].copy()
-        edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != PRIMITIVES.index('none')))[:2]
+        edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != self._primitives.index('none')))[:2]
         for j in edges:
           k_best = None
           for k in range(len(W[j])):
-            if k != PRIMITIVES.index('none'):
+            if k != self._primitives.index('none'):
               if k_best is None or W[j][k] > W[j][k_best]:
                 k_best = k
-          gene.append((PRIMITIVES[k_best], j))
+          gene.append((self._primitives[k_best], j))
         start = end
         n += 1
       return gene
