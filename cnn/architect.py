@@ -20,8 +20,8 @@ class Architect(object):
             betas=(0.5, 0.999),
             weight_decay=args.arch_weight_decay)
 
-    def _compute_unrolled_model(self, input, target, eta, network_optimizer):
-        loss = self.model._loss(input, target)
+    def _compute_unrolled_model(self, input_batch, target, eta, network_optimizer):
+        loss = self.model._loss(input_batch, target)
         theta = _concat(self.model.parameters()).data
         try:
             moment = _concat(network_optimizer.state[v]['momentum_buffer']
@@ -36,9 +36,9 @@ class Architect(object):
             theta.sub(eta, moment + dtheta))
         return unrolled_model
 
-    def _compute_model(self, input, target, eta, network_optimizer):
+    def _compute_model(self, input_batch, target, eta, network_optimizer):
         moments = {}
-        loss = self.model._loss(input, target)
+        loss = self.model._loss(input_batch, target)
         for v in self.model.parameters():
             try:
                 moments[v] = network_optimizer.state[v]['momentum_buffer'].mul_(
@@ -116,8 +116,8 @@ class Architect(object):
                 v.grad = Variable(g.data)
             else:
                 v.grad.data.copy_(g.data)
-     # return loss for importance analysis of hyperparameter alphas
-    return unrolled_loss
+        # return loss for importance analysis of hyperparameter alphas
+        return unrolled_loss
 
     def _construct_model_from_theta(self, theta):
         model_new = self.model.new()
@@ -134,16 +134,16 @@ class Architect(object):
         model_new.load_state_dict(model_dict)
         return model_new.cuda()
 
-    def _hessian_vector_product(self, vector, input, target, r=1e-2):
+    def _hessian_vector_product(self, vector, input_batch, target, r=1e-2):
         R = r / _concat(vector).norm()
         for p, v in zip(self.model.parameters(), vector):
             p.data.add_(R, v)
-        loss = self.model._loss(input, target)
+        loss = self.model._loss(input_batch, target)
         grads_p = torch.autograd.grad(loss, self.model.arch_parameters())
 
         for p, v in zip(self.model.parameters(), vector):
             p.data.sub_(2 * R, v)
-        loss = self.model._loss(input, target)
+        loss = self.model._loss(input_batch, target)
         grads_n = torch.autograd.grad(loss, self.model.arch_parameters())
 
         for p, v in zip(self.model.parameters(), vector):
