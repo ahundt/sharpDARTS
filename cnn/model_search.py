@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from operations import *
+import operations
+from operations import ReLUConvBN
+from operations import ConvBNReLU
+from operations import FactorizedReduce
 from torch.autograd import Variable
 from genotypes import PRIMITIVES
 from genotypes import Genotype
@@ -9,15 +12,23 @@ from genotypes import Genotype
 
 class MixedOp(nn.Module):
 
-  def __init__(self, C, stride, primitives=None, operations=None):
+  def __init__(self, C, stride, primitives=None, op_dict=None):
+    """ Perform a mixed forward pass incorporating multiple primitive operations like conv, max pool, etc.
+
+    # Arguments
+
+      primitives: the list of strings with operations to choose from.
+      op_dict: The dictionary of possible operation creation functions.
+        All primitives must be in the op dict.
+    """
     super(MixedOp, self).__init__()
     self._ops = nn.ModuleList()
     if primitives is None:
           primitives = PRIMITIVES
-    if operations is None:
-          operations = OPS
+    if op_dict is None:
+          op_dict = operations.OPS
     for primitive in primitives:
-      op = operations[primitive](C, stride, False)
+      op = op_dict[primitive](C, stride, False)
       if 'pool' in primitive:
         op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
       self._ops.append(op)

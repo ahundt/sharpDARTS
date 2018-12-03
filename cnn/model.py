@@ -1,15 +1,25 @@
 import torch
 import torch.nn as nn
-from operations import *
+import operations
+from operations import ReLUConvBN
+from operations import ConvBNReLU
+from operations import FactorizedReduce
 from torch.autograd import Variable
 from utils import drop_path
 
 
 class Cell(nn.Module):
 
-  def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev):
+  def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, op_dict=None):
+    """
+    """
     super(Cell, self).__init__()
     print(C_prev_prev, C_prev, C)
+    if op_dict is None:
+          op_dict = operations.OPS
+    # _op_dict are op_dict available for use,
+    # _ops is the actual sequence of op_dict being utilized in this case
+    self._op_dict = op_dict
 
     if reduction_prev:
       self.preprocess0 = FactorizedReduce(C_prev_prev, C)
@@ -34,11 +44,11 @@ class Cell(nn.Module):
     self._ops = nn.ModuleList()
     for name, index in zip(op_names, indices):
       stride = 2 if reduction and index < 2 else 1
-      op = OPS[name](C, stride, True)
+      op = self._op_dict[name](C, stride, True)
       self._ops += [op]
     self._indices = indices
 
-  def forward(self, s0, s1, drop_prob):
+  def forward(self, s0, s1, drop_prob=0.):
     s0 = self.preprocess0(s0)
     s1 = self.preprocess1(s1)
 
@@ -110,7 +120,15 @@ class AuxiliaryHeadImageNet(nn.Module):
 
 class NetworkCIFAR(nn.Module):
 
-  def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3):
+  def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3, reduce_spacing=None):
+    """
+        # Arguments
+        layers: The number of cells to create.
+        reduce_spacing: number of layers of cells between reduction cells,
+            default of None is at 1/3 and 2/3 of the total number of layers.
+            1 means all cells are reduction. 2 means the first layer is
+            normal then the second
+    """
     super(NetworkCIFAR, self).__init__()
     self._layers = layers
     self._auxiliary = auxiliary
@@ -127,7 +145,8 @@ class NetworkCIFAR(nn.Module):
     self.cells = nn.ModuleList()
     reduction_prev = False
     for i in range(layers):
-      if i in [layers//3, 2*layers//3]:
+      if ((reduce_every is None and i in [layers//3, 2*layers//3]) or
+          ((i + 1) % reduce_spacing == 0)):
         C_curr *= 2
         reduction = True
       else:
