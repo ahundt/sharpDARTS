@@ -34,7 +34,9 @@ parser.add_argument('--report_freq', type=float, default=50, help='report freque
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=50, help='num of training epochs')
 parser.add_argument('--init_channels', type=int, default=16, help='num of init channels')
-parser.add_argument('--layers', type=int, default=8, help='total number of layers of cells')
+parser.add_argument('--layers_of_cells', type=int, default=8, help='total number of cells in the whole network, default is 8 cells')
+parser.add_argument('--layers_in_cells', type=int, default=4, help='total number of layers in each cell, aka number of steps')
+parser.add_argument('--reduce_spacing', type=int, default=None, help='Number of layerse between each reduction cell. 1 will mean all reduction cells.')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
@@ -72,7 +74,8 @@ def main():
   criterion = criterion.cuda()
   number_of_classes = dataset.class_dict[args.dataset]
   in_channels = dataset.inp_channel_dict[args.dataset]
-  model = Network(args.init_channels, number_of_classes, args.layers, criterion, in_channels)
+  model = Network(args.init_channels, number_of_classes, layers=args.layers_of_cells, criterion=criterion,
+                  in_channels=in_channels, steps=args.layers_in_cells)
   model = model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
