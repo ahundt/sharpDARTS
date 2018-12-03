@@ -11,7 +11,14 @@ from utils import drop_path
 class Cell(nn.Module):
 
   def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, op_dict=None):
-    """
+    """Create a final cell with a single architecture.
+
+    The Cell class in model_search.py is the equivalent for searching multiple architectures.
+
+    # Arguments
+
+      op_dict: The dictionary of possible operation creation functions.
+        All primitive name strings defined in the genotype must be in the op_dict.
     """
     super(Cell, self).__init__()
     print(C_prev_prev, C_prev, C)
