@@ -67,6 +67,7 @@ class Cell(nn.Module):
     for i in range(self._steps):
       for j in range(2+i):
         stride = 2 if reduction and j < 2 else 1
+        # print('i: ' + str(i) + ' j: ' + str(j) + ' stride: ' + str(stride))
         op = MixedOp(C, stride, primitives=primitives, op_dict=op_dict)
         self._ops.append(op)
 
