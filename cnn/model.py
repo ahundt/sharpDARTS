@@ -153,7 +153,7 @@ class NetworkCIFAR(nn.Module):
     reduction_prev = False
     for i in range(layers):
       if ((reduce_spacing is None and i in [layers//3, 2*layers//3]) or
-          ((i + 1) % reduce_spacing == 0)):
+          (reduce_spacing is not None and ((i + 1) % reduce_spacing == 0))):
         C_curr *= 2
         reduction = True
       else:
