@@ -101,7 +101,7 @@ class Network(nn.Module):
     self._in_channels = in_channels
     self._reduce_spacing = reduce_spacing
     if primitives is None:
-          self.primitives = PRIMITIVES
+          primitives = PRIMITIVES
     self._primitives = primitives
     self._num_primitives = len(primitives)
 
