@@ -162,7 +162,9 @@ class Network(nn.Module):
 
     # the quantity of alphas is the number of primitives * k
     # and k is based on the number of steps
-    if self._reduce_spacing != 1:
+    # TODO(ahundt) attempted fix by removing more efficient alphas when no reductions are used to try fixing crash.
+    hack_around_crash = True
+    if hack_around_crash or self._reduce_spacing != 1:
       # reduce spacing of 1 means there won't be any normal layers
       self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
       self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
