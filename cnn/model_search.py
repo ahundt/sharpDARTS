@@ -116,7 +116,7 @@ class Network(nn.Module):
     reduction_prev = False
     # create each cell
     for i in range(layers):
-      if ((reduce_every is None and i in [layers//3, 2*layers//3]) or
+      if ((reduce_spacing is None and i in [layers//3, 2*layers//3]) or
           ((i + 1) % reduce_spacing == 0)):
         C_curr *= 2
         reduction = True
