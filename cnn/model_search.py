@@ -17,7 +17,7 @@ class MixedOp(nn.Module):
 
     # Arguments
 
-      primitives: the list of strings with operations to choose from.
+      primitives: the list of strings defining the operations to choose from.
       op_dict: The dictionary of possible operation creation functions.
         All primitives must be in the op dict.
     """
@@ -39,7 +39,18 @@ class MixedOp(nn.Module):
 
 class Cell(nn.Module):
 
-  def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev):
+  def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, primitives=None, op_dict=None):
+    """Create a searchable cell representing multiple architectures.
+
+    The Cell class in model.py is the equivalent for a single architecture.
+
+    # Arguments
+      steps: The number of primitive operations in the cell,
+        essentially the number of low level layers.
+      multiplier: The rate at which the number of channels increases.
+      op_dict: The dictionary of possible operation creation functions.
+        All primitives must be in the op dict.
+    """
     super(Cell, self).__init__()
     self.reduction = reduction
 
@@ -56,7 +67,7 @@ class Cell(nn.Module):
     for i in range(self._steps):
       for j in range(2+i):
         stride = 2 if reduction and j < 2 else 1
-        op = MixedOp(C, stride)
+        op = MixedOp(C, stride, primitives=primitives, op_dict=op_dict)
         self._ops.append(op)
 
   def forward(self, s0, s1, weights):
@@ -74,8 +85,12 @@ class Cell(nn.Module):
 
 
 class Network(nn.Module):
+  """Network for architecture search.
+  """
 
-  def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4, multiplier=4, stem_multiplier=3, primitives=None):
+  def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4,
+               multiplier=4, stem_multiplier=3, reduce_spacing=None, primitives=None,
+               op_dict=None):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -84,6 +99,7 @@ class Network(nn.Module):
     self._steps = steps
     self._multiplier = multiplier
     self._in_channels = in_channels
+    self._reduce_spacing = reduce_spacing
     if primitives is None:
           self.primitives = PRIMITIVES
     self._primitives = primitives
@@ -100,12 +116,14 @@ class Network(nn.Module):
     reduction_prev = False
     # create each cell
     for i in range(layers):
-      if i in [layers//3, 2*layers//3]:
+      if ((reduce_every is None and i in [layers//3, 2*layers//3]) or
+          ((i + 1) % reduce_spacing == 0)):
         C_curr *= 2
         reduction = True
       else:
         reduction = False
-      cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+      cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev,
+                  primitives=primitives, op_dict=op_dict)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, multiplier*C_curr
@@ -143,12 +161,18 @@ class Network(nn.Module):
 
     # the quantity of alphas is the number of primitives * k
     # and k is based on the number of steps
-    self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
-    self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
-    self._arch_parameters = [
-      self.alphas_normal,
-      self.alphas_reduce,
-    ]
+    if self._reduce_spacing != 1:
+      # reduce spacing of 1 means there won't be any normal layers
+      self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+      self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+      self._arch_parameters = [
+        self.alphas_normal,
+        self.alphas_reduce,
+      ]
+    else:
+      self.alphas_normal = None
+      self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+      self._arch_parameters = [self.alphas_reduce]
 
   def arch_parameters(self):
     return self._arch_parameters
@@ -156,6 +180,8 @@ class Network(nn.Module):
   def genotype(self):
 
     def _parse(weights):
+      """Extract the names of the layers to use from the weights.
+      """
       gene = []
       n = 2
       start = 0
@@ -174,13 +200,22 @@ class Network(nn.Module):
         n += 1
       return gene
 
-    gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
+    # Determine the final selection of layers for the network
     gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
+    # The concatenations to apply are pre-determined
+    reduce_concat = range(2+self._steps-self._multiplier, self._steps+2)
 
-    concat = range(2+self._steps-self._multiplier, self._steps+2)
+    if self.alphas_normal is not None:
+      gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
+      normal_concat = reduce_concat
+    else:
+      # all reduction networks don't have any normal cells
+      gene_normal = []
+      normal_concat = []
+
     genotype = Genotype(
-      normal=gene_normal, normal_concat=concat,
-      reduce=gene_reduce, reduce_concat=concat
+      normal=gene_normal, normal_concat=normal_concat,
+      reduce=gene_reduce, reduce_concat=reduce_concat
     )
     return genotype
 
