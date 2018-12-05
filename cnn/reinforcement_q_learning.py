@@ -563,8 +563,10 @@ for i_episode in range(num_episodes):
 
         # Perform one step of the optimization (on the target network)
         # TODO(ahundt) consider separately sampled training and validation
-        state_batch, expected_state_action_values = q_loss.optimize_and_get_state_action()
-        loss = architect.step(state_batch, expected_state_action_values, state_batch, expected_state_action_values, lr, optimizer)
+        # don't start training until there is at least one batch of time steps
+        if len(memory) > BATCH_SIZE:
+            state_batch, expected_state_action_values = q_loss.optimize_and_get_state_action()
+            loss = architect.step(state_batch, expected_state_action_values, state_batch, expected_state_action_values, lr, optimizer)
 
         # TODO(ahundt) the following commented lines might need to go into optimizer.step
         # Optimize the model
