@@ -409,7 +409,6 @@ class QCriterion(object):
         self.state_batch = state_batch
         self.action_batch = action_batch
         self.reward_batch = reward_batch
-        policy_net.step()
 
         return state_batch, expected_state_action_values
 
