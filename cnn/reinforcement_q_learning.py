@@ -359,7 +359,7 @@ class QCriterion(object):
         self.memory = memory
         if loss_fn is None:
             loss_fn = nn.SmoothL1Loss()
-            loss_fn = loss.cuda()
+            loss_fn = loss_fn.cuda()
         self.loss_fn = loss_fn
         if batch_size is None:
             batch_size = BATCH_SIZE
