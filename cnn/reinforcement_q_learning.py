@@ -238,8 +238,10 @@ class DQN(nn.Module):
 # display an example patch that it extracted.
 #
 
+resize_sides_to = 32
+# resize_sides_to = 40
 resize = T.Compose([T.ToPILImage(),
-                    T.Resize(40, interpolation=Image.CUBIC),
+                    T.Resize(resize_sides_to, interpolation=Image.CUBIC),
                     T.ToTensor()])
 
 # This is based on the code from gym.
