@@ -70,6 +70,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
+from torch.autograd import Variable
+from model_search import Network
+from architect import Architect
+
 
 env = gym.make('CartPole-v0').unwrapped
 
@@ -304,14 +308,39 @@ EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 10
+in_channels = 3
+init_channels = 16
+number_of_classes = 2
+layers_of_cells = 8
+layers_in_cells = 4
+criterion = nn.SmoothL1Loss()
+criterion = criterion.cuda()
 
-policy_net = DQN().to(device)
-target_net = DQN().to(device)
+
+# policy_net = DQN().to(device)
+# target_net = DQN().to(device)
+policy_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=criterion,
+                     in_channels=in_channels, steps=layers_in_cells)
+policy_net = policy_net.cuda()
+target_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=criterion,
+                     in_channels=in_channels, steps=layers_in_cells)
+target_net = model.cuda()
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
-optimizer = optim.RMSprop(policy_net.parameters())
+# Use SGD from darts search
+# optimizer = optim.RMSprop(policy_net.parameters())
+learning_rate = 0.025
+momentum = 0.9
+weight_decay = 3e-4
+optimizer = torch.optim.SGD(
+    policy_net.parameters(),
+    learning_rate,
+    momentum=momentum,
+    weight_decay=weight_decay)
 memory = ReplayMemory(10000)
+architect = Architect(policy_net)
+q_loss = QCriterion(policy_net, target_net, memory)
 
 
 steps_done = 0
@@ -353,6 +382,67 @@ def plot_durations():
         display.display(plt.gcf())
 
 
+class QCriterion(object):
+
+    def __init__(self, policy_net, target_net, memory, loss_fn=None, batch_size=None, gamma=None):
+        self.policy_net = policy_net
+        self.target_net = target_net
+        self.memory = memory
+        if loss is None:
+            loss_fn = nn.SmoothL1Loss()
+            loss_fn = loss.cuda()
+        self.loss_fn = loss_fn
+        if batch_size is None:
+            batch_size = BATCH_SIZE
+        self.batch_size = BATCH_SIZE
+        if gamma is None:
+            gamma = GAMMA
+        self.gamma = gamma
+        self.state_action_values = None
+        self.expected_state_action_values = None
+
+    def __call__(self, logits, target):
+
+        # Compute Huber loss
+        # loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+        # TODO(ahundt) tricks to get around q vs supervised learning, maybe use next commented line?
+        # loss = self.loss_fn(self.state_action_values, self.expected_state_action_values.unsqueeze(1))
+        loss = self.loss_fn(logits, target.unsqueeze(1))
+        return loss
+
+    def optimize_and_get_state_action(self):
+        transitions = self.memory.sample(self.batch_size)
+        # Transpose the batch (see http://stackoverflow.com/a/19343/3343043 for
+        # detailed explanation).
+        batch = Transition(*zip(*transitions))
+
+        # Compute a mask of non-final states and concatenate the batch elements
+        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+                                            batch.next_state)), device=device, dtype=torch.uint8)
+        non_final_next_states = torch.cat([s for s in batch.next_state
+                                           if s is not None])
+        state_batch = torch.cat(batch.state)
+        action_batch = torch.cat(batch.action)
+        reward_batch = torch.cat(batch.reward)
+
+        # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
+        # columns of actions taken
+        state_action_values = self.policy_net(state_batch).gather(1, action_batch)
+
+        # Compute V(s_{t+1}) for all next states.
+        next_state_values = torch.zeros(self.batch_size, device=device)
+        next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0].detach()
+        # Compute the expected Q values
+        expected_state_action_values = (next_state_values * self.gamma) + reward_batch
+        self.state_action_values = state_action_values
+        self.expected_state_action_values = expected_state_action_values
+        self.state_batch = state_batch
+        self.action_batch = action_batch
+        self.reward_batch = reward_batch
+        policy_net.step()
+
+        return state_batch, expected_state_action_values
+
 ######################################################################
 # Training loop
 # ^^^^^^^^^^^^^
@@ -363,7 +453,7 @@ def plot_durations():
 # single step of the optimization. It first samples a batch, concatenates
 # all the tensors into a single one, computes :math:`Q(s_t, a_t)` and
 # :math:`V(s_{t+1}) = \max_a Q(s_{t+1}, a)`, and combines them into our
-# loss. By defition we set :math:`V(s) = 0` if :math:`s` is a terminal
+# loss. By definition we set :math:`V(s) = 0` if :math:`s` is a terminal
 # state. We also use a target network to compute :math:`V(s_{t+1})` for
 # added stability. The target network has its weights kept frozen most of
 # the time, but is updated with the policy network's weights every so often.
@@ -399,7 +489,9 @@ def optimize_model():
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
     # Compute Huber loss
-    loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+    # loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+    loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+    policy_net.step()
 
     # Optimize the model
     optimizer.zero_grad()
@@ -421,8 +513,17 @@ def optimize_model():
 # the notebook and run lot more epsiodes.
 #
 
-num_episodes = 50
+num_episodes = 50000
+learning_rate_min = 0.001
+
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    optimizer, float(num_episodes), eta_min=learning_rate_min)
+
 for i_episode in range(num_episodes):
+    # update the scheduler learning rate
+    scheduler.step()
+    lr = scheduler.get_lr()[0]
+
     # Initialize the environment and state
     env.reset()
     last_screen = get_screen()
@@ -449,7 +550,18 @@ for i_episode in range(num_episodes):
         state = next_state
 
         # Perform one step of the optimization (on the target network)
-        optimize_model()
+        # TODO(ahundt) consider separately sampled training and validation
+        state_batch, expected_state_action_values = q_loss.optimize_and_get_state_action()
+        loss = architect.step(state_batch, expected_state_action_values, state_batch, expected_state_action_values, lr, optimizer)
+
+        # TODO(ahundt) the following commented lines might need to go into optimizer.step
+        # Optimize the model
+        # optimizer.zero_grad()
+        # loss.backward()
+        # for param in policy_net.parameters():
+        #     param.grad.data.clamp_(-1, 1)
+        # optimizer.step()
+
         if done:
             episode_durations.append(t + 1)
             plot_durations()

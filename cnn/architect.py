@@ -10,15 +10,17 @@ def _concat(xs):
 
 class Architect(object):
 
-    def __init__(self, model, args):
-        self.network_momentum = args.momentum
-        self.network_weight_decay = args.weight_decay
+    def __init__(self, model, momentum=0.9, weight_decay=3e-4, arch_learning_rate=3e-4, arch_betas=None, arch_weight_decay=1e-3):
+        if arch_betas is None:
+            arch_betas = (0.5, 0.999)
+        self.network_momentum = momentum
+        self.network_weight_decay = weight_decay
         self.model = model
         self.optimizer = torch.optim.Adam(
             self.model.arch_parameters(),
-            lr=args.arch_learning_rate,
-            betas=(0.5, 0.999),
-            weight_decay=args.arch_weight_decay)
+            lr=arch_learning_rate,
+            betas=arch_betas,
+            weight_decay=arch_weight_decay)
 
     def _compute_unrolled_model(self, input_batch, target, eta, network_optimizer):
         loss = self.model._loss(input_batch, target)
@@ -63,7 +65,7 @@ class Architect(object):
         return model_new.cuda()
 
     def step(self, input_train, target_train, input_valid, target_valid, eta,
-             network_optimizer, unrolled):
+             network_optimizer, unrolled=True):
         self.optimizer.zero_grad()
         if unrolled:
             loss = self._backward_step_unrolled(input_train, target_train, input_valid,

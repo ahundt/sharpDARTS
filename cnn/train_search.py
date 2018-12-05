@@ -65,7 +65,7 @@ def main():
   torch.cuda.set_device(args.gpu)
   cudnn.benchmark = True
   torch.manual_seed(args.seed)
-  cudnn.enabled=True
+  cudnn.enabled = True
   torch.cuda.manual_seed(args.seed)
   logger.info('gpu device = %d' % args.gpu)
   logger.info("args = %s", args)
@@ -93,7 +93,7 @@ def main():
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
-  architect = Architect(model, args)
+  architect = Architect(model, args.momentum, args.weight_decay, args.arch_learning_rate, arch_weight_decay=args.arch_weight_decay)
 
   perfor = utils.Performance(os.path.join(args.save, 'architecture_performance_history.npy'))
 
