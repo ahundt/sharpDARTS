@@ -409,10 +409,11 @@ q_loss = QCriterion(memory=memory)
 # target_net = DQN()
 policy_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=q_loss,
                      in_channels=in_channels, steps=layers_in_cells)
-target_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=q_loss,
-                     in_channels=in_channels, steps=layers_in_cells)
-target_net.load_state_dict(policy_net.state_dict())
-target_net.eval()
+target_net = policy_net
+# target_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=q_loss,
+#                      in_channels=in_channels, steps=layers_in_cells)
+# target_net.load_state_dict(policy_net.state_dict())
+# target_net.eval()
 
 if use_cuda:
     policy_net.cuda()
