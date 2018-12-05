@@ -63,6 +63,7 @@ import matplotlib.pyplot as plt
 from collections import namedtuple
 from itertools import count
 from PIL import Image
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -550,7 +551,7 @@ unroll = True
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
     optimizer, float(num_episodes), eta_min=learning_rate_min)
 
-for i_episode in range(num_episodes):
+for i_episode in tqdm(range(num_episodes)):
     # update the scheduler learning rate
     scheduler.step()
     lr = scheduler.get_lr()[0]
@@ -560,7 +561,7 @@ for i_episode in range(num_episodes):
     last_screen = get_screen()
     current_screen = get_screen()
     state = current_screen - last_screen
-    for t in count():
+    for t in tqdm(count()):
         # Select and perform an action
         action = select_action(state)
         _, reward, done, _ = env.step(action[0, 0])
