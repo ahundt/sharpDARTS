@@ -504,7 +504,6 @@ def optimize_model():
     # Compute Huber loss
     # loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
-    policy_net.step()
 
     # Optimize the model
     optimizer.zero_grad()
