@@ -358,10 +358,17 @@ class QCriterion(object):
         # loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
         # TODO(ahundt) tricks to get around q vs supervised learning, maybe use next commented line?
         # loss = self.loss_fn(self.state_action_values, self.expected_state_action_values.unsqueeze(1))
+
+        # we need to gather the actual action choice which should
+        # reduce the dimension from (batch_size, 2) to (batch_size, 1)
+        logits = logits.gather(1, self.action_batch)
         loss = self.loss_fn(logits, target.unsqueeze(1))
         return loss
 
     def optimize_and_get_state_action(self):
+        # Remember:
+        # policy net gets updated every step
+        # target net gets updated once in a while
         transitions = self.memory.sample(self.batch_size)
         # Transpose the batch (see http://stackoverflow.com/a/19343/3343043 for
         # detailed explanation).
