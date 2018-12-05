@@ -319,7 +319,7 @@ in_channels = 3
 init_channels = 16
 number_of_classes = 2
 layers_of_cells = 8
-layers_in_cells = 4
+layers_in_cells = 3
 criterion = nn.SmoothL1Loss()
 criterion = criterion.cuda()
 
