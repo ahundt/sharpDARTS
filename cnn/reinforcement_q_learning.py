@@ -85,7 +85,11 @@ if is_ipython:
 plt.ion()
 
 # if gpu is to be used
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+use_cuda = torch.cuda.is_available()
+FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
+LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
+ByteTensor = torch.cuda.ByteTensor if use_cuda else torch.ByteTensor
+Tensor = FloatTensor
 
 
 ######################################################################
@@ -321,12 +325,14 @@ criterion = criterion.cuda()
 # target_net = DQN().to(device)
 policy_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=criterion,
                      in_channels=in_channels, steps=layers_in_cells)
-policy_net = policy_net.cuda()
 target_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=criterion,
                      in_channels=in_channels, steps=layers_in_cells)
-target_net = model.cuda()
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
+
+if use_cuda:
+    policy_net.cuda()
+    target_net.cuda()
 
 # Use SGD from darts search
 # optimizer = optim.RMSprop(policy_net.parameters())
