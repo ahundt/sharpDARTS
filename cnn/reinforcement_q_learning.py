@@ -349,46 +349,6 @@ optimizer = torch.optim.SGD(
     weight_decay=weight_decay)
 memory = ReplayMemory(10000)
 architect = Architect(policy_net)
-q_loss = QCriterion(policy_net, target_net, memory)
-
-
-steps_done = 0
-
-
-def select_action(state):
-    global steps_done
-    sample = random.random()
-    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
-        math.exp(-1. * steps_done / EPS_DECAY)
-    steps_done += 1
-    if sample > eps_threshold:
-        return policy_net(
-            Variable(state, volatile=True).type(FloatTensor)).data.max(1)[1].view(1, 1)
-    else:
-        return LongTensor([[random.randrange(2)]])
-
-
-episode_durations = []
-
-
-def plot_durations():
-    plt.figure(2)
-    plt.clf()
-    durations_t = torch.FloatTensor(episode_durations)
-    plt.title('Training...')
-    plt.xlabel('Episode')
-    plt.ylabel('Duration')
-    plt.plot(durations_t.numpy())
-    # Take 100 episode averages and plot them too
-    if len(durations_t) >= 100:
-        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-        means = torch.cat((torch.zeros(99), means))
-        plt.plot(means.numpy())
-
-    plt.pause(0.001)  # pause a bit so that plots are updated
-    if is_ipython:
-        display.clear_output(wait=True)
-        display.display(plt.gcf())
 
 
 class QCriterion(object):
@@ -451,6 +411,48 @@ class QCriterion(object):
         policy_net.step()
 
         return state_batch, expected_state_action_values
+
+
+q_loss = QCriterion(policy_net, target_net, memory)
+
+
+steps_done = 0
+
+
+def select_action(state):
+    global steps_done
+    sample = random.random()
+    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+        math.exp(-1. * steps_done / EPS_DECAY)
+    steps_done += 1
+    if sample > eps_threshold:
+        return policy_net(
+            Variable(state, volatile=True).type(FloatTensor)).data.max(1)[1].view(1, 1)
+    else:
+        return LongTensor([[random.randrange(2)]])
+
+
+episode_durations = []
+
+
+def plot_durations():
+    plt.figure(2)
+    plt.clf()
+    durations_t = torch.FloatTensor(episode_durations)
+    plt.title('Training...')
+    plt.xlabel('Episode')
+    plt.ylabel('Duration')
+    plt.plot(durations_t.numpy())
+    # Take 100 episode averages and plot them too
+    if len(durations_t) >= 100:
+        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(99), means))
+        plt.plot(means.numpy())
+
+    plt.pause(0.001)  # pause a bit so that plots are updated
+    if is_ipython:
+        display.clear_output(wait=True)
+        display.display(plt.gcf())
 
 ######################################################################
 # Training loop
