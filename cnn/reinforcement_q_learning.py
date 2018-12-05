@@ -526,6 +526,10 @@ def optimize_model():
 
 num_episodes = 50000
 learning_rate_min = 0.001
+# unroll to calculate second derivative hessian
+# may train faster but will take a lot more memory
+# TODO(ahundt) try reducing network size/depth and re-enabling
+unroll = False
 
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
     optimizer, float(num_episodes), eta_min=learning_rate_min)
@@ -565,7 +569,8 @@ for i_episode in range(num_episodes):
         # don't start training until there is at least one batch of time steps
         if len(memory) > BATCH_SIZE:
             state_batch, expected_state_action_values = q_loss.optimize_and_get_state_action()
-            loss = architect.step(state_batch, expected_state_action_values, state_batch, expected_state_action_values, lr, optimizer)
+            loss = architect.step(state_batch, expected_state_action_values, state_batch,
+                                  expected_state_action_values, lr, optimizer, unrolled=unroll)
 
         # TODO(ahundt) the following commented lines might need to go into optimizer.step
         # Optimize the model
