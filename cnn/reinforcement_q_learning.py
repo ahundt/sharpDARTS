@@ -357,7 +357,7 @@ class QCriterion(object):
         self.policy_net = policy_net
         self.target_net = target_net
         self.memory = memory
-        if loss is None:
+        if loss_fn is None:
             loss_fn = nn.SmoothL1Loss()
             loss_fn = loss.cuda()
         self.loss_fn = loss_fn
