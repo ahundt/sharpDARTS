@@ -545,7 +545,7 @@ learning_rate_min = 0.001
 # unroll to calculate second derivative hessian
 # may train faster but will take a lot more memory
 # TODO(ahundt) try reducing network size/depth and re-enabling
-unroll = False
+unroll = True
 
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
     optimizer, float(num_episodes), eta_min=learning_rate_min)
