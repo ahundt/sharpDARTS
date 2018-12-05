@@ -322,38 +322,11 @@ layers_of_cells = 8
 layers_in_cells = 3
 criterion = nn.SmoothL1Loss()
 criterion = criterion.cuda()
-
-
-# policy_net = DQN()
-# target_net = DQN()
-policy_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=criterion,
-                     in_channels=in_channels, steps=layers_in_cells)
-target_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=criterion,
-                     in_channels=in_channels, steps=layers_in_cells)
-target_net.load_state_dict(policy_net.state_dict())
-target_net.eval()
-
-if use_cuda:
-    policy_net.cuda()
-    target_net.cuda()
-
-# Use SGD from darts search
-# optimizer = optim.RMSprop(policy_net.parameters())
-learning_rate = 0.025
-momentum = 0.9
-weight_decay = 3e-4
-optimizer = torch.optim.SGD(
-    policy_net.parameters(),
-    learning_rate,
-    momentum=momentum,
-    weight_decay=weight_decay)
 memory = ReplayMemory(10000)
-architect = Architect(policy_net)
-
 
 class QCriterion(object):
 
-    def __init__(self, policy_net, target_net, memory, loss_fn=None, batch_size=None, gamma=None):
+    def __init__(self, policy_net=None, target_net=None, memory=None, loss_fn=None, batch_size=None, gamma=None):
         self.policy_net = policy_net
         self.target_net = target_net
         self.memory = memory
@@ -369,6 +342,13 @@ class QCriterion(object):
         self.gamma = gamma
         self.state_action_values = None
         self.expected_state_action_values = None
+
+    def set_nets(self, policy_net, target_net):
+        self.policy_net = policy_net
+        self.target_net = target_net
+
+    def set_memory(self, memory):
+        self.memory = memory
 
     def __call__(self, logits, target):
 
@@ -413,7 +393,34 @@ class QCriterion(object):
         return state_batch, expected_state_action_values
 
 
-q_loss = QCriterion(policy_net, target_net, memory)
+q_loss = QCriterion(memory=memory)
+
+# policy_net = DQN()
+# target_net = DQN()
+policy_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=q_loss,
+                     in_channels=in_channels, steps=layers_in_cells)
+target_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=q_loss,
+                     in_channels=in_channels, steps=layers_in_cells)
+target_net.load_state_dict(policy_net.state_dict())
+target_net.eval()
+
+if use_cuda:
+    policy_net.cuda()
+    target_net.cuda()
+
+q_loss.set_nets(policy_net, target_net)
+
+# Use SGD from darts search
+# optimizer = optim.RMSprop(policy_net.parameters())
+learning_rate = 0.025
+momentum = 0.9
+weight_decay = 3e-4
+optimizer = torch.optim.SGD(
+    policy_net.parameters(),
+    learning_rate,
+    momentum=momentum,
+    weight_decay=weight_decay)
+architect = Architect(policy_net)
 
 
 steps_done = 0
