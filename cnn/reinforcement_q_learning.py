@@ -309,7 +309,7 @@ plt.show()
 #    episode.
 #
 
-BATCH_SIZE = 128
+BATCH_SIZE = 32
 GAMMA = 0.999
 EPS_START = 0.9
 EPS_END = 0.05
