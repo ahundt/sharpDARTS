@@ -386,20 +386,21 @@ class QCriterion(object):
         batch = Transition(*zip(*transitions))
 
         # Compute a mask of non-final states and concatenate the batch elements
-        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                            batch.next_state)), device=device, dtype=torch.uint8)
-        non_final_next_states = torch.cat([s for s in batch.next_state
-                                           if s is not None])
-        state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action)
-        reward_batch = torch.cat(batch.reward)
+        non_final_mask = ByteTensor(tuple(map(lambda s: s is not None, batch.next_state)))
+        non_final_next_states = Variable(torch.cat([s for s in batch.next_state
+                                                    if s is not None]),
+                                         volatile=True)
+
+        state_batch = Variable(torch.cat(batch.state))
+        action_batch = Variable(torch.cat(batch.action))
+        reward_batch = Variable(torch.cat(batch.reward))
 
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
         # columns of actions taken
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
 
         # Compute V(s_{t+1}) for all next states.
-        next_state_values = torch.zeros(self.batch_size, device=device)
+        next_state_values = Variable(torch.zeros(BATCH_SIZE).type(Tensor))
         next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0].detach()
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
