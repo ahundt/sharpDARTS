@@ -68,9 +68,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from torch.autograd import Variable
 import torchvision.transforms as T
 
-from torch.autograd import Variable
 from model_search import Network
 from architect import Architect
 
@@ -273,7 +273,7 @@ def get_screen():
     screen = np.ascontiguousarray(screen, dtype=np.float32) / 255
     screen = torch.from_numpy(screen)
     # Resize, and add a batch dimension (BCHW)
-    return resize(screen).unsqueeze(0).to(device)
+    return resize(screen).unsqueeze(0).type(Tensor)
 
 
 env.reset()
@@ -293,6 +293,9 @@ plt.show()
 # This cell instantiates our model and its optimizer, and defines some
 # utilities:
 #
+# -  ``Variable`` - this is a simple wrapper around
+#    ``torch.autograd.Variable`` that will automatically send the data to
+#    the GPU every time we construct a Variable.
 # -  ``select_action`` - will select an action accordingly to an epsilon
 #    greedy policy. Simply put, we'll sometimes use our model for choosing
 #    the action, and sometimes we'll just sample one uniformly. The
@@ -321,8 +324,8 @@ criterion = nn.SmoothL1Loss()
 criterion = criterion.cuda()
 
 
-# policy_net = DQN().to(device)
-# target_net = DQN().to(device)
+# policy_net = DQN()
+# target_net = DQN()
 policy_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=criterion,
                      in_channels=in_channels, steps=layers_in_cells)
 target_net = Network(init_channels, number_of_classes, layers=layers_of_cells, criterion=criterion,
@@ -359,10 +362,10 @@ def select_action(state):
         math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
     if sample > eps_threshold:
-        with torch.no_grad():
-            return policy_net(state).max(1)[1].view(1, 1)
+        return policy_net(
+            Variable(state, volatile=True).type(FloatTensor)).data.max(1)[1].view(1, 1)
     else:
-        return torch.tensor([[random.randrange(2)]], device=device, dtype=torch.long)
+        return LongTensor([[random.randrange(2)]])
 
 
 episode_durations = []
@@ -371,7 +374,7 @@ episode_durations = []
 def plot_durations():
     plt.figure(2)
     plt.clf()
-    durations_t = torch.tensor(episode_durations, dtype=torch.float)
+    durations_t = torch.FloatTensor(episode_durations)
     plt.title('Training...')
     plt.xlabel('Episode')
     plt.ylabel('Duration')
@@ -476,21 +479,22 @@ def optimize_model():
     batch = Transition(*zip(*transitions))
 
     # Compute a mask of non-final states and concatenate the batch elements
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                          batch.next_state)), device=device, dtype=torch.uint8)
-    non_final_next_states = torch.cat([s for s in batch.next_state
-                                                if s is not None])
-    state_batch = torch.cat(batch.state)
-    action_batch = torch.cat(batch.action)
-    reward_batch = torch.cat(batch.reward)
+    non_final_mask = ByteTensor(tuple(map(lambda s: s is not None,
+                                          batch.next_state)))
+    non_final_next_states = Variable(torch.cat([s for s in batch.next_state
+                                                if s is not None]),
+                                     volatile=True)
+    state_batch = Variable(torch.cat(batch.state))
+    action_batch = Variable(torch.cat(batch.action))
+    reward_batch = Variable(torch.cat(batch.reward))
 
     # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
     # columns of actions taken
     state_action_values = policy_net(state_batch).gather(1, action_batch)
 
     # Compute V(s_{t+1}) for all next states.
-    next_state_values = torch.zeros(BATCH_SIZE, device=device)
-    next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+    next_state_values = Variable(torch.zeros(BATCH_SIZE).type(Tensor))
+    next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0]
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
@@ -510,7 +514,7 @@ def optimize_model():
 ######################################################################
 #
 # Below, you can find the main training loop. At the beginning we reset
-# the environment and initialize the ``state`` Tensor. Then, we sample
+# the environment and initialize the ``state`` variable. Then, we sample
 # an action, execute it, observe the next screen and the reward (always
 # 1), and optimize our model once. When the episode ends (our model
 # fails), we restart the loop.
@@ -577,7 +581,7 @@ for i_episode in range(num_episodes):
         target_net.load_state_dict(policy_net.state_dict())
 
 print('Complete')
-env.render()
+env.render(close=True)
 env.close()
 plt.ioff()
 plt.show()
