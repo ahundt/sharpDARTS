@@ -329,8 +329,7 @@ memory = ReplayMemory(10000)
 
 class QCriterion(object):
 
-    def __init__(self, policy_net=None, target_net=None, memory=None, loss_fn=None, batch_size=None, gamma=None):
-        self.policy_net = policy_net
+    def __init__(self, target_net=None, loss_fn=None, batch_size=None, gamma=None):
         self.target_net = target_net
         self.memory = memory
         if loss_fn is None:
@@ -343,67 +342,52 @@ class QCriterion(object):
         if gamma is None:
             gamma = GAMMA
         self.gamma = gamma
-        self.state_action_values = None
-        self.expected_state_action_values = None
 
-    def set_nets(self, policy_net, target_net):
-        self.policy_net = policy_net
+    def set_target_net(self, target_net):
         self.target_net = target_net
 
-    def set_memory(self, memory):
-        self.memory = memory
-
-    def __call__(self, logits, target):
-
-        # Compute Huber loss
-        # loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-        # TODO(ahundt) tricks to get around q vs supervised learning, maybe use next commented line?
-        # loss = self.loss_fn(self.state_action_values, self.expected_state_action_values.unsqueeze(1))
-
-        # we need to gather the actual action choice which should
-        # reduce the dimension from (batch_size, 2) to (batch_size, 1)
-        logits = logits.gather(1, self.action_batch)
-        loss = self.loss_fn(logits, target.unsqueeze(1))
-        return loss
-
-    def optimize_and_get_state_action(self):
-        # Remember:
-        # policy net gets updated every step
-        # target net gets updated once in a while
-        transitions = self.memory.sample(self.batch_size)
-        # Transpose the batch (see http://stackoverflow.com/a/19343/3343043 for
-        # detailed explanation).
-        batch = Transition(*zip(*transitions))
+    def __call__(self, logits, memory_batch):
 
         # Compute a mask of non-final states and concatenate the batch elements
-        non_final_mask = ByteTensor(tuple(map(lambda s: s is not None, batch.next_state)))
-        non_final_next_states = Variable(torch.cat([s for s in batch.next_state
+        non_final_mask = ByteTensor(tuple(map(lambda s: s is not None, memory_batch.next_state)))
+        non_final_next_states = Variable(torch.cat([s for s in memory_batch.next_state
                                                     if s is not None]),
                                          volatile=True)
 
-        state_batch = Variable(torch.cat(batch.state))
-        action_batch = Variable(torch.cat(batch.action))
-        reward_batch = Variable(torch.cat(batch.reward))
+        action_batch = Variable(torch.cat(memory_batch.action))
+        reward_batch = Variable(torch.cat(memory_batch.reward))
 
+        # logits is the direct result of calling the policy net
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
-        # columns of actions taken
-        state_action_values = self.policy_net(state_batch).gather(1, action_batch)
+        # columns of actions taken. logits and the next line is equivalent to:
+        # state_action_values = self.policy_net(state_batch).gather(1, action_batch)
+        # We need to gather the actual action choice which should
+        # reduce the dimension from (batch_size, 2) to (batch_size, 1)
+        state_action_values = logits.gather(1, self.action_batch)
 
         # Compute V(s_{t+1}) for all next states.
         next_state_values = Variable(torch.zeros(BATCH_SIZE).type(Tensor))
         next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0].detach()
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
-        self.state_action_values = state_action_values
-        self.expected_state_action_values = expected_state_action_values
-        self.state_batch = state_batch
-        self.action_batch = action_batch
-        self.reward_batch = reward_batch
 
-        return state_batch, expected_state_action_values
+        # Compute Huber loss
+        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
+        return loss
 
 
-q_loss = QCriterion(memory=memory)
+def get_state_and_memory_batch(memory, batch_size):
+    # Remember:
+    # policy net gets updated every step
+    # target net gets updated once in a while
+    transitions = memory.sample(self.batch_size)
+    # Transpose the batch (see http://stackoverflow.com/a/19343/3343043 for
+    # detailed explanation).
+    memory_batch = Transition(*zip(*transitions))
+    state_batch = Variable(torch.cat(memory_batch.state))
+    return state_batch, memory_batch
+
+q_loss = QCriterion()
 
 # policy_net = DQN()
 # target_net = DQN()
@@ -421,7 +405,7 @@ if use_cuda:
     policy_net.cuda()
     target_net.cuda()
 
-q_loss.set_nets(policy_net, target_net)
+q_loss.set_target_net(target_net)
 
 # Use SGD from darts search
 # optimizer = optim.RMSprop(policy_net.parameters())
@@ -588,9 +572,13 @@ for i_episode in episode_progbar:
         # TODO(ahundt) consider separately sampled training and validation
         # don't start training until there is at least one batch of time steps
         if len(memory) > BATCH_SIZE:
-            state_batch, expected_state_action_values = q_loss.optimize_and_get_state_action()
-            loss = architect.step(state_batch, expected_state_action_values, state_batch,
-                                  expected_state_action_values, lr, optimizer, unrolled=unroll)
+            # TODO(ahundt) train and val will overlap but data is collected on an ongoing basis so probably ok in practice?
+            train_state_batch, train_memory_batch = get_state_and_memory_batch(memory, BATCH_SIZE)
+            val_state_batch, val_memory_batch = get_state_and_memory_batch(memory, BATCH_SIZE)
+            loss = architect.step(
+                train_state_batch, train_memory_batch,
+                val_state_batch, val_memory_batch,
+                lr, optimizer, unrolled=unroll)
 
         # TODO(ahundt) the following commented lines might need to go into optimizer.step
         # Optimize the model
@@ -606,8 +594,11 @@ for i_episode in episode_progbar:
             break
     # Update the target network
     if i_episode % TARGET_UPDATE == 0:
-        target_net.load_state_dict(policy_net.state_dict())
-        genotype = target_net.genotype()
+        target_net.load_state_dict(architect.model.state_dict())
+        q_loss.set_target_net(target_net)
+        target_net.set_criterion(q_loss)
+        architect.model.set_criterion(q_loss)
+        genotype = architect.model.genotype()
         episode_progbar.write('duration: ' + str(t) + ' genotype: ' + str(genotype))
 
 print('Complete')

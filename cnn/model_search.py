@@ -156,6 +156,9 @@ class Network(nn.Module):
     logits = self(input)
     return self._criterion(logits, target)
 
+  def set_criterion(self, criterion):
+    self._criterion = criterion
+
   def _initialize_alphas(self):
     k = sum(1 for i in range(self._steps) for n in range(2+i))
     num_ops = self._num_primitives
