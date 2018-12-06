@@ -95,7 +95,8 @@ def main():
 
   architect = Architect(model, args.momentum, args.weight_decay, args.arch_learning_rate, arch_weight_decay=args.arch_weight_decay)
 
-  perfor = utils.Performance(os.path.join(args.save, 'architecture_performance_history.npy'))
+  perfor = None
+  # perfor = utils.Performance(os.path.join(args.save, 'architecture_performance_history.npy'))
 
   for epoch in tqdm(range(args.epochs)):
     scheduler.step()
@@ -112,7 +113,7 @@ def main():
     train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor)
     logger.info('train_acc %f', train_acc)
 
-    perfor.save()
+    # perfor.save()
 
     # validation
     valid_acc, valid_obj = infer(valid_queue, model, criterion)
@@ -140,7 +141,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
     # define validation loss for analyzing the importance of hyperparameters
     val_loss = architect.step(input_batch, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
     # add current performance config into performance array
-    perfor.update(model.alphas_normal, model.alphas_reduce, val_loss)
+    # perfor.update(model.alphas_normal, model.alphas_reduce, val_loss)
 
     optimizer.zero_grad()
     logits = model(input_batch)
@@ -151,9 +152,9 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
     optimizer.step()
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-    objs.update(loss.data[0], n)
-    top1.update(prec1.data[0], n)
-    top5.update(prec5.data[0], n)
+    objs.update(loss.data.item(), n)
+    top1.update(prec1.data.item(), n)
+    top5.update(prec5.data.item(), n)
 
     if step % args.report_freq == 0:
       logger.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
