@@ -380,7 +380,7 @@ def get_state_and_memory_batch(memory, batch_size):
     # Remember:
     # policy net gets updated every step
     # target net gets updated once in a while
-    transitions = memory.sample(self.batch_size)
+    transitions = memory.sample(batch_size)
     # Transpose the batch (see http://stackoverflow.com/a/19343/3343043 for
     # detailed explanation).
     memory_batch = Transition(*zip(*transitions))
