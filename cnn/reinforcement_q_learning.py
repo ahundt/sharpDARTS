@@ -363,7 +363,7 @@ class QCriterion(object):
         # state_action_values = self.policy_net(state_batch).gather(1, action_batch)
         # We need to gather the actual action choice which should
         # reduce the dimension from (batch_size, 2) to (batch_size, 1)
-        state_action_values = logits.gather(1, self.action_batch)
+        state_action_values = logits.gather(1, action_batch)
 
         # Compute V(s_{t+1}) for all next states.
         next_state_values = Variable(torch.zeros(BATCH_SIZE).type(Tensor))
