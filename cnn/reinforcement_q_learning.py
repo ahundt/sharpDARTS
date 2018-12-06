@@ -553,8 +553,8 @@ unroll = True
 
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
     optimizer, float(num_episodes), eta_min=learning_rate_min)
-
-for i_episode in tqdm(range(num_episodes)):
+episode_progbar = tqdm(range(num_episodes))
+for i_episode in episode_progbar:
     # update the scheduler learning rate
     scheduler.step()
     lr = scheduler.get_lr()[0]
@@ -607,6 +607,8 @@ for i_episode in tqdm(range(num_episodes)):
     # Update the target network
     if i_episode % TARGET_UPDATE == 0:
         target_net.load_state_dict(policy_net.state_dict())
+        genotype = target_net.genotype()
+        episode_progbar.write('duration: ' + str(t) + ' genotype: ' + str(genotype))
 
 print('Complete')
 env.render(close=True)
