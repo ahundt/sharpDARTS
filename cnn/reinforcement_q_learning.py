@@ -351,8 +351,7 @@ class QCriterion(object):
         # Compute a mask of non-final states and concatenate the batch elements
         non_final_mask = ByteTensor(tuple(map(lambda s: s is not None, memory_batch.next_state)))
         non_final_next_states = Variable(torch.cat([s for s in memory_batch.next_state
-                                                    if s is not None]),
-                                         volatile=True)
+                                                    if s is not None]))
 
         action_batch = Variable(torch.cat(memory_batch.action))
         reward_batch = Variable(torch.cat(memory_batch.reward))
@@ -423,15 +422,17 @@ architect = Architect(policy_net)
 steps_done = 0
 
 
-def select_action(state):
+def select_action(state, model):
     global steps_done
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
         math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
     if sample > eps_threshold:
-        return policy_net(
-            Variable(state, volatile=True).type(FloatTensor)).data.max(1)[1].view(1, 1)
+        with torch.no_grad():
+            logits = model(
+                Variable(state).type(FloatTensor)).data.max(1)[1].view(1, 1)
+        return logits
     else:
         return LongTensor([[random.randrange(2)]])
 
@@ -550,8 +551,8 @@ for i_episode in episode_progbar:
     state = current_screen - last_screen
     for t in tqdm(count()):
         # Select and perform an action
-        action = select_action(state)
-        _, reward, done, _ = env.step(action[0, 0])
+        action = select_action(state, architect.model)
+        _, reward, done, _ = env.step(int(action[0, 0]))
         reward = Tensor([reward])
 
         # Observe new state
