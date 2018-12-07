@@ -443,7 +443,7 @@ class DQNAS(nn.Module):
 
     return C_prev_prev, C_prev
 
-  def forward(self, input):
+  def forward(self, input, log=False):
     logits_aux = None
     s0 = s1 = self.stem(input)
     for i, cell in enumerate(self.cells):
@@ -453,7 +453,7 @@ class DQNAS(nn.Module):
           logits_aux = self.auxiliary_head(s1)
 
     out = self.global_pooling(s1)
-    logits = self.classifier(out.view(out.size(0),-1))
+    logits = self.classifier(out.view(out.size(0),-1), log=log)
     if self._auxiliary:
       return logits, logits_aux
     else:
