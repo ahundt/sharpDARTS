@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import operations
+import genotypes
 from operations import ReLUConvBN
 from operations import ConvBNReLU
 from operations import FactorizedReduce
@@ -240,3 +241,210 @@ class NetworkImageNet(nn.Module):
     logits = self.classifier(out.view(out.size(0), -1))
     return logits, logits_aux
 
+
+
+
+# Factorised NoisyLinear layer with bias
+class NoisyLinear(nn.Module):
+  """
+  Reference: Rainbow: Combining Improvements in Deep Reinforcement Learning https://arxiv.org/abs/1710.02298
+  Code Source: https://github.com/Kaixhin/Rainbow
+  """
+  def __init__(self, in_features, out_features, std_init=0.4):
+    super(NoisyLinear, self).__init__()
+    self.in_features = in_features
+    self.out_features = out_features
+    self.std_init = std_init
+    self.weight_mu = nn.Parameter(torch.empty(out_features, in_features))
+    self.weight_sigma = nn.Parameter(torch.empty(out_features, in_features))
+    self.register_buffer('weight_epsilon', torch.empty(out_features, in_features))
+    self.bias_mu = nn.Parameter(torch.empty(out_features))
+    self.bias_sigma = nn.Parameter(torch.empty(out_features))
+    self.register_buffer('bias_epsilon', torch.empty(out_features))
+    self.reset_parameters()
+    self.reset_noise()
+
+  def reset_parameters(self):
+    mu_range = 1 / math.sqrt(self.in_features)
+    self.weight_mu.data.uniform_(-mu_range, mu_range)
+    self.weight_sigma.data.fill_(self.std_init / math.sqrt(self.in_features))
+    self.bias_mu.data.uniform_(-mu_range, mu_range)
+    self.bias_sigma.data.fill_(self.std_init / math.sqrt(self.out_features))
+
+  def _scale_noise(self, size):
+    x = torch.randn(size)
+    return x.sign().mul_(x.abs().sqrt_())
+
+  def reset_noise(self):
+    epsilon_in = self._scale_noise(self.in_features)
+    epsilon_out = self._scale_noise(self.out_features)
+    self.weight_epsilon.copy_(epsilon_out.ger(epsilon_in))
+    self.bias_epsilon.copy_(epsilon_out)
+
+  def forward(self, input):
+    if self.training:
+      return F.linear(input, self.weight_mu + self.weight_sigma * self.weight_epsilon, self.bias_mu + self.bias_sigma * self.bias_epsilon)
+    else:
+      return F.linear(input, self.weight_mu, self.bias_mu)
+
+
+class DQN(nn.Module):
+  """
+  Reference: Rainbow: Combining Improvements in Deep Reinforcement Learning https://arxiv.org/abs/1710.02298
+  Code Source: https://github.com/Kaixhin/Rainbow
+  """
+  def __init__(self, args, action_space):
+    super().__init__()
+    self.atoms = args.atoms
+    self.action_space = action_space
+
+    self.conv1 = nn.Conv2d(args.history_length, 32, 8, stride=4, padding=1)
+    self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
+    self.conv3 = nn.Conv2d(64, 64, 3)
+    self.fc_h_v = NoisyLinear(3136, args.hidden_size, std_init=args.noisy_std)
+    self.fc_h_a = NoisyLinear(3136, args.hidden_size, std_init=args.noisy_std)
+    self.fc_z_v = NoisyLinear(args.hidden_size, self.atoms, std_init=args.noisy_std)
+    self.fc_z_a = NoisyLinear(args.hidden_size, action_space * self.atoms, std_init=args.noisy_std)
+
+  def forward(self, x, log=False):
+    x = F.relu(self.conv1(x))
+    x = F.relu(self.conv2(x))
+    x = F.relu(self.conv3(x))
+    x = x.view(-1, 3136)
+    q = self.q_score(x, log)  # Probabilities with action over second dimension
+    return q
+
+  def q_score(self, x, log):
+    v = self.fc_z_v(F.relu(self.fc_h_v(x)))  # Value stream
+    a = self.fc_z_a(F.relu(self.fc_h_a(x)))  # Advantage stream
+    v, a = v.view(-1, 1, self.atoms), a.view(-1, self.action_space, self.atoms)
+    q = v + a - a.mean(1, keepdim=True)  # Combine streams
+    if log:  # Use log softmax for numerical stability
+      q = F.log_softmax(q, dim=2)  # Log probabilities with action over second dimension
+    else:
+      q = F.softmax(q, dim=2)  # Probabilities with action over second dimension
+    return q
+
+  def reset_noise(self):
+    for name, module in self.named_children():
+      if 'fc' in name:
+        module.reset_noise()
+
+
+class RainbowDenseBlock(nn.Module):
+  """Decision making layers of the Rainbow reinforcement learning algorithm.
+
+  Reference: Rainbow: Combining Improvements in Deep Reinforcement Learning https://arxiv.org/abs/1710.02298
+  Code Source: https://github.com/Kaixhin/Rainbow
+  """
+  def __init__(self, c_in, action_space, hidden_size=512, atoms=51, noisy_std=0.1):
+    """
+    # Arguments
+
+      c_in: number of channels in.
+      action_space: number of discrete possible actions, like controller buttons.
+      atoms: Discretised size of value distribution.
+      hidden_size: Network hidden size
+    """
+    super().__init__()
+    self.c_in = c_in
+    self.atoms = atoms
+    self.action_space = action_space
+    self.fc_h_v = NoisyLinear(self.c_in, hidden_size, std_init=noisy_std)
+    self.fc_h_a = NoisyLinear(self.c_in, hidden_size, std_init=noisy_std)
+    self.fc_z_v = NoisyLinear(hidden_size, self.atoms, std_init=noisy_std)
+    self.fc_z_a = NoisyLinear(hidden_size, action_space * self.atoms, std_init=noisy_std)
+
+  def forward(self, x, log=False):
+    x = x.view(-1, self.c_in)
+    q = self.q_score(x, log)  # Probabilities with action over second dimension
+    return q
+
+  def q_score(self, x, log=False):
+    v = self.fc_z_v(F.relu(self.fc_h_v(x)))  # Value stream
+    a = self.fc_z_a(F.relu(self.fc_h_a(x)))  # Advantage stream
+    v, a = v.view(-1, 1, self.atoms), a.view(-1, self.action_space, self.atoms)
+    q = v + a - a.mean(1, keepdim=True)  # Combine streams
+    if log:  # Use log softmax for numerical stability
+      q = F.log_softmax(q, dim=2)  # Log probabilities with action over second dimension
+    else:
+      q = F.softmax(q, dim=2)  # Probabilities with action over second dimension
+    return q
+
+  def reset_noise(self):
+    for name, module in self.named_children():
+      if 'fc' in name:
+        module.reset_noise()
+
+
+
+class DQNAS(nn.Module):
+
+  def __init__(self, C, num_classes, layers=4, auxiliary=False, genotype=None, in_channels=3, reduce_spacing=None, noisy_std=0.1):
+    """
+        # Arguments
+        layers: The number of cells to create.
+        auxiliary: Train a smaller auxiliary network partway down for "deep supervision" see NAS paper for details.
+        in_channels: The number of channels for input data, for example rgb images have 3 input channels.
+        reduce_spacing: number of layers of cells between reduction cells,
+            default of None is at 1/3 and 2/3 of the total number of layers.
+            1 means all cells are reduction. 2 means the first layer is
+            normal then the second
+        noisy_std: Initial standard deviation of noisy linear layers
+    """
+    super(NetworkCIFAR, self).__init__()
+    if genotype is None:
+          genotype = genotypes.DARTS_V2
+    self._layers = layers
+    self._auxiliary = auxiliary
+    self._in_channels = in_channels
+    self._noisy_std
+
+    self.nas_build(C, in_channels, layers, reduce_spacing, genotype, auxiliary, num_classes)
+    self.global_pooling = nn.AdaptiveAvgPool2d(1)
+    # self.classifier = nn.Linear(C_prev, num_classes)
+    self.classifier = RainbowDenseBlock(c_prev, num_classes)
+
+  def nas_build(self, C, in_channels, layers, reduce_spacing, genotype, auxiliary, num_classes):
+    stem_multiplier = 3
+    C_curr = stem_multiplier*C
+    self.stem = nn.Sequential(
+      nn.Conv2d(in_channels, C_curr, 3, padding=1, bias=False),
+      nn.BatchNorm2d(C_curr)
+    )
+
+    C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
+    self.cells = nn.ModuleList()
+    reduction_prev = False
+    for i in range(layers):
+      if ((reduce_spacing is None and i in [layers//3, 2*layers//3]) or
+          (reduce_spacing is not None and ((i + 1) % reduce_spacing == 0))):
+        C_curr *= 2
+        reduction = True
+      else:
+        reduction = False
+      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+      reduction_prev = reduction
+      self.cells += [cell]
+      C_prev_prev, C_prev = C_prev, cell.multiplier*C_curr
+      if i == 2*layers//3:
+        C_to_auxiliary = C_prev
+
+    if auxiliary:
+      self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
+
+  def forward(self, input):
+    logits_aux = None
+    s0 = s1 = self.stem(input)
+    for i, cell in enumerate(self.cells):
+      s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
+      if i == 2*self._layers//3:
+        if self._auxiliary and self.training:
+          logits_aux = self.auxiliary_head(s1)
+
+    out = self.global_pooling(s1)
+    logits = self.classifier(out.view(out.size(0),-1))
+    return logits, logits_aux
+
+  def reset_noise(self):
+        self.classifier.reset_noise()
