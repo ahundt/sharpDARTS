@@ -6,7 +6,7 @@ import re
 from setuptools import find_packages
 from setuptools import setup
 
-# Read version number from costar_dataset/__init__.py
+# Read version number from darts/__init__.py
 with open('darts/__init__.py') as f:
     VERSION = re.search("__version__ = ['\"]([^'\"]+)['\"]", f.read()).group(1)
 

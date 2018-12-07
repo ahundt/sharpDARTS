@@ -1,12 +1,14 @@
+import math
 import torch
 import torch.nn as nn
-import operations
-import genotypes
-from operations import ReLUConvBN
-from operations import ConvBNReLU
-from operations import FactorizedReduce
+from torch.nn import functional as F
+from . import operations
+from . import genotypes
+from .operations import ReLUConvBN
+from .operations import ConvBNReLU
+from .operations import FactorizedReduce
 from torch.autograd import Variable
-from utils import drop_path
+from .utils import drop_path
 
 
 class Cell(nn.Module):
@@ -130,7 +132,10 @@ class NetworkCIFAR(nn.Module):
 
   def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3, reduce_spacing=None):
     """
-        # Arguments
+    # Arguments
+
+        C: Initial number of output channels.
+        in_channels: initial number of input channels
         layers: The number of cells to create.
         reduce_spacing: number of layers of cells between reduction cells,
             default of None is at 1/3 and 2/3 of the total number of layers.
@@ -294,7 +299,7 @@ class DQN(nn.Module):
   Code Source: https://github.com/Kaixhin/Rainbow
   """
   def __init__(self, args, action_space):
-    super().__init__()
+    super(DQNAS, self).__init__()
     self.atoms = args.atoms
     self.action_space = action_space
 
@@ -380,9 +385,11 @@ class RainbowDenseBlock(nn.Module):
 
 class DQNAS(nn.Module):
 
-  def __init__(self, C, num_classes, layers=4, auxiliary=False, genotype=None, in_channels=3, reduce_spacing=None, noisy_std=0.1):
+  def __init__(self, C=36, num_classes=10, layers=4, auxiliary=False, genotype=None, in_channels=3, reduce_spacing=None, noisy_std=0.1, drop_path_prob=0.0):
     """
         # Arguments
+        C: Initial number of output channels.
+        in_channels: Initial number of input channels
         layers: The number of cells to create.
         auxiliary: Train a smaller auxiliary network partway down for "deep supervision" see NAS paper for details.
         in_channels: The number of channels for input data, for example rgb images have 3 input channels.
@@ -392,18 +399,19 @@ class DQNAS(nn.Module):
             normal then the second
         noisy_std: Initial standard deviation of noisy linear layers
     """
-    super(NetworkCIFAR, self).__init__()
+    super(DQNAS, self).__init__()
     if genotype is None:
           genotype = genotypes.DARTS_V2
     self._layers = layers
     self._auxiliary = auxiliary
     self._in_channels = in_channels
-    self._noisy_std
+    self._noisy_std = noisy_std
+    self._drop_path_prob = drop_path_prob
 
-    self.nas_build(C, in_channels, layers, reduce_spacing, genotype, auxiliary, num_classes)
+    C_prev_prev, C_prev = self.nas_build(C, in_channels, layers, reduce_spacing, genotype, auxiliary, num_classes)
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
     # self.classifier = nn.Linear(C_prev, num_classes)
-    self.classifier = RainbowDenseBlock(c_prev, num_classes)
+    self.classifier = RainbowDenseBlock(C_prev, num_classes)
 
   def nas_build(self, C, in_channels, layers, reduce_spacing, genotype, auxiliary, num_classes):
     stem_multiplier = 3
@@ -433,18 +441,24 @@ class DQNAS(nn.Module):
     if auxiliary:
       self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
 
+    return C_prev_prev, C_prev
+
   def forward(self, input):
     logits_aux = None
     s0 = s1 = self.stem(input)
     for i, cell in enumerate(self.cells):
-      s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
+      s0, s1 = s1, cell(s0, s1, self._drop_path_prob)
       if i == 2*self._layers//3:
         if self._auxiliary and self.training:
           logits_aux = self.auxiliary_head(s1)
 
     out = self.global_pooling(s1)
     logits = self.classifier(out.view(out.size(0),-1))
-    return logits, logits_aux
+    if self._auxiliary:
+      return logits, logits_aux
+    else:
+      #TODO(ahundt) previously a tuple was always returned and this if statement wasn't here before. check for compatibility with other DARTS code
+      return logits
 
   def reset_noise(self):
         self.classifier.reset_noise()
