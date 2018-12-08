@@ -137,7 +137,8 @@ class Network(nn.Module):
       else:
         reduction = False
         primitives = self._primitives
-      cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev,
+      cell = Cell(steps=steps, multiplier=multiplier, C_prev_prev=C_prev_prev,
+                  C_prev=C_prev, C=C_curr, reduction=reduction, reduction_prev=reduction_prev,
                   primitives=primitives, op_dict=op_dict)
       reduction_prev = reduction
       self.cells += [cell]
@@ -155,20 +156,22 @@ class Network(nn.Module):
         x.data.copy_(y.data)
     return model_new
 
-  def forward(self, input):
-    s0 = s1 = self.stem(input)
+  def forward(self, input_batch):
+    s0 = s1 = self.stem(input_batch)
     for i, cell in enumerate(self.cells):
       if cell.reduction:
+        print('reduction i: ' + str(i))
         weights = F.softmax(self.alphas_reduce, dim=-1)
       else:
+        print('normal i: ' + str(i))
         weights = F.softmax(self.alphas_normal, dim=-1)
       s0, s1 = s1, cell(s0, s1, weights)
     out = self.global_pooling(s1)
     logits = self.classifier(out.view(out.size(0),-1))
     return logits
 
-  def _loss(self, input, target):
-    logits = self(input)
+  def _loss(self, input_batch, target):
+    logits = self(input_batch)
     return self._criterion(logits, target)
 
   def set_criterion(self, criterion):
