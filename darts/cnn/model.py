@@ -13,7 +13,7 @@ from .utils import drop_path
 
 class Cell(nn.Module):
 
-  def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, op_dict=None):
+  def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, op_dict=None, reduction_op_dict=None, separate_reduce_cell=True):
     """Create a final cell with a single architecture.
 
     The Cell class in model_search.py is the equivalent for searching multiple architectures.
@@ -25,19 +25,28 @@ class Cell(nn.Module):
     """
     super(Cell, self).__init__()
     print(C_prev_prev, C_prev, C)
+    self.reduction = reduction
     if op_dict is None:
           op_dict = operations.OPS
+    if reduction_op_dict is None:
+          reduction_op_dict = operations.REDUCE_OPS
     # _op_dict are op_dict available for use,
     # _ops is the actual sequence of op_dict being utilized in this case
-    self._op_dict = op_dict
+    # TODO(ahundt) clean up separation of op dict and reduction op dict
+    if reduction:
+      self._op_dict = reduction_op_dict
+    else:
+      self._op_dict = op_dict
 
+    if reduction_prev is None:
+      self.preprocess0 = operations.Identity()
     if reduction_prev:
       self.preprocess0 = FactorizedReduce(C_prev_prev, C)
     else:
       self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0)
     self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0)
 
-    if reduction:
+    if reduction and separate_reduce_cell:
       op_names, indices = zip(*genotype.reduce)
       concat = genotype.reduce_concat
     else:
@@ -54,7 +63,7 @@ class Cell(nn.Module):
     self._ops = nn.ModuleList()
     for name, index in zip(op_names, indices):
       stride = 2 if reduction and index < 2 else 1
-      op = self._op_dict[name](C, stride, True)
+      op = self._op_dict[name](C, C, stride, True)
       self._ops += [op]
     self._indices = indices
 
@@ -249,9 +258,8 @@ class NetworkImageNet(nn.Module):
 
 
 
-# Factorised NoisyLinear layer with bias
 class NoisyLinear(nn.Module):
-  """
+  """ Factorised NoisyLinear layer with bias
   Reference: Rainbow: Combining Improvements in Deep Reinforcement Learning https://arxiv.org/abs/1710.02298
   Code Source: https://github.com/Kaixhin/Rainbow
   """
