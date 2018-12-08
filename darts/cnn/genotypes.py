@@ -11,7 +11,7 @@ PRIMITIVES = [
     'skip_connect',
     'sep_conv_3x3',
     # 'sep_conv_5x5',
-    'dil_conv_3x3',  # TODO(ahundt) re-enable dil_conv_3x3
+    # 'dil_conv_3x3',  # TODO(ahundt) re-enable dil_conv_3x3
     # 'dil_conv_5x5',
     # 'nor_conv_3x3',
     # 'nor_conv_5x5',
@@ -25,7 +25,7 @@ REDUCE_PRIMITIVES = [
     'skip_connect',
     'sep_conv_3x3',
     # 'sep_conv_5x5',
-    'dil_conv_3x3',  # TODO(ahundt) re-enable dil_conv_3x3
+    # 'dil_conv_3x3',  # TODO(ahundt) re-enable dil_conv_3x3
     # 'dil_conv_5x5',
     # 'nor_conv_3x3',
     # 'nor_conv_5x5',
