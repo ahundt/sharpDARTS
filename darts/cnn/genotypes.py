@@ -3,10 +3,11 @@ from collections import namedtuple
 Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
 
 # Simplified new version based on actual results
+# TODO(ahundt) enable different primitives and reduce primitives
 PRIMITIVES = [
     'none',
-    # 'max_pool_3x3',
-    # 'avg_pool_3x3',
+    'max_pool_3x3',
+    'avg_pool_3x3',
     'skip_connect',
     'sep_conv_3x3',
     # 'sep_conv_5x5',
@@ -22,9 +23,9 @@ REDUCE_PRIMITIVES = [
     'max_pool_3x3',
     'avg_pool_3x3',
     'skip_connect',
-    # 'sep_conv_3x3',
+    'sep_conv_3x3',
     # 'sep_conv_5x5',
-    # 'dil_conv_3x3',
+    'dil_conv_3x3',
     # 'dil_conv_5x5',
     # 'nor_conv_3x3',
     # 'nor_conv_5x5',

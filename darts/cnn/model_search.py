@@ -38,6 +38,7 @@ class MixedOp(nn.Module):
 
   def forward(self, x, weights):
     # apply all ops with intensity corresponding to their weight
+    # print('weights shape: ' + str(weights.shape) + ' ops shape: ' + len(self.ops_))
     return sum(w * op(x) for w, op in zip(weights, self._ops))
 
 
