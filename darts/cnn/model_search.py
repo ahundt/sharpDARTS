@@ -62,7 +62,7 @@ class Cell(nn.Module):
 
     if reduction_prev is None:
       self.preprocess0 = operations.Identity()
-    if reduction_prev:
+    elif reduction_prev:
       self.preprocess0 = FactorizedReduce(C_prev_prev, C, affine=False)
     else:
       self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0, affine=False)
