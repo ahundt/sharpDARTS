@@ -42,7 +42,8 @@ class MixedOp(nn.Module):
     print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
     for w, op in zip(weights, self._ops):
       print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)))
-      result += w * op(x)
+      op_out = op(x)
+      result += w * op_out
     return result
 
 
