@@ -32,7 +32,7 @@ class MixedOp(nn.Module):
       op = op_dict[primitive](C_in, C_out, stride, False)
       if 'pool' in primitive:
         # TODO(ahundt) why is this batchnorm added?
-        op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
+        op = nn.Sequential(op, nn.BatchNorm2d(C_out, affine=False))
       self._ops.append(op)
 
   def forward(self, x, weights):
