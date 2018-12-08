@@ -160,11 +160,11 @@ class Network(nn.Module):
     s0 = s1 = self.stem(input_batch)
     for i, cell in enumerate(self.cells):
       if cell.reduction:
-        print('\nreduction i: ' + str(i))
         weights = F.softmax(self.alphas_reduce, dim=-1)
+        print('\nreduction i: ' + str(i) + ' len weights: ' + str(len(weights)))
       else:
-        print('\nnormal i: ' + str(i))
         weights = F.softmax(self.alphas_normal, dim=-1)
+        print('\nnormal i: ' + str(i) + ' len weights: ' + str(len(weights)))
       s0, s1 = s1, cell(s0, s1, weights)
     out = self.global_pooling(s1)
     logits = self.classifier(out.view(out.size(0),-1))
