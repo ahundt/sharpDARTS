@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
+from Padam import Padam
 
 
 def _concat(xs):
@@ -16,11 +17,15 @@ class Architect(object):
         self.network_momentum = momentum
         self.network_weight_decay = weight_decay
         self.model = model
-        self.optimizer = torch.optim.Adam(
+        self.optimizer = Padam(
             self.model.arch_parameters(),
-            lr=arch_learning_rate,
-            betas=arch_betas,
-            weight_decay=arch_weight_decay)
+            lr=arch_learning_rate
+        )
+        # self.optimizer = torch.optim.Adam(
+        #     self.model.arch_parameters(),
+        #     lr=arch_learning_rate, # default 3e-4
+        #     betas=arch_betas,
+        #     weight_decay=arch_weight_decay)
 
     def _compute_unrolled_model(self, input_batch, target, eta, network_optimizer):
         loss = self.model._loss(input_batch, target)
