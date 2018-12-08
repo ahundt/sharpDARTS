@@ -37,14 +37,16 @@ class MixedOp(nn.Module):
       self._ops.append(op)
 
   def forward(self, x, weights):
+    # result = 0
+    # print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
+    # for w, op in zip(weights, self._ops):
+    #   print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)))
+    #   op_out = op(x)
+    #   result += w * op_out
+    # return result
     # apply all ops with intensity corresponding to their weight
-    result = 0
-    print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
-    for w, op in zip(weights, self._ops):
-      print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)))
-      op_out = op(x)
-      result += w * op_out
-    return result
+    return sum(w * op(x) for w, op in zip(weights, self._ops))
+
 
 
 class Cell(nn.Module):
@@ -166,10 +168,10 @@ class Network(nn.Module):
     for i, cell in enumerate(self.cells):
       if cell.reduction:
         weights = F.softmax(self.alphas_reduce, dim=-1)
-        print('\nreduction i: ' + str(i) + ' len weights: ' + str(len(weights)))
+        # print('\nreduction i: ' + str(i) + ' len weights: ' + str(len(weights)))
       else:
         weights = F.softmax(self.alphas_normal, dim=-1)
-        print('\nnormal i: ' + str(i) + ' len weights: ' + str(len(weights)))
+        # print('\nnormal i: ' + str(i) + ' len weights: ' + str(len(weights)))
       s0, s1 = s1, cell(s0, s1, weights)
     out = self.global_pooling(s1)
     logits = self.classifier(out.view(out.size(0),-1))
@@ -186,9 +188,7 @@ class Network(nn.Module):
     k = sum(1 for i in range(self._steps) for n in range(2+i))
     num_ops = self._num_primitives
     num_reduce_ops = self._num_reduce_primitives
-    # TODO(ahundt) total hack! fix
-    k += 1
-    print('\nk: ' + str(k) + ' num_ops: ' + str(num_ops) + ' num_reduce_ops: ' + str(num_reduce_ops))
+    # print('\nk: ' + str(k) + ' num_ops: ' + str(num_ops) + ' num_reduce_ops: ' + str(num_reduce_ops))
 
     # the quantity of alphas is the number of primitives * k
     # and k is based on the number of steps
