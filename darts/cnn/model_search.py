@@ -160,10 +160,10 @@ class Network(nn.Module):
     s0 = s1 = self.stem(input_batch)
     for i, cell in enumerate(self.cells):
       if cell.reduction:
-        print('reduction i: ' + str(i))
+        print('\nreduction i: ' + str(i))
         weights = F.softmax(self.alphas_reduce, dim=-1)
       else:
-        print('normal i: ' + str(i))
+        print('\nnormal i: ' + str(i))
         weights = F.softmax(self.alphas_normal, dim=-1)
       s0, s1 = s1, cell(s0, s1, weights)
     out = self.global_pooling(s1)
@@ -181,6 +181,7 @@ class Network(nn.Module):
     k = sum(1 for i in range(self._steps) for n in range(2+i))
     num_ops = self._num_primitives
     num_reduce_ops = self._num_reduce_primitives
+    print('\nk: ' + str(k) + ' num_ops: ' + str(num_ops) + ' num_reduce_ops: ' + str(num_reduce_ops))
 
     # the quantity of alphas is the number of primitives * k
     # and k is based on the number of steps
