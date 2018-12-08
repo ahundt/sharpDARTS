@@ -31,11 +31,13 @@ class MixedOp(nn.Module):
     for primitive in primitives:
       op = op_dict[primitive](C_in, C_out, stride, False)
       if 'pool' in primitive:
-        # TODO(ahundt) why is this batchnorm added?
+        # this batchnorm might be added because max pooling will essentially
+        # give itself extra high weight, since it takes the largest of its inputs
         op = nn.Sequential(op, nn.BatchNorm2d(C_out, affine=False))
       self._ops.append(op)
 
   def forward(self, x, weights):
+    # apply all ops with intensity corresponding to their weight
     return sum(w * op(x) for w, op in zip(weights, self._ops))
 
 
