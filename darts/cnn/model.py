@@ -13,7 +13,8 @@ from .utils import drop_path
 
 class Cell(nn.Module):
 
-  def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, op_dict=None, reduction_op_dict=None, separate_reduce_cell=True):
+  def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev,
+               op_dict=None, reduction_op_dict=None, separate_reduce_cell=True):
     """Create a final cell with a single architecture.
 
     The Cell class in model_search.py is the equivalent for searching multiple architectures.
@@ -182,7 +183,8 @@ class NetworkCIFAR(nn.Module):
 
     if auxiliary:
       self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
-    self.global_pooling = nn.AdaptiveAvgPool2d(1)
+    self.global_pooling = nn.AdaptiveMaxPool2d(1)
+    # self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.classifier = nn.Linear(C_prev, num_classes)
 
   def forward(self, input):

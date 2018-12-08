@@ -7,12 +7,13 @@ from operations import ConvBNReLU
 from operations import FactorizedReduce
 from torch.autograd import Variable
 from genotypes import PRIMITIVES
+from genotypes import REDUCE_PRIMITIVES
 from genotypes import Genotype
 
 
 class MixedOp(nn.Module):
 
-  def __init__(self, C, stride, primitives=None, op_dict=None):
+  def __init__(self, C_in, C_out, stride, primitives=None, op_dict=None):
     """ Perform a mixed forward pass incorporating multiple primitive operations like conv, max pool, etc.
 
     # Arguments
@@ -28,8 +29,9 @@ class MixedOp(nn.Module):
     if op_dict is None:
           op_dict = operations.OPS
     for primitive in primitives:
-      op = op_dict[primitive](C, stride, False)
+      op = op_dict[primitive](C_in, C_out, stride, False)
       if 'pool' in primitive:
+        # TODO(ahundt) why is this batchnorm added?
         op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
       self._ops.append(op)
 
@@ -39,7 +41,8 @@ class MixedOp(nn.Module):
 
 class Cell(nn.Module):
 
-  def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, primitives=None, op_dict=None):
+  def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev,
+               primitives=None, op_dict=None, reduction_op_dict=None, separate_reduce_cell=True):
     """Create a searchable cell representing multiple architectures.
 
     The Cell class in model.py is the equivalent for a single architecture.
@@ -54,6 +57,8 @@ class Cell(nn.Module):
     super(Cell, self).__init__()
     self.reduction = reduction
 
+    if reduction_prev is None:
+      self.preprocess0 = operations.Identity()
     if reduction_prev:
       self.preprocess0 = FactorizedReduce(C_prev_prev, C, affine=False)
     else:
@@ -68,7 +73,7 @@ class Cell(nn.Module):
       for j in range(2+i):
         stride = 2 if reduction and j < 2 else 1
         # print('i: ' + str(i) + ' j: ' + str(j) + ' stride: ' + str(stride))
-        op = MixedOp(C, stride, primitives=primitives, op_dict=op_dict)
+        op = MixedOp(C, C, stride, primitives=primitives, op_dict=op_dict)
         self._ops.append(op)
 
   def forward(self, s0, s1, weights):
@@ -91,7 +96,7 @@ class Network(nn.Module):
 
   def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4,
                multiplier=4, stem_multiplier=3, reduce_spacing=None, primitives=None,
-               op_dict=None):
+               op_dict=None, reduce_primitives=None, reduce_op_dict=None):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -104,7 +109,12 @@ class Network(nn.Module):
     if primitives is None:
           primitives = PRIMITIVES
     self._primitives = primitives
+    if reduce_primitives is None:
+          reduce_primitives = REDUCE_PRIMITIVES
+    self._primitives = primitives
+    self._reduce_primitives = reduce_primitives
     self._num_primitives = len(primitives)
+    self._num_reduce_primitives = len(reduce_primitives)
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
@@ -121,15 +131,18 @@ class Network(nn.Module):
           (reduce_spacing is not None and ((i + 1) % reduce_spacing == 0))):
         C_curr *= 2
         reduction = True
+        primitives = self._reduce_primitives
       else:
         reduction = False
+        primitives = self._primitives
       cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev,
                   primitives=primitives, op_dict=op_dict)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, multiplier*C_curr
 
-    self.global_pooling = nn.AdaptiveAvgPool2d(1)
+    self.global_pooling = nn.AdaptiveMaxPool2d(1)
+    # self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.classifier = nn.Linear(C_prev, num_classes)
 
     self._initialize_alphas()
@@ -162,6 +175,7 @@ class Network(nn.Module):
   def _initialize_alphas(self):
     k = sum(1 for i in range(self._steps) for n in range(2+i))
     num_ops = self._num_primitives
+    num_reduce_ops = self._num_reduce_primitives
 
     # the quantity of alphas is the number of primitives * k
     # and k is based on the number of steps
@@ -170,14 +184,14 @@ class Network(nn.Module):
     if hack_around_crash or self._reduce_spacing != 1:
       # reduce spacing of 1 means there won't be any normal layers
       self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
-      self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+      self.alphas_reduce = Variable(1e-3*torch.randn(k, num_reduce_ops).cuda(), requires_grad=True)
       self._arch_parameters = [
         self.alphas_normal,
         self.alphas_reduce,
       ]
     else:
       self.alphas_normal = None
-      self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+      self.alphas_reduce = Variable(1e-3*torch.randn(k, num_reduce_ops).cuda(), requires_grad=True)
       self._arch_parameters = [self.alphas_reduce]
 
   def arch_parameters(self):
@@ -185,7 +199,7 @@ class Network(nn.Module):
 
   def genotype(self):
 
-    def _parse(weights):
+    def _parse(weights, primitives):
       """Extract the names of the layers to use from the weights.
       """
       gene = []
@@ -194,25 +208,25 @@ class Network(nn.Module):
       for i in range(self._steps):
         end = start + n
         W = weights[start:end].copy()
-        edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != self._primitives.index('none')))[:2]
+        edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != primitives.index('none')))[:2]
         for j in edges:
           k_best = None
           for k in range(len(W[j])):
-            if k != self._primitives.index('none'):
+            if k != primitives.index('none'):
               if k_best is None or W[j][k] > W[j][k_best]:
                 k_best = k
-          gene.append((self._primitives[k_best], j))
+          gene.append((primitives[k_best], j))
         start = end
         n += 1
       return gene
 
     # Determine the final selection of layers for the network
-    gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
+    gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy(), self._reduce_primitives)
     # The concatenations to apply are pre-determined
     reduce_concat = range(2+self._steps-self._multiplier, self._steps+2)
 
     if self.alphas_normal is not None:
-      gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
+      gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy(), self._primitives)
       normal_concat = reduce_concat
     else:
       # all reduction networks don't have any normal cells

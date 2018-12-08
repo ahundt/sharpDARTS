@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-# Simplified new version based on actual results adapted from PNASNet https://github.com/chenxi116/PNASNet.pytorch
+# Simplified new version based on actual results, partially adapted from PNASNet https://github.com/chenxi116/PNASNet.pytorch
 OPS = {
   'none': lambda C_in, C_out, stride, affine: Zero(stride),
   # 'avg_pool_3x3': lambda C_in, C_out, stride, affine: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False) if C_in == C_out else nn.Sequential(
