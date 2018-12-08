@@ -181,6 +181,8 @@ class Network(nn.Module):
     k = sum(1 for i in range(self._steps) for n in range(2+i))
     num_ops = self._num_primitives
     num_reduce_ops = self._num_reduce_primitives
+    # TODO(ahundt) total hack! fix
+    k += 1
     print('\nk: ' + str(k) + ' num_ops: ' + str(num_ops) + ' num_reduce_ops: ' + str(num_reduce_ops))
 
     # the quantity of alphas is the number of primitives * k
