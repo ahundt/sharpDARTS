@@ -42,7 +42,7 @@ class MixedOp(nn.Module):
 class Cell(nn.Module):
 
   def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev,
-               primitives=None, op_dict=None, reduction_op_dict=None, separate_reduce_cell=True):
+               primitives=None, op_dict=None):
     """Create a searchable cell representing multiple architectures.
 
     The Cell class in model.py is the equivalent for a single architecture.
@@ -96,7 +96,7 @@ class Network(nn.Module):
 
   def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4,
                multiplier=4, stem_multiplier=3, reduce_spacing=None, primitives=None,
-               op_dict=None, reduce_primitives=None, reduce_op_dict=None):
+               reduce_primitives=None, op_dict=None):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -111,7 +111,6 @@ class Network(nn.Module):
     self._primitives = primitives
     if reduce_primitives is None:
           reduce_primitives = REDUCE_PRIMITIVES
-    self._primitives = primitives
     self._reduce_primitives = reduce_primitives
     self._num_primitives = len(primitives)
     self._num_reduce_primitives = len(reduce_primitives)
