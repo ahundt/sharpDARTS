@@ -18,7 +18,7 @@ OPS = {
   'sep_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine),
   # 'sep_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 2, affine=affine),
   # 'sep_conv_7x7': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 7, stride, 3, affine=affine),
-  'dil_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=0, dilation=2, affine=affine),
+  'dil_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=2, dilation=2, affine=affine),
   # 'dil_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 4, dilation=2, affine=affine),
   # 'conv_7x1_1x7': lambda C_in, C_out, stride, affine: nn.Sequential(
   #   nn.ReLU(inplace=False),
@@ -139,6 +139,10 @@ class DilConv(nn.Module):
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
       nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=C_in, bias=False),
+      nn.Conv2d(C_in, C_in, kernel_size=1, padding=0, bias=False),
+      nn.BatchNorm2d(C_in, affine=affine),
+      nn.ReLU(inplace=False),
+      nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=1, padding=1, dilation=1, groups=C_in, bias=False),
       nn.Conv2d(C_in, C_out, kernel_size=1, padding=0, bias=False),
       nn.BatchNorm2d(C_out, affine=affine),
       )
@@ -149,16 +153,16 @@ class DilConv(nn.Module):
 
 class SepConv(nn.Module):
 
-  def __init__(self, C_in, C_out, kernel_size, stride, padding, dilation=1, affine=True):
+  def __init__(self, C_in, C_out, kernel_size, stride, padding=1, dilation=1, affine=True):
     super(SepConv, self).__init__()
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
-      nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=C_in, bias=False),
-      nn.Conv2d(C_in, C_in, kernel_size=1, padding=0, bias=False),
-      nn.BatchNorm2d(C_in, affine=affine),
+      nn.Conv2d(C_in, C_out, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=C_in, bias=False),
+      nn.Conv2d(C_out, C_out, kernel_size=1, padding=0, bias=False),
+      nn.BatchNorm2d(C_out, affine=affine),
       nn.ReLU(inplace=False),
-      nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=1, padding=padding, groups=C_in, bias=False),
-      nn.Conv2d(C_in, C_out, kernel_size=1, padding=0, bias=False),
+      nn.Conv2d(C_out, C_out, kernel_size=kernel_size, stride=1, padding=1, dilation=1, groups=C_in, bias=False),
+      nn.Conv2d(C_out, C_out, kernel_size=1, padding=0, bias=False),
       nn.BatchNorm2d(C_out, affine=affine),
       )
 

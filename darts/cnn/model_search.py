@@ -23,27 +23,32 @@ class MixedOp(nn.Module):
         All primitives must be in the op dict.
     """
     super(MixedOp, self).__init__()
+    self._stride = stride
     self._ops = nn.ModuleList()
     if primitives is None:
           primitives = PRIMITIVES
     if op_dict is None:
           op_dict = operations.OPS
+    print('-------------------- init')
     for primitive in primitives:
       op = op_dict[primitive](C_in, C_out, stride, False)
       if 'pool' in primitive:
         # this batchnorm might be added because max pooling will essentially
         # give itself extra high weight, since it takes the largest of its inputs
         op = nn.Sequential(op, nn.BatchNorm2d(C_out, affine=False))
+      print('primitive: ' + str(primitive) + ' cin: ' + str(C_in) + ' cout: ' + str(C_out) + ' stride: ' + str(stride))
       self._ops.append(op)
 
   def forward(self, x, weights):
-    # result = 0
-    # print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
-    # for w, op in zip(weights, self._ops):
-    #   print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)))
-    #   op_out = op(x)
-    #   result += w * op_out
-    # return result
+    result = 0
+    print('-------------------- forward')
+    print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
+    for i, (w, op) in enumerate(zip(weights, self._ops)):
+      print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)) + ' i: ' + str(i) + ' PRIMITIVES[i]: ' + str(PRIMITIVES[i]) + 'x size: ' + str(x.size()) + ' stride: ' + str(self._stride))
+      op_out = op(x)
+      print('op_out size: ' + str(op_out.size()))
+      result += w * op_out
+    return result
     # apply all ops with intensity corresponding to their weight
     return sum(w * op(x) for w, op in zip(weights, self._ops))
 
@@ -83,7 +88,7 @@ class Cell(nn.Module):
       for j in range(2+i):
         stride = 2 if reduction and j < 2 else 1
         # print('i: ' + str(i) + ' j: ' + str(j) + ' stride: ' + str(stride))
-        op = MixedOp(C, C, stride, primitives=primitives, op_dict=op_dict)
+        op = MixedOp(C, C, stride=stride, primitives=primitives, op_dict=op_dict)
         self._ops.append(op)
 
   def forward(self, s0, s1, weights):
@@ -144,6 +149,7 @@ class Network(nn.Module):
       else:
         reduction = False
         primitives = self._primitives
+      print('>>>>>>> network init cell i: ' + str(i))
       cell = Cell(steps=steps, multiplier=multiplier, C_prev_prev=C_prev_prev,
                   C_prev=C_prev, C=C_curr, reduction=reduction, reduction_prev=reduction_prev,
                   primitives=primitives, op_dict=op_dict)
@@ -172,6 +178,7 @@ class Network(nn.Module):
       else:
         weights = F.softmax(self.alphas_normal, dim=-1)
         # print('\nnormal i: ' + str(i) + ' len weights: ' + str(len(weights)))
+      print('<<<<<<< network forward cell i: ' + str(i))
       s0, s1 = s1, cell(s0, s1, weights)
     out = self.global_pooling(s1)
     logits = self.classifier(out.view(out.size(0),-1))
