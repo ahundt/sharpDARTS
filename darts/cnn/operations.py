@@ -26,6 +26,10 @@ OPS = {
   #   nn.Conv2d(C_in, C_out, (7, 1), stride=(stride, 1), padding=(3, 0), bias=False),
   #   nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
   #   ),
+  'flood_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid=256),
+  'dil_flood_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid=256),
+  'choke_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid=32),
+  'dil_choke_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid=32),
 }
 # TODO(ahundt) Only have primitives be independent? combined ops?
 # TODO(ahundt) if REDUCE_OPS and OPS OR THE PRIMITIVES need to be the same size, fix that...
@@ -135,16 +139,20 @@ class ReLUConvBN(nn.Module):
 
 class SepConv(nn.Module):
 
-  def __init__(self, C_in, C_out, kernel_size, stride, padding=1, dilation=1, affine=True):
+  def __init__(self, C_in, C_out, kernel_size, stride, padding=1, dilation=1, affine=True, C_mid_mult=1, C_mid=None):
     super(SepConv, self).__init__()
+    if C_mid is not None:
+      c_mid = C_mid
+    else:
+      c_mid = int(C_out * C_mid_mult)
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
-      nn.Conv2d(C_in, C_out, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=C_in, bias=False),
-      nn.Conv2d(C_out, C_out, kernel_size=1, padding=0, bias=False),
-      nn.BatchNorm2d(C_out, affine=affine),
+      nn.Conv2d(C_in, c_mid, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=C_in, bias=False),
+      nn.Conv2d(c_mid, c_mid, kernel_size=1, padding=0, bias=False),
+      nn.BatchNorm2d(c_mid, affine=affine),
       nn.ReLU(inplace=False),
-      nn.Conv2d(C_out, C_out, kernel_size=kernel_size, stride=1, padding=1, dilation=1, groups=C_in, bias=False),
-      nn.Conv2d(C_out, C_out, kernel_size=1, padding=0, bias=False),
+      nn.Conv2d(c_mid, c_mid, kernel_size=kernel_size, stride=1, padding=1, dilation=1, groups=C_in, bias=False),
+      nn.Conv2d(c_mid, C_out, kernel_size=1, padding=0, bias=False),
       nn.BatchNorm2d(C_out, affine=affine),
       )
 

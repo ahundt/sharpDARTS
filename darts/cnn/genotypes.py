@@ -16,6 +16,10 @@ PRIMITIVES = [
     # 'nor_conv_3x3',
     # 'nor_conv_5x5',
     # 'nor_conv_7x7',
+    'flood_conv_3x3',
+    'dil_flood_conv_3x3',
+    'choke_conv_3x3',
+    'dil_choke_conv_3x3',
 ]
 
 REDUCE_PRIMITIVES = [
@@ -30,6 +34,10 @@ REDUCE_PRIMITIVES = [
     # 'nor_conv_3x3',
     # 'nor_conv_5x5',
     # 'nor_conv_7x7',
+    'flood_conv_3x3',
+    'dil_flood_conv_3x3',
+    'choke_conv_3x3',
+    'dil_choke_conv_3x3',
 ]
 ''' Old Version
 PRIMITIVES = [
