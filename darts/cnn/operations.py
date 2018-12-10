@@ -147,11 +147,11 @@ class SepConv(nn.Module):
       c_mid = int(C_out * C_mid_mult)
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
-      nn.Conv2d(C_in, c_mid, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=c_mid, bias=False),
+      nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=c_mid, bias=False),
       nn.Conv2d(c_mid, c_mid, kernel_size=1, padding=0, bias=False),
       nn.BatchNorm2d(c_mid, affine=affine),
       nn.ReLU(inplace=False),
-      nn.Conv2d(c_mid, c_mid, kernel_size=kernel_size, stride=1, padding=1, dilation=1, groups=C_in, bias=False),
+      nn.Conv2d(c_mid, c_mid, kernel_size=kernel_size, stride=1, padding=1, dilation=1, groups=c_mid, bias=False),
       nn.Conv2d(c_mid, C_out, kernel_size=1, padding=0, bias=False),
       nn.BatchNorm2d(C_out, affine=affine),
       )
