@@ -43,12 +43,12 @@ class MixedOp(nn.Module):
     result = 0
     # print('-------------------- forward')
     # print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
-    for i, (w, op) in enumerate(zip(weights, self._ops)):
-      # print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)) + ' i: ' + str(i) + ' PRIMITIVES[i]: ' + str(PRIMITIVES[i]) + 'x size: ' + str(x.size()) + ' stride: ' + str(self._stride))
-      op_out = op(x)
-      # print('op_out size: ' + str(op_out.size()))
-      result += w * op_out
-    return result
+    # for i, (w, op) in enumerate(zip(weights, self._ops)):
+    #   # print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)) + ' i: ' + str(i) + ' PRIMITIVES[i]: ' + str(PRIMITIVES[i]) + 'x size: ' + str(x.size()) + ' stride: ' + str(self._stride))
+    #   op_out = op(x)
+    #   # print('op_out size: ' + str(op_out.size()))
+    #   result += w * op_out
+    # return result
     # apply all ops with intensity corresponding to their weight
     return sum(w * op(x) for w, op in zip(weights, self._ops))
 
