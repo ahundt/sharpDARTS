@@ -111,7 +111,7 @@ class Network(nn.Module):
 
   def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4,
                multiplier=4, stem_multiplier=3, reduce_spacing=None, primitives=None,
-               reduce_primitives=None, op_dict=None):
+               reduce_primitives=None, op_dict=None, weights_are_parameters=False):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -129,6 +129,7 @@ class Network(nn.Module):
     self._reduce_primitives = reduce_primitives
     self._num_primitives = len(primitives)
     self._num_reduce_primitives = len(reduce_primitives)
+    self._weights_are_parameters = weights_are_parameters
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
@@ -209,8 +210,13 @@ class Network(nn.Module):
     hack_around_crash = True
     if hack_around_crash or self._reduce_spacing != 1:
       # reduce spacing of 1 means there won't be any normal layers
-      self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
-      self.alphas_reduce = Variable(1e-3*torch.randn(k, num_reduce_ops).cuda(), requires_grad=True)
+      self.alphas_normal = 1e-3 * torch.randn(k, num_ops, requires_grad=True).cuda()
+      self.alphas_reduce = 1e-3 * torch.randn(k, num_reduce_ops, requires_grad=True).cuda()
+
+      if self._weights_are_parameters:
+        # in simpler training modes the weights are just regular parameters
+        self.alphas_normal = torch.nn.Parameter(self.alphas_normal)
+        self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
       self._arch_parameters = [
         self.alphas_normal,
         self.alphas_reduce,
@@ -218,6 +224,10 @@ class Network(nn.Module):
     else:
       self.alphas_normal = None
       self.alphas_reduce = Variable(1e-3*torch.randn(k, num_reduce_ops).cuda(), requires_grad=True)
+
+      if self._weights_are_parameters:
+        # in simpler training modes the weights are just regular parameters
+        self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
       self._arch_parameters = [self.alphas_reduce]
 
   def arch_parameters(self):

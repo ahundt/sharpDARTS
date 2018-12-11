@@ -41,7 +41,7 @@ parser.add_argument('--layers_in_cells', type=int, default=4, help='total number
 parser.add_argument('--reduce_spacing', type=int, default=None, help='Number of layers between each reduction cell. 1 will mean all reduction cells.')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
-parser.add_argument('--simple', action='store_true', default=False, help='use a much simpler training regime with no architect')
+parser.add_argument('--no_architect', action='store_true', default=False, help='directly train genotype parameters, disable architect.')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--drop_path_prob', type=float, default=0.3, help='drop path probability')
 parser.add_argument('--save', type=str, default='EXP', help='experiment name')
@@ -82,19 +82,11 @@ def main():
   number_of_classes = dataset.class_dict[args.dataset]
   in_channels = dataset.inp_channel_dict[args.dataset]
   model = Network(args.init_channels, number_of_classes, layers=args.layers_of_cells, criterion=criterion,
-                  in_channels=in_channels, steps=args.layers_in_cells)
+                  in_channels=in_channels, steps=args.layers_in_cells, weights_are_parameters=self.no_architect)
   model = model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
-  if args.simple:
-    optimizer = Padam([model.parameters(), model.arch_parameters()], args.learning_rate)
-  else:
-    # optimizer = torch.optim.SGD(
-    #     model.parameters(),
-    #     args.learning_rate,
-    #     momentum=args.momentum,
-    #     weight_decay=args.weight_decay)
-    optimizer = Padam(model.parameters(), args.learning_rate)
+  optimizer = Padam(model.parameters(), args.learning_rate)
 
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
@@ -104,7 +96,7 @@ def main():
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
-  if args.simple:
+  if args.no_architect:
     architect = None
   else:
     architect = Architect(model, args.momentum, args.weight_decay, args.arch_learning_rate, arch_weight_decay=args.arch_weight_decay)
@@ -157,7 +149,6 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
       val_loss = architect.step(input_batch, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
       # add current performance config into performance array
       # perfor.update(model.alphas_normal, model.alphas_reduce, val_loss)
-    logits = None
 
     optimizer.zero_grad()
     logits = model(input_batch)
