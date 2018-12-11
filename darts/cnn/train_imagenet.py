@@ -186,7 +186,7 @@ def train(train_queue, model, criterion, optimizer):
       loss += args.auxiliary_weight*loss_aux
 
     loss.backward()
-    nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
+    nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
     optimizer.step()
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))

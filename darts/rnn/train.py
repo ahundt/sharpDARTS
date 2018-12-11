@@ -71,7 +71,7 @@ parser.add_argument('--small_batch_size', type=int, default=-1,
                      until batch_size is reached. An update step is then performed.')
 parser.add_argument('--max_seq_len_delta', type=int, default=20,
                     help='max sequence length')
-parser.add_argument('--single_gpu', default=True, action='store_false', 
+parser.add_argument('--single_gpu', default=True, action='store_false',
                     help='use single GPU')
 parser.add_argument('--gpu', type=int, default=0, help='GPU device to use')
 parser.add_argument('--arch', type=str, default='DARTS', help='which architecture to use')
@@ -119,8 +119,8 @@ if args.continue_train:
     model = torch.load(os.path.join(args.save, 'model.pt'))
 else:
     genotype = eval("genotypes.%s" % args.arch)
-    model = model.RNNModel(ntokens, args.emsize, args.nhid, args.nhidlast, 
-                       args.dropout, args.dropouth, args.dropoutx, args.dropouti, args.dropoute, 
+    model = model.RNNModel(ntokens, args.emsize, args.nhid, args.nhidlast,
+                       args.dropout, args.dropouth, args.dropoutx, args.dropouti, args.dropoute,
                        cell_cls=model.DARTSCell, genotype=genotype)
 
 if args.cuda:
@@ -206,8 +206,8 @@ def train():
 
             gc.collect()
 
-        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs.
-        torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
+        # `clip_grad_norm_` helps prevent the exploding gradient problem in RNNs.
+        torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
         optimizer.step()
 
         # total_loss += raw_loss.data
@@ -254,7 +254,7 @@ try:
           logging.info('rolling back to the previous best model ...')
           model = torch.load(os.path.join(args.save, 'model.pt'))
           parallel_model = model.cuda()
-          
+
           optimizer_state = torch.load(os.path.join(args.save, 'optimizer.pt'))
           if 't0' in optimizer_state['param_groups'][0]:
             optimizer = torch.optim.ASGD(model.parameters(), lr=args.lr, t0=0, lambd=0., weight_decay=args.wdecay)
