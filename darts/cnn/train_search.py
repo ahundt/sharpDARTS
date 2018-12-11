@@ -82,7 +82,7 @@ def main():
   number_of_classes = dataset.class_dict[args.dataset]
   in_channels = dataset.inp_channel_dict[args.dataset]
   model = Network(args.init_channels, number_of_classes, layers=args.layers_of_cells, criterion=criterion,
-                  in_channels=in_channels, steps=args.layers_in_cells, weights_are_parameters=self.no_architect)
+                  in_channels=in_channels, steps=args.layers_in_cells, weights_are_parameters=args.no_architect)
   model = model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
