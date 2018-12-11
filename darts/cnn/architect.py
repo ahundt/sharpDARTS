@@ -37,7 +37,6 @@ class Architect(object):
                 print('architect.py WARNING: NO MOMENTUM BUFFER MOMENTUM WEIGHTS WILL BE ZEROED. THIS WILL ONLY PRINT A LIMITED NUMBER OF TIMES.')
                 self.printed_warning_count += 1
 
-
     def _compute_unrolled_model(self, input_batch, target, eta, network_optimizer):
         loss = self.model._loss(input_batch, target)
         theta = _concat(self.model.parameters()).data
