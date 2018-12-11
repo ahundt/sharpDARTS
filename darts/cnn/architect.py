@@ -21,11 +21,22 @@ class Architect(object):
             self.model.arch_parameters(),
             lr=arch_learning_rate
         )
+        # create the unrolled model
+        self.model_new = self.model.new().cuda()
+        self.printed_warning_count = 0
+        self.max_printed_warning_count = 4
         # self.optimizer = torch.optim.Adam(
         #     self.model.arch_parameters(),
         #     lr=arch_learning_rate, # default 3e-4
         #     betas=arch_betas,
         #     weight_decay=arch_weight_decay)
+
+    def _printed_warning(self):
+        if self.printed_warning_count < self.max_printed_warning_count:
+            if self.printed_warning_count > 2:
+                print('architect.py WARNING: NO MOMENTUM BUFFER MOMENTUM WEIGHTS WILL BE ZEROED. THIS WILL ONLY PRINT A LIMITED NUMBER OF TIMES.')
+                self.printed_warning_count += 1
+
 
     def _compute_unrolled_model(self, input_batch, target, eta, network_optimizer):
         loss = self.model._loss(input_batch, target)
@@ -35,6 +46,7 @@ class Architect(object):
                              for v in self.model.parameters()).mul_(
                                  self.network_momentum)
         except:
+            self._printed_warning()
             moment = torch.zeros_like(theta)
         dtheta = _concat(torch.autograd.grad(
             loss,
@@ -51,10 +63,12 @@ class Architect(object):
                 moments[v] = network_optimizer.state[v]['momentum_buffer'].mul_(
                     self.network_momentum)
             except:
+                self._printed_warning()
                 moments[v] = torch.zeros_like(v)
         dvs = torch.autograd.grad(loss, self.model.parameters())
 
-        model_new = self.model.new()
+        self.model_new.zero_grad()
+        self.model_new.copy_arch_parameters(self.model)
         model_dict = self.model.state_dict()
         params = {}
         for dv, (k, v) in zip(dvs, self.model.named_parameters()):
@@ -65,9 +79,9 @@ class Architect(object):
             params[k] = v_.view(v_.size())
 
         model_dict.update(params)
-        model_new.load_state_dict(model_dict)
+        self.model_new.load_state_dict(model_dict)
 
-        return model_new.cuda()
+        return self.model_new
 
     def step(self, input_train, target_train, input_valid, target_valid, eta,
              network_optimizer, unrolled=True):
@@ -127,7 +141,8 @@ class Architect(object):
         return unrolled_loss
 
     def _construct_model_from_theta(self, theta):
-        model_new = self.model.new()
+        self.model_new.copy_arch_parameters(self.model)
+        self.model_new.zero_grad()
         model_dict = self.model.state_dict()
 
         params, offset = {}, 0
@@ -138,8 +153,9 @@ class Architect(object):
 
         assert offset == len(theta)
         model_dict.update(params)
-        model_new.load_state_dict(model_dict)
-        return model_new.cuda()
+        self.model_new.load_state_dict(model_dict)
+
+        return self.model_new
 
     def _hessian_vector_product(self, vector, input_batch, target, r=1e-2):
         R = r / _concat(vector).norm()
