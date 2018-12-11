@@ -169,6 +169,12 @@ class Network(nn.Module):
         x.data.copy_(y.data)
     return model_new
 
+  def copy_arch_parameters(self, model_old):
+    """ Copy Architecture Parameters from another model
+    """
+    for x, y in zip(self.arch_parameters(), model_old.arch_parameters()):
+        x.data.copy_(y.data)
+
   def forward(self, input_batch):
     s0 = s1 = self.stem(input_batch)
     for i, cell in enumerate(self.cells):
