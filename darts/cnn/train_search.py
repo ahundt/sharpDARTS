@@ -21,6 +21,7 @@ import random
 from tqdm import tqdm
 import dataset
 from Padam import Padam
+import json
 
 parser = argparse.ArgumentParser("Common Argument Parser")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
@@ -57,6 +58,9 @@ utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_file_path = os.path.join(args.save, 'log.txt')
 logger = utils.logging_setup(log_file_path)
+params_path = os.path.join(args.save, 'commandline_args.json')
+with open(params_path, 'w') as f:
+    json.dump(vars(args), f)
 
 def main():
   if not torch.cuda.is_available():
