@@ -63,7 +63,7 @@ class MixedAux(nn.Module):
       num_classes: number of outputs for each linear layer
       weights_are_parameters: weights of the various aux layers are network parameters
     """
-    super(MixedOp, self).__init__()
+    super(MixedAux, self).__init__()
     self._num_classes = num_classes
     self._ops = nn.ModuleList()
     self._weights_are_parameters = weights_are_parameters
