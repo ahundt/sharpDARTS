@@ -105,7 +105,7 @@ def main():
   perfor = None
   # perfor = utils.Performance(os.path.join(args.save, 'architecture_performance_history.npy'))
 
-  for epoch in tqdm(range(args.epochs)):
+  for epoch in tqdm(range(args.epochs), dynamic_ncols=True):
     scheduler.step()
     lr = scheduler.get_lr()[0]
     logger.info('epoch %d lr %e', epoch, lr)
@@ -133,7 +133,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
 
-  for step, (input_batch, target) in enumerate(tqdm(train_queue)):
+  for step, (input_batch, target) in enumerate(tqdm(train_queue, dynamic_ncols=True)):
     model.train()
     n = input_batch.size(0)
 
