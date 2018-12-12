@@ -77,7 +77,7 @@ class MixedAux(nn.Module):
       self.alphas = 1e-3 * torch.randn(len(self._ops), requires_grad=True).cuda()
       if self._weights_are_parameters:
         # in simpler training modes the weights are just regular parameters
-        self.alphas_normal = torch.nn.Parameter(self.alphas_normal)
+        self.alphas = torch.nn.Parameter(self.alphas)
 
   def forward(self, xs):
     result = 0
