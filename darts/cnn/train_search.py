@@ -166,7 +166,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
     top5.update(prec5.data.item(), n)
 
     if step % args.report_freq == 0:
-      logger.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+      logger.info('train %03d %e %f %f %f', step, objs.avg, top1.avg, top5.avg, lr)
 
   return top1.avg, objs.avg
 
