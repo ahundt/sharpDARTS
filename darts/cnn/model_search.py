@@ -53,6 +53,51 @@ class MixedOp(nn.Module):
     return sum(w * op(x) for w, op in zip(weights, self._ops))
 
 
+class MixedAux(nn.Module):
+
+  def __init__(self, num_classes, weights_are_parameters=True):
+    """ Perform a mixed Auxiliary Layer incorporating the output of multiple cells.
+
+    # Arguments
+
+      num_classes: number of outputs for each linear layer
+      weights_are_parameters: weights of the various aux layers are network parameters
+    """
+    super(MixedOp, self).__init__()
+    self._num_classes = num_classes
+    self._ops = nn.ModuleList()
+    self._weights_are_parameters = weights_are_parameters
+    self.global_pooling = nn.AdaptiveMaxPool2d(1)
+
+  def add_aux(self, C_prev):
+    op = nn.Linear(C_prev, self._num_classes)
+    self._ops.append(op)
+
+  def initialize_alphas(self):
+      self.alphas = 1e-3 * torch.randn(len(self._ops), requires_grad=True).cuda()
+      if self._weights_are_parameters:
+        # in simpler training modes the weights are just regular parameters
+        self.alphas_normal = torch.nn.Parameter(self.alphas_normal)
+
+  def forward(self, xs):
+    result = 0
+    weights = F.log_softmax(self.alphas, dim=-1)
+    # print('-------------------- forward')
+    # print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
+    # for i, (w, op) in enumerate(zip(weights, self._ops)):
+    #   # print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)) + ' i: ' + str(i) + ' PRIMITIVES[i]: ' + str(PRIMITIVES[i]) + 'x size: ' + str(x.size()) + ' stride: ' + str(self._stride))
+    #   op_out = op(x)
+    #   # print('op_out size: ' + str(op_out.size()))
+    #   result += w * op_out
+    # return result
+    # apply all ops with intensity corresponding to their weight
+    logits = []
+    for w, op, x in zip(weights, self._ops, xs):
+      out = self.global_pooling(x)
+      logits += [w * op(out.view(out.size(0), -1))]
+    return sum(logits)
+
+
 
 class Cell(nn.Module):
 
@@ -111,7 +156,8 @@ class Network(nn.Module):
 
   def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4,
                multiplier=4, stem_multiplier=3, reduce_spacing=None, primitives=None,
-               reduce_primitives=None, op_dict=None, weights_are_parameters=False):
+               reduce_primitives=None, op_dict=None, weights_are_parameters=False,
+               mixed_aux=True):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -130,12 +176,16 @@ class Network(nn.Module):
     self._num_primitives = len(primitives)
     self._num_reduce_primitives = len(reduce_primitives)
     self._weights_are_parameters = weights_are_parameters
+    self._mixed_aux = mixed_aux
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
       nn.Conv2d(in_channels, C_curr, 3, padding=1, bias=False),
       nn.BatchNorm2d(C_curr)
     )
+
+    if self._mixed_aux:
+      self.auxs = MixedAux(num_classes, weights_are_parameters=weights_are_parameters)
 
     C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
     self.cells = nn.ModuleList()
@@ -156,11 +206,14 @@ class Network(nn.Module):
                   primitives=primitives, op_dict=op_dict)
       reduction_prev = reduction
       self.cells += [cell]
-      C_prev_prev, C_prev = C_prev, multiplier*C_curr
+      C_prev_prev, C_prev = C_prev, multiplier * C_curr
+      if self._mixed_aux:
+        self.auxs.add_aux(C_prev)
 
-    self.global_pooling = nn.AdaptiveMaxPool2d(1)
-    # self.global_pooling = nn.AdaptiveAvgPool2d(1)
-    self.classifier = nn.Linear(C_prev, num_classes)
+    if not self._mixed_aux:
+      self.global_pooling = nn.AdaptiveMaxPool2d(1)
+      # self.global_pooling = nn.AdaptiveAvgPool2d(1)
+      self.classifier = nn.Linear(C_prev, num_classes)
 
     self._initialize_alphas()
 
@@ -178,6 +231,7 @@ class Network(nn.Module):
 
   def forward(self, input_batch):
     s0 = s1 = self.stem(input_batch)
+    s1s = []
     for i, cell in enumerate(self.cells):
       if cell.reduction:
         weights = F.log_softmax(self.alphas_reduce, dim=-1)
@@ -187,8 +241,17 @@ class Network(nn.Module):
         # print('\nnormal i: ' + str(i) + ' len weights: ' + str(len(weights)))
       # print('<<<<<<< network forward cell i: ' + str(i))
       s0, s1 = s1, cell(s0, s1, weights)
-    out = self.global_pooling(s1)
-    logits = self.classifier(out.view(out.size(0),-1))
+      # get the outputs for multiple aux networks
+      if self._mixed_aux:
+        s1s += [s1]
+
+    if self._mixed_aux:
+      # combine the result of all aux networks
+      logits = self.auxs(s1s)
+    else:
+      out = self.global_pooling(s1)
+      logits = self.classifier(out.view(out.size(0),-1))
+
     return logits
 
   def _loss(self, input_batch, target):
@@ -229,6 +292,10 @@ class Network(nn.Module):
         # in simpler training modes the weights are just regular parameters
         self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
       self._arch_parameters = [self.alphas_reduce]
+
+    if self._mixed_aux:
+          self.auxs.initialize_alphas()
+          self._arch_parameters += [self.auxs.alphas]
 
   def arch_parameters(self):
     return self._arch_parameters
