@@ -31,7 +31,8 @@ parser.add_argument('--batch_size', type=int, default=64, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.1, help='init learning rate')
 parser.add_argument('--learning_rate_min', type=float, default=0.001, help='min learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
-parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
+parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
+parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=50, help='num of training epochs')
@@ -86,7 +87,7 @@ def main():
   model = model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
-  optimizer = Padam(model.parameters(), args.learning_rate)
+  optimizer = Padam(model.parameters(), args.learning_rate, partial=args.partial, weight_decay=args.wd)
 
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
