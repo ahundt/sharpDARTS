@@ -87,7 +87,7 @@ def main():
   model = model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
-  optimizer = Padam(model.parameters(), args.learning_rate, partial=args.partial, weight_decay=args.wd)
+  optimizer = Padam(model.parameters(), args.learning_rate, partial=args.partial, weight_decay=args.weight_decay)
 
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
@@ -156,8 +156,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
     loss = criterion(logits, target)
 
     loss.backward()
-    if architect is not None:
-      nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+    nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
 
     optimizer.step()
 
