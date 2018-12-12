@@ -180,10 +180,10 @@ class Network(nn.Module):
     s0 = s1 = self.stem(input_batch)
     for i, cell in enumerate(self.cells):
       if cell.reduction:
-        weights = F.softmax(self.alphas_reduce, dim=-1)
+        weights = F.log_softmax(self.alphas_reduce, dim=-1)
         # print('\nreduction i: ' + str(i) + ' len weights: ' + str(len(weights)))
       else:
-        weights = F.softmax(self.alphas_normal, dim=-1)
+        weights = F.log_softmax(self.alphas_normal, dim=-1)
         # print('\nnormal i: ' + str(i) + ' len weights: ' + str(len(weights)))
       # print('<<<<<<< network forward cell i: ' + str(i))
       s0, s1 = s1, cell(s0, s1, weights)
@@ -257,12 +257,12 @@ class Network(nn.Module):
       return gene
 
     # Determine the final selection of layers for the network
-    gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy(), self._reduce_primitives)
+    gene_reduce = _parse(F.log_softmax(self.alphas_reduce, dim=-1).data.cpu().numpy(), self._reduce_primitives)
     # The concatenations to apply are pre-determined
     reduce_concat = range(2+self._steps-self._multiplier, self._steps+2)
 
     if self.alphas_normal is not None:
-      gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy(), self._primitives)
+      gene_normal = _parse(F.log_softmax(self.alphas_normal, dim=-1).data.cpu().numpy(), self._primitives)
       normal_concat = reduce_concat
     else:
       # all reduction networks don't have any normal cells
