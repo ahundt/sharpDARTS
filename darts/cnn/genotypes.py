@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
+Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat aux')
 
 # Simplified new version based on actual results
 # TODO(ahundt) enable different primitives and reduce primitives
@@ -82,6 +82,7 @@ NASNet = Genotype(
     ('max_pool_3x3', 1),
   ],
   reduce_concat = [4, 5, 6],
+  aux = [],
 )
 
 AmoebaNet = Genotype(
@@ -110,7 +111,8 @@ AmoebaNet = Genotype(
     ('conv_7x1_1x7', 0),
     ('sep_conv_3x3', 5),
   ],
-  reduce_concat = [3, 4, 6]
+  reduce_concat = [3, 4, 6],
+  aux = [],
 )
 
 # source: https://github.com/chenxi116/PNASNet.pytorch
@@ -141,6 +143,7 @@ PNASNet = Genotype(
     ('skip_connect', 1),
   ],
   reduce_concat = [2, 3, 4, 5, 6],
+  aux = [],
 )
 
 FASHION = Genotype(normal=[('skip_connect', 0), ('sep_conv_3x3', 1), ('skip_connect', 0), ('sep_conv_3x3', 2), ('skip_connect', 0), ('sep_conv_3x3', 2), ('skip_connect', 0), ('dil_conv_3x3', 2)], normal_concat=[2, 3, 4, 5], reduce=[('max_pool_3x3', 0), ('max_pool_3x3', 1), ('avg_pool_3x3', 0), ('skip_connect', 2), ('max_pool_3x3', 0), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2)], reduce_concat=[2, 3, 4, 5])
