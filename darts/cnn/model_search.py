@@ -101,7 +101,7 @@ class MixedAux(nn.Module):
     return sum(logits)
 
   def genotype(self):
-    return list(self.get_weights())
+    return [float(w) for w in self.get_weights()]
 
 
 
