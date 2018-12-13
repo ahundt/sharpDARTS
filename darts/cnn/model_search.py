@@ -81,7 +81,7 @@ class MixedAux(nn.Module):
 
   def forward(self, xs):
     result = 0
-    weights = F.log_softmax(self.alphas, dim=-1)
+    weights = F.softmax(self.alphas, dim=-1)
     # print('-------------------- forward')
     # print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
     # for i, (w, op) in enumerate(zip(weights, self._ops)):
