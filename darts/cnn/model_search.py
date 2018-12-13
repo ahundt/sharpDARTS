@@ -79,9 +79,12 @@ class MixedAux(nn.Module):
         # in simpler training modes the weights are just regular parameters
         self.alphas = torch.nn.Parameter(self.alphas)
 
+  def get_weights(self):
+    return F.softmax(self.alphas, dim=-1)
+
   def forward(self, xs):
     result = 0
-    weights = F.softmax(self.alphas, dim=-1)
+    weights = self.get_weights()
     # print('-------------------- forward')
     # print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
     # for i, (w, op) in enumerate(zip(weights, self._ops)):
@@ -96,6 +99,9 @@ class MixedAux(nn.Module):
       out = self.global_pooling(x)
       logits += [w * op(out.view(out.size(0), -1))]
     return sum(logits)
+
+  def genotype(self):
+    return list(self.get_weights())
 
 
 
@@ -176,7 +182,6 @@ class Network(nn.Module):
     self._num_primitives = len(primitives)
     self._num_reduce_primitives = len(reduce_primitives)
     self._weights_are_parameters = weights_are_parameters
-    self._mixed_aux = mixed_aux
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
@@ -186,6 +191,8 @@ class Network(nn.Module):
 
     if self._mixed_aux:
       self.auxs = MixedAux(num_classes, weights_are_parameters=weights_are_parameters)
+    else:
+      self.auxs = None
 
     C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
     self.cells = nn.ModuleList()
@@ -210,7 +217,7 @@ class Network(nn.Module):
       if self._mixed_aux:
         self.auxs.add_aux(C_prev)
 
-    if not self._mixed_aux:
+    if self._mixed_aux is None:
       self.global_pooling = nn.AdaptiveMaxPool2d(1)
       # self.global_pooling = nn.AdaptiveAvgPool2d(1)
       self.classifier = nn.Linear(C_prev, num_classes)
@@ -242,10 +249,10 @@ class Network(nn.Module):
       # print('<<<<<<< network forward cell i: ' + str(i))
       s0, s1 = s1, cell(s0, s1, weights)
       # get the outputs for multiple aux networks
-      if self._mixed_aux:
+      if self.auxs is not None:
         s1s += [s1]
 
-    if self._mixed_aux:
+    if self.auxs is not None:
       # combine the result of all aux networks
       logits = self.auxs(s1s)
     else:
@@ -293,7 +300,7 @@ class Network(nn.Module):
         self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
       self._arch_parameters = [self.alphas_reduce]
 
-    if self._mixed_aux:
+    if self.auxs is not None:
           self.auxs.initialize_alphas()
           self._arch_parameters += [self.auxs.alphas]
 
@@ -336,9 +343,16 @@ class Network(nn.Module):
       gene_normal = []
       normal_concat = []
 
+    aux = []
+    # TODO(ahundt) determine criteria for final decision on aux networks
+    # get weights assigned to auxiliary networks
+    if self.auxs is not None:
+        aux = self.auxs.genotype()
+
     genotype = Genotype(
       normal=gene_normal, normal_concat=normal_concat,
-      reduce=gene_reduce, reduce_concat=reduce_concat
+      reduce=gene_reduce, reduce_concat=reduce_concat,
+      aux=aux
     )
     return genotype
 
