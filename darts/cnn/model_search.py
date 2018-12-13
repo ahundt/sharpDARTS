@@ -214,10 +214,10 @@ class Network(nn.Module):
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, multiplier * C_curr
-      if self._mixed_aux:
+      if self.auxs is not None:
         self.auxs.add_aux(C_prev)
 
-    if self._mixed_aux is None:
+    if self.auxs is None:
       self.global_pooling = nn.AdaptiveMaxPool2d(1)
       # self.global_pooling = nn.AdaptiveAvgPool2d(1)
       self.classifier = nn.Linear(C_prev, num_classes)
