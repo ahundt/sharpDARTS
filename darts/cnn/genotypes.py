@@ -6,7 +6,7 @@ Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
 # TODO(ahundt) enable different primitives and reduce primitives
 PRIMITIVES = [
     'none',
-    # 'max_pool_3x3',  # TODO(ahundt) consider restoring max_pool
+    'max_pool_3x3',
     # 'avg_pool_3x3',
     'skip_connect',
     'sep_conv_3x3',
@@ -24,7 +24,7 @@ PRIMITIVES = [
 
 REDUCE_PRIMITIVES = [
     'none',
-    # 'max_pool_3x3',  # TODO(ahundt) consider restoring max_pool
+    'max_pool_3x3',
     # 'avg_pool_3x3',
     'skip_connect',
     'sep_conv_3x3',
