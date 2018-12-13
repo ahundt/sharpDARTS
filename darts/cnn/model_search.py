@@ -189,7 +189,7 @@ class Network(nn.Module):
       nn.BatchNorm2d(C_curr)
     )
 
-    if self._mixed_aux:
+    if mixed_aux:
       self.auxs = MixedAux(num_classes, weights_are_parameters=weights_are_parameters)
     else:
       self.auxs = None
