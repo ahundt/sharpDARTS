@@ -132,7 +132,7 @@ class Cell(nn.Module):
     self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0, affine=False)
     self._steps = steps
     self._multiplier = multiplier
-    self._alphas = alphas
+    self.alphas = alphas
 
     self._ops = nn.ModuleList()
     self._bns = nn.ModuleList()
@@ -144,7 +144,7 @@ class Cell(nn.Module):
         self._ops.append(op)
 
   def get_weights(self):
-    return F.softmax(self._alphas, dim=-1)
+    return F.softmax(self.alphas, dim=-1)
 
   def forward(self, s0, s1):
     weights = self.get_weights()
