@@ -9,6 +9,7 @@ from .operations import ConvBNReLU
 from .operations import FactorizedReduce
 from torch.autograd import Variable
 from .utils import drop_path
+from .model_search import MixedAux
 
 
 class Cell(nn.Module):
@@ -164,6 +165,11 @@ class NetworkCIFAR(nn.Module):
       nn.BatchNorm2d(C_curr)
     )
 
+    if mixed_aux:
+      self.auxs = MixedAux(num_classes, weights_are_parameters=weights_are_parameters)
+    else:
+      self.auxs = None
+
     C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
     self.cells = nn.ModuleList()
     reduction_prev = False
@@ -178,7 +184,9 @@ class NetworkCIFAR(nn.Module):
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, cell.multiplier*C_curr
-      if i == 2*layers//3:
+      if self.auxs is not None:
+        self.auxs.add_aux(C_prev)
+      elif i == 2*layers//3:
         C_to_auxiliary = C_prev
 
     if auxiliary:

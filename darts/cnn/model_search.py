@@ -108,7 +108,7 @@ class MixedAux(nn.Module):
 class Cell(nn.Module):
 
   def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev,
-               primitives=None, op_dict=None):
+               alphas, primitives=None, op_dict=None):
     """Create a searchable cell representing multiple architectures.
 
     The Cell class in model.py is the equivalent for a single architecture.
@@ -132,6 +132,7 @@ class Cell(nn.Module):
     self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0, affine=False)
     self._steps = steps
     self._multiplier = multiplier
+    self._alphas = alphas
 
     self._ops = nn.ModuleList()
     self._bns = nn.ModuleList()
@@ -142,7 +143,11 @@ class Cell(nn.Module):
         op = MixedOp(C, C, stride=stride, primitives=primitives, op_dict=op_dict)
         self._ops.append(op)
 
-  def forward(self, s0, s1, weights):
+  def get_weights(self):
+    return F.softmax(self.alphas, dim=-1)
+
+  def forward(self, s0, s1):
+    weights = self.get_weights()
     s0 = self.preprocess0(s0)
     s1 = self.preprocess1(s1)
 
@@ -163,7 +168,7 @@ class Network(nn.Module):
   def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4,
                multiplier=4, stem_multiplier=3, reduce_spacing=None, primitives=None,
                reduce_primitives=None, op_dict=None, weights_are_parameters=False,
-               mixed_aux=True):
+               mixed_aux=True, start_cell_weights=True, end_cell_weights=True):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -182,6 +187,13 @@ class Network(nn.Module):
     self._num_primitives = len(primitives)
     self._num_reduce_primitives = len(reduce_primitives)
     self._weights_are_parameters = weights_are_parameters
+    self._start_alphas = None
+    if start_cell_weights:
+          self._start_alphas = True
+
+    self._end_alphas = None
+    if end_cell_weights:
+          self._end_alphas = True
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
@@ -193,6 +205,8 @@ class Network(nn.Module):
       self.auxs = MixedAux(num_classes, weights_are_parameters=weights_are_parameters)
     else:
       self.auxs = None
+
+    self._initialize_alphas()
 
     C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
     self.cells = nn.ModuleList()
@@ -207,13 +221,33 @@ class Network(nn.Module):
       else:
         reduction = False
         primitives = self._primitives
+
+      # alphas are the weights to choose an architecture and
+      # there may be different architectures for:
+      # 1. the initial start cell,
+      # 2. normal cells in the middle
+      # 3. resolution reduction cells in the middle
+      # 4. the final end cell
+      if i == 0 and self._start_alphas is not None:
+        alphas = self.alphas_start
+        print('>>>>>>> network init cell i: ' + str(i) + ' with start alphas')
+      elif i == layers - 1 and self._end_alphas is not None:
+        alphas = self.alphas_end
+        print('>>>>>>> network init cell i: ' + str(i) + ' with end alphas')
+      elif reduction:
+        alphas = self.alphas_reduce
+        print('>>>>>>> network init cell i: ' + str(i) + ' with reduce alphas')
+      else:
+        alphas = self.alphas_normal
+        print('>>>>>>> network init cell i: ' + str(i) + ' with normal alphas')
       # print('>>>>>>> network init cell i: ' + str(i))
       cell = Cell(steps=steps, multiplier=multiplier, C_prev_prev=C_prev_prev,
                   C_prev=C_prev, C=C_curr, reduction=reduction, reduction_prev=reduction_prev,
-                  primitives=primitives, op_dict=op_dict)
+                  primitives=primitives, op_dict=op_dict, alphas=alphas)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, multiplier * C_curr
+      # auxiliary networks for final decision making accelerate training
       if self.auxs is not None:
         self.auxs.add_aux(C_prev)
 
@@ -221,8 +255,6 @@ class Network(nn.Module):
       self.global_pooling = nn.AdaptiveMaxPool2d(1)
       # self.global_pooling = nn.AdaptiveAvgPool2d(1)
       self.classifier = nn.Linear(C_prev, num_classes)
-
-    self._initialize_alphas()
 
   def new(self):
     model_new = Network(self._C, self._num_classes, self._layers, self._criterion, self._in_channels).cuda()
@@ -240,14 +272,9 @@ class Network(nn.Module):
     s0 = s1 = self.stem(input_batch)
     s1s = []
     for i, cell in enumerate(self.cells):
-      if cell.reduction:
-        weights = F.softmax(self.alphas_reduce, dim=-1)
-        # print('\nreduction i: ' + str(i) + ' len weights: ' + str(len(weights)))
-      else:
-        weights = F.softmax(self.alphas_normal, dim=-1)
-        # print('\nnormal i: ' + str(i) + ' len weights: ' + str(len(weights)))
+      # print('\nnormal i: ' + str(i) + ' len weights: ' + str(len(weights)))
       # print('<<<<<<< network forward cell i: ' + str(i))
-      s0, s1 = s1, cell(s0, s1, weights)
+      s0, s1 = s1, cell(s0, s1)
       # get the outputs for multiple aux networks
       if self.auxs is not None:
         s1s += [s1]
@@ -272,13 +299,20 @@ class Network(nn.Module):
     k = sum(1 for i in range(self._steps) for n in range(2+i))
     num_ops = self._num_primitives
     num_reduce_ops = self._num_reduce_primitives
+    self._arch_parameters = []
     # print('\nk: ' + str(k) + ' num_ops: ' + str(num_ops) + ' num_reduce_ops: ' + str(num_reduce_ops))
 
     # the quantity of alphas is the number of primitives * k
     # and k is based on the number of steps
     # TODO(ahundt) attempted fix by removing more efficient alphas when no reductions are used to try fixing crash.
-    hack_around_crash = True
-    if hack_around_crash or self._reduce_spacing != 1:
+    if self.alphas_start is not None:
+      self.alphas_start = 1e-3 * torch.randn(k, num_ops, requires_grad=True).cuda()
+      if self._weights_are_parameters:
+        # in simpler training modes the weights are just regular parameters
+        self.alphas_start = torch.nn.Parameter(self.alphas_start)
+      self._arch_parameters += [self.alphas_start]
+
+    if self._reduce_spacing is None or self._reduce_spacing != 1:
       # reduce spacing of 1 means there won't be any normal layers
       self.alphas_normal = 1e-3 * torch.randn(k, num_ops, requires_grad=True).cuda()
       self.alphas_reduce = 1e-3 * torch.randn(k, num_reduce_ops, requires_grad=True).cuda()
@@ -287,7 +321,7 @@ class Network(nn.Module):
         # in simpler training modes the weights are just regular parameters
         self.alphas_normal = torch.nn.Parameter(self.alphas_normal)
         self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
-      self._arch_parameters = [
+      self._arch_parameters += [
         self.alphas_normal,
         self.alphas_reduce,
       ]
@@ -299,6 +333,13 @@ class Network(nn.Module):
         # in simpler training modes the weights are just regular parameters
         self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
       self._arch_parameters = [self.alphas_reduce]
+
+    if self.alphas_end is not None:
+      self.alphas_end = 1e-3 * torch.randn(k, num_ops, requires_grad=True).cuda()
+      if self._weights_are_parameters:
+        # in simpler training modes the weights are just regular parameters
+        self.alphas_end = torch.nn.Parameter(self.alphas_end)
+        self._arch_parameters += [self.alphas_start]
 
     if self.auxs is not None:
           self.auxs.initialize_alphas()
@@ -320,28 +361,42 @@ class Network(nn.Module):
         W = weights[start:end].copy()
         edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != primitives.index('none')))[:2]
         for j in edges:
-          k_best = None
+          # (key, weight, primitive)
+          # (  0,      1,         2)
+          kwp_best = (None, None, None)
+          kwp_2nd = (None, None, None)
+
           for k in range(len(W[j])):
             if k != primitives.index('none'):
-              if k_best is None or W[j][k] > W[j][k_best]:
-                k_best = k
-          gene.append((primitives[k_best], j))
+              w = W[j][k]
+              if kwp_best[0] is None or W[j][k] > kwp_best[1]:
+                kwp_2nd = kwp_best
+                kwp_best = (k, w, primitives[k])
+          gene.append((kwp_best[2], j))
+          if 'pool' in kwp_best[2]:
+            # trying to analyze if maxpool is actually so powerful or if there is usually a close second
+            # indicating there is an architecture problem that could be solved
+            print('\npool is best showing second (key, weight, primitive), 1st:' + str(kwp_best) +
+                  ' 2nd: ' + str(kwp_2nd) + ' j: ' + str(j))
         start = end
         n += 1
       return gene
 
-    # Determine the final selection of layers for the network
-    gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy(), self._reduce_primitives)
-    # The concatenations to apply are pre-determined
-    reduce_concat = range(2+self._steps-self._multiplier, self._steps+2)
+    def _set_gene_concat(alphas, primitives):
+      """ Set empty variables if needed, or extract gene layer type + index using _parse call.
+      """
+      if alphas is None:
+        gene = []
+        concat = []
+      else:
+        gene = _parse(F.softmax(alphas, dim=-1).data.cpu().numpy(), primitives)
+        concat = range(2+self._steps-self._multiplier, self._steps+2)
+      return gene, concat
 
-    if self.alphas_normal is not None:
-      gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy(), self._primitives)
-      normal_concat = reduce_concat
-    else:
-      # all reduction networks don't have any normal cells
-      gene_normal = []
-      normal_concat = []
+    gene_reduce, reduce_concat = _set_gene_concat(self.alphas_reduce, self._reduce_primitives)
+    gene_normal, normal_concat = _set_gene_concat(self.alphas_normal, self._primitives)
+    gene_start, start_concat = _set_gene_concat(self.alphas_start, self._primitives)
+    gene_end, end_concat = _set_gene_concat(self.alphas_end, self._primitives)
 
     aux = []
     # TODO(ahundt) determine criteria for final decision on aux networks
@@ -352,7 +407,9 @@ class Network(nn.Module):
     genotype = Genotype(
       normal=gene_normal, normal_concat=normal_concat,
       reduce=gene_reduce, reduce_concat=reduce_concat,
-      aux=aux
+      start=gene_start, start_concat=start_concat,
+      end=gene_end, end_concat=end_concat,
+      aux=aux,
     )
     return genotype
 
