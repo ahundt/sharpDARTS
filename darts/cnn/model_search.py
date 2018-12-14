@@ -278,6 +278,7 @@ class Network(nn.Module):
       s0, s1 = s1, cell(s0, s1)
       # get the outputs for multiple aux networks
       if self.auxs is not None:
+        print('network forward i: ' (str(i) + ' s1 shape: ' + s1.shape)
         s1s += [s1]
 
     if self.auxs is not None:
