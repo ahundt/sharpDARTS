@@ -98,6 +98,7 @@ class MixedAux(nn.Module):
     for w, op, x in zip(weights, self._ops, xs):
       out = self.global_pooling(x)
       logits += [w * op(out.view(out.size(0), -1))]
+    print('MixedAux logits: ' + logits)
     return sum(logits)
 
   def genotype(self):
