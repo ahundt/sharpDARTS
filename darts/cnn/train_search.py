@@ -42,6 +42,7 @@ parser.add_argument('--layers_in_cells', type=int, default=4, help='total number
 parser.add_argument('--reduce_spacing', type=int, default=None, help='Number of layers between each reduction cell. 1 will mean all reduction cells.')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
+# parser.add_argument('--no_cutout', action='store_false', default=True, help='do not use cutout')
 parser.add_argument('--no_architect', action='store_true', default=False, help='directly train genotype parameters, disable architect.')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--drop_path_prob', type=float, default=0.3, help='drop path probability')
@@ -153,6 +154,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
 
     optimizer.zero_grad()
     logits = model(input_batch)
+    print('logits: ' + str(logits))
     loss = criterion(logits, target)
 
     loss.backward()
