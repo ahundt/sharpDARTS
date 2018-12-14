@@ -283,6 +283,7 @@ class Network(nn.Module):
 
     if self.auxs is not None:
       # combine the result of all aux networks
+      print('calling auxs, s1s len: ' + str(len(s1s)))
       logits = self.auxs(s1s)
     else:
       out = self.global_pooling(s1)
