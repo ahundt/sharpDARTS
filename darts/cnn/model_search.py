@@ -95,6 +95,7 @@ class MixedAux(nn.Module):
     # return result
     # apply all ops with intensity corresponding to their weight
     logits = []
+    print(' len xs list: ' + str(len(xs)))
     for w, op, x in zip(weights, self._ops, xs):
       out = self.global_pooling(x)
       logits += [w * op(out.view(out.size(0), -1))]
