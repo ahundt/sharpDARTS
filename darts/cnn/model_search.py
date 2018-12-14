@@ -98,6 +98,7 @@ class MixedAux(nn.Module):
     for w, op, x in zip(weights, self._ops, xs):
       out = self.global_pooling(x)
       logits += [w * op(out.view(out.size(0), -1))]
+      print('op_out size: ' + str(out.size()) + ' len logits list: ' + str(len(logits)))
     print('MixedAux logits: ' + str(logits))
     return sum(logits)
 
