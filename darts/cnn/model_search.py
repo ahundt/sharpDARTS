@@ -258,6 +258,10 @@ class Network(nn.Module):
       self.global_pooling = nn.AdaptiveMaxPool2d(1)
       # self.global_pooling = nn.AdaptiveAvgPool2d(1)
       self.classifier = nn.Linear(C_prev, num_classes)
+    else:
+      # init params to prioritize auxiliary decision making networks
+      self.auxs.initialize_alphas()
+      self._arch_parameters += [self.auxs.alphas]
 
   def new(self):
     model_new = Network(self._C, self._num_classes, self._layers, self._criterion, self._in_channels).cuda()
@@ -301,6 +305,8 @@ class Network(nn.Module):
     self._criterion = criterion
 
   def _initialize_alphas(self):
+    ''' Initialzie network differentiable parameters. Note that auxs needs to be initialized separately later if enabled.
+    '''
     k = sum(1 for i in range(self._steps) for n in range(2+i))
     num_ops = self._num_primitives
     num_reduce_ops = self._num_reduce_primitives
@@ -345,10 +351,6 @@ class Network(nn.Module):
         # in simpler training modes the weights are just regular parameters
         self.alphas_end = torch.nn.Parameter(self.alphas_end)
         self._arch_parameters += [self.alphas_start]
-
-    if self.auxs is not None:
-          self.auxs.initialize_alphas()
-          self._arch_parameters += [self.auxs.alphas]
 
   def arch_parameters(self):
     return self._arch_parameters
