@@ -187,13 +187,13 @@ class Network(nn.Module):
     self._num_primitives = len(primitives)
     self._num_reduce_primitives = len(reduce_primitives)
     self._weights_are_parameters = weights_are_parameters
-    self._start_alphas = None
+    self._alphas_start = None
     if start_cell_weights:
-          self._start_alphas = True
+          self._alphas_start = True
 
-    self._end_alphas = None
+    self._alphas_end = None
     if end_cell_weights:
-          self._end_alphas = True
+          self._alphas_end = True
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
@@ -228,10 +228,10 @@ class Network(nn.Module):
       # 2. normal cells in the middle
       # 3. resolution reduction cells in the middle
       # 4. the final end cell
-      if i == 0 and self._start_alphas is not None:
-        alphas = self.alphas_start
+      if i == 0 and self._alphas_start is not None:
+        alphas = self._alphas_start
         print('>>>>>>> network init cell i: ' + str(i) + ' with start alphas')
-      elif i == layers - 1 and self._end_alphas is not None:
+      elif i == layers - 1 and self._alphas_end is not None:
         alphas = self.alphas_end
         print('>>>>>>> network init cell i: ' + str(i) + ' with end alphas')
       elif reduction:
