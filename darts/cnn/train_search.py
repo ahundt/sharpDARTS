@@ -154,7 +154,6 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
 
     optimizer.zero_grad()
     logits = model(input_batch)
-    print('logits: ' + str(logits))
     loss = criterion(logits, target)
 
     loss.backward()

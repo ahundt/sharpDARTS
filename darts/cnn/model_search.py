@@ -95,12 +95,12 @@ class MixedAux(nn.Module):
     # return result
     # apply all ops with intensity corresponding to their weight
     logits = []
-    print(' len xs list: ' + str(len(xs)))
+    # print(' len xs list: ' + str(len(xs)))
     for w, op, x in zip(weights, self._ops, xs):
       out = self.global_pooling(x)
       logits += [w * op(out.view(out.size(0), -1))]
-      print('op_out size: ' + str(out.size()) + ' len logits list: ' + str(len(logits)))
-    print('MixedAux logits: ' + str(logits))
+      # print('op_out size: ' + str(out.size()) + ' len logits list: ' + str(len(logits)))
+    # print('MixedAux logits: ' + str(logits))
     return sum(logits)
 
   def genotype(self):
@@ -284,12 +284,12 @@ class Network(nn.Module):
       s0, s1 = s1, cell(s0, s1)
       # get the outputs for multiple aux networks
       if self.auxs is not None:
-        print('network forward i: ' + str(i) + ' s1 shape: ' + str(s1.shape))
+        # print('network forward i: ' + str(i) + ' s1 shape: ' + str(s1.shape))
         s1s += [s1]
 
     if self.auxs is not None:
       # combine the result of all aux networks
-      print('calling auxs, s1s len: ' + str(len(s1s)))
+      # print('calling auxs, s1s len: ' + str(len(s1s)))
       logits = self.auxs(s1s)
     else:
       out = self.global_pooling(s1)
