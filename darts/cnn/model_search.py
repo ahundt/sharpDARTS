@@ -144,7 +144,7 @@ class Cell(nn.Module):
         self._ops.append(op)
 
   def get_weights(self):
-    return F.softmax(self.alphas, dim=-1)
+    return F.softmax(self._alphas, dim=-1)
 
   def forward(self, s0, s1):
     weights = self.get_weights()
