@@ -15,7 +15,7 @@ import torch.backends.cudnn as cudnn
 try:
   import costar_dataset
 except ImportError:
-  print('The costar dataset is not available, so it is being skipped.'
+  print('dataset.py: The costar dataset is not available, so it is being skipped.'
         'see https://github.com/ahundt/costar_dataset for details')
   costar_dataset = None
 
@@ -249,11 +249,11 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=batch_size,
         sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train]),
-        pin_memory=True, num_workers=2)
+        pin_memory=True, num_workers=4)
   else:
     # test set
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=batch_size,
-        pin_memory=True, num_workers=2)
+        pin_memory=True, num_workers=4)
 
   return train_queue, valid_queue
