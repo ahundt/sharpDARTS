@@ -377,8 +377,12 @@ class Network(nn.Module):
             if k != primitives.index('none'):
               w = W[j][k]
               if kwp_best[0] is None or W[j][k] > kwp_best[1]:
+                # save best, update second best
                 kwp_2nd = kwp_best
                 kwp_best = (k, w, primitives[k])
+              elif kwp_2nd[0] is None or W[j][k] > kwp_2nd[1]:
+                # save as second best
+                kwp_2nd = (k, w, primitives[k])
           gene.append((kwp_best[2], j))
           if 'pool' in kwp_best[2]:
             # trying to analyze if maxpool is actually so powerful or if there is usually a close second
