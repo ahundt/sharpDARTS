@@ -357,7 +357,7 @@ class Network(nn.Module):
 
   def genotype(self):
 
-    def _parse(weights, primitives):
+    def _parse(weights, primitives, description=''):
       """Extract the names of the layers to use from the weights.
       """
       gene = []
@@ -387,27 +387,28 @@ class Network(nn.Module):
           if 'pool' in kwp_best[2]:
             # trying to analyze if maxpool is actually so powerful or if there is usually a close second
             # indicating there is an architecture problem that could be solved
-            print('\npool is best showing second (key, weight, primitive), 1st:' + str(kwp_best) +
-                  ' 2nd: ' + str(kwp_2nd) + ' j: ' + str(j))
+            print('\n' + description + ' cell layer where pool is best. Top 2 (key, weight, primitive) 1st:' + str(kwp_best) +
+                  ' 2nd: ' + str(kwp_2nd) + ' node (step) i: ' + str(i) + ' edge j: ' + str(j) +
+                  ' primitive k: ' + str(k))
         start = end
         n += 1
       return gene
 
-    def _set_gene_concat(alphas, primitives):
+    def _set_gene_concat(alphas, primitives, description=''):
       """ Set empty variables if needed, or extract gene layer type + index using _parse call.
       """
       if alphas is None:
         gene = []
         concat = []
       else:
-        gene = _parse(F.softmax(alphas, dim=-1).data.cpu().numpy(), primitives)
+        gene = _parse(F.softmax(alphas, dim=-1).data.cpu().numpy(), primitives, description)
         concat = range(2+self._steps-self._multiplier, self._steps+2)
       return gene, concat
 
-    gene_reduce, reduce_concat = _set_gene_concat(self.alphas_reduce, self._reduce_primitives)
-    gene_normal, normal_concat = _set_gene_concat(self.alphas_normal, self._primitives)
-    gene_start, start_concat = _set_gene_concat(self.alphas_start, self._primitives)
-    gene_end, end_concat = _set_gene_concat(self.alphas_end, self._primitives)
+    gene_reduce, reduce_concat = _set_gene_concat(self.alphas_reduce, self._reduce_primitives, 'reduce')
+    gene_normal, normal_concat = _set_gene_concat(self.alphas_normal, self._primitives, 'normal')
+    gene_start, start_concat = _set_gene_concat(self.alphas_start, self._primitives, 'start')
+    gene_end, end_concat = _set_gene_concat(self.alphas_end, self._primitives, 'end')
 
     aux = []
     # TODO(ahundt) determine criteria for final decision on aux networks
