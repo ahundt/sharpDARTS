@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat aux start start_concat end end_concat')
+Genotype = namedtuple('Genotype', 'start start_concat normal normal_concat reduce reduce_concat end end_concat aux')
 
 # Simplified new version based on actual results
 # TODO(ahundt) enable different primitives and reduce primitives

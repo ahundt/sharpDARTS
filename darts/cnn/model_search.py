@@ -405,9 +405,9 @@ class Network(nn.Module):
         concat = range(2+self._steps-self._multiplier, self._steps+2)
       return gene, concat
 
-    gene_reduce, reduce_concat = _set_gene_concat(self.alphas_reduce, self._reduce_primitives, 'reduce')
-    gene_normal, normal_concat = _set_gene_concat(self.alphas_normal, self._primitives, 'normal')
     gene_start, start_concat = _set_gene_concat(self.alphas_start, self._primitives, 'start')
+    gene_normal, normal_concat = _set_gene_concat(self.alphas_normal, self._primitives, 'normal')
+    gene_reduce, reduce_concat = _set_gene_concat(self.alphas_reduce, self._reduce_primitives, 'reduce')
     gene_end, end_concat = _set_gene_concat(self.alphas_end, self._primitives, 'end')
 
     aux = []
@@ -417,9 +417,9 @@ class Network(nn.Module):
         aux = self.auxs.genotype()
 
     genotype = Genotype(
+      start=gene_start, start_concat=start_concat,
       normal=gene_normal, normal_concat=normal_concat,
       reduce=gene_reduce, reduce_concat=reduce_concat,
-      start=gene_start, start_concat=start_concat,
       end=gene_end, end_concat=end_concat,
       aux=aux,
     )
