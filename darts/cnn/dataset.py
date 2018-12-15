@@ -242,7 +242,7 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
   train_queue = torch.utils.data.DataLoader(
       train_data, batch_size=batch_size,
       sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[:split]),
-      pin_memory=True, num_workers=2)
+      pin_memory=True, num_workers=4)
 
   if train:
     # validation sampled from training set
