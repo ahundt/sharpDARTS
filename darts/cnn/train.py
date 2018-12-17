@@ -100,7 +100,7 @@ def main():
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
-  for epoch in tqdm(range(args.epochs)):
+  for epoch in tqdm(range(args.epochs), dynamic_ncols=True):
     scheduler.step()
     logger.info('epoch %d lr %e', epoch, scheduler.get_lr()[0])
     cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
@@ -120,7 +120,7 @@ def train(train_queue, cnn_model, criterion, optimizer):
   top5 = utils.AvgrageMeter()
   cnn_model.train()
 
-  for step, (input_batch, target) in enumerate(tqdm(train_queue)):
+  for step, (input_batch, target) in enumerate(tqdm(train_queue, dynamic_ncols=True)):
     input_batch = Variable(input_batch).cuda()
     target = Variable(target).cuda(async=True)
 
@@ -153,15 +153,15 @@ def infer(valid_queue, cnn_model, criterion):
   cnn_model.eval()
 
   with torch.no_grad():
-    for step, (input, target) in enumerate(valid_queue):
-      input = Variable(input).cuda()
+    for step, (input_batch, target) in enumerate(tqdm(valid_queue, dynamic_ncols=True)):
+      input_batch = Variable(input_batch).cuda()
       target = Variable(target).cuda(async=True)
 
-      logits, _ = cnn_model(input)
+      logits, _ = cnn_model(input_batch)
       loss = criterion(logits, target)
 
       prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-      n = input.size(0)
+      n = input_batch.size(0)
       objs.update(loss.data.item(), n)
       top1.update(prec1.data.item(), n)
       top5.update(prec5.data.item(), n)
