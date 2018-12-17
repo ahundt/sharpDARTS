@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import glob
+import json
 import numpy as np
 import torch
 import utils
@@ -25,9 +26,10 @@ parser.add_argument('--data', type=str, default='../data', help='location of the
 parser.add_argument('--dataset', type=str, default='cifar10', help='which dataset:\
                     cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
 parser.add_argument('--batch_size', type=int, default=96, help='batch size')
-parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
+parser.add_argument('--learning_rate', type=float, default=0.1, help='init learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
-parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
+parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
+parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=600, help='num of training epochs')
@@ -41,7 +43,7 @@ parser.add_argument('--cutout_length', type=int, default=16, help='cutout length
 parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
 parser.add_argument('--save', type=str, default='EXP', help='experiment name')
 parser.add_argument('--seed', type=int, default=0, help='random seed')
-parser.add_argument('--arch', type=str, default='DARTS', help='which architecture to use')
+parser.add_argument('--arch', type=str, default='CHOKE_FLOOD', help='which architecture to use')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
 args = parser.parse_args()
 
