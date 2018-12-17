@@ -75,7 +75,7 @@ def main():
   in_channels = dataset.inp_channel_dict[args.dataset]
   cnn_model = model.NetworkCIFAR(
     args.init_channels, number_of_classes, args.layers,
-    args.cnn_model, genotype, in_channels=in_channels)
+    args.model, genotype, in_channels=in_channels)
   cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
