@@ -7,6 +7,7 @@ from . import genotypes
 from .operations import ReLUConvBN
 from .operations import ConvBNReLU
 from .operations import FactorizedReduce
+from .operations import Identity
 from torch.autograd import Variable
 from .utils import drop_path
 from .model_search import MixedAux
