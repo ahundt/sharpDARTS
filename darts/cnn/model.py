@@ -15,7 +15,7 @@ from .model_search import MixedAux
 class Cell(nn.Module):
 
   def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev,
-               op_dict=None, reduction_op_dict=None, separate_reduce_cell=True):
+               op_dict=None, separate_reduce_cell=True):
     """Create a final cell with a single architecture.
 
     The Cell class in model_search.py is the equivalent for searching multiple architectures.
@@ -29,16 +29,10 @@ class Cell(nn.Module):
     print(C_prev_prev, C_prev, C)
     self.reduction = reduction
     if op_dict is None:
-          op_dict = operations.OPS
-    if reduction_op_dict is None:
-          reduction_op_dict = operations.REDUCE_OPS
+      op_dict = operations.OPS
     # _op_dict are op_dict available for use,
     # _ops is the actual sequence of op_dict being utilized in this case
-    # TODO(ahundt) clean up separation of op dict and reduction op dict
-    if reduction:
-      self._op_dict = reduction_op_dict
-    else:
-      self._op_dict = op_dict
+    self._op_dict = op_dict
 
     if reduction_prev is None:
       self.preprocess0 = operations.Identity()
@@ -141,7 +135,8 @@ class AuxiliaryHeadImageNet(nn.Module):
 
 class NetworkCIFAR(nn.Module):
 
-  def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3, reduce_spacing=None):
+  def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3, reduce_spacing=None,
+               mixed_aux=False, weights_are_parameters=False):
     """
     # Arguments
 
