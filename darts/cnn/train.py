@@ -12,10 +12,11 @@ import genotypes
 import torch.utils
 import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
-
 from torch.autograd import Variable
-from model import NetworkCIFAR as Network
+
 from tqdm import tqdm
+from Padam import Padam
+import darts.cnn.model as model
 import dataset
 
 
@@ -49,6 +50,9 @@ utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_file_path = os.path.join(args.save, 'log.txt')
 logger = utils.logging_setup(log_file_path)
+params_path = os.path.join(args.save, 'commandline_args.json')
+with open(params_path, 'w') as f:
+    json.dump(vars(args), f)
 
 def main():
   if not torch.cuda.is_available():
@@ -67,21 +71,23 @@ def main():
   genotype = eval("genotypes.%s" % args.arch)
   number_of_classes = dataset.class_dict[args.dataset]
   in_channels = dataset.inp_channel_dict[args.dataset]
-  model = Network(
+  cnn_model = model.NetworkCIFAR(
     args.init_channels, number_of_classes, args.layers,
-    args.auxiliary, genotype, in_channels=in_channels)
-  model = model.cuda()
+    args.cnn_model, genotype, in_channels=in_channels)
+  cnn_model = cnn_model.cuda()
 
-  logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
+  logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
-  optimizer = torch.optim.SGD(
-      model.parameters(),
-      args.learning_rate,
-      momentum=args.momentum,
-      weight_decay=args.weight_decay
-      )
+
+  optimizer = Padam(cnn_model.parameters(), args.learning_rate, partial=args.partial, weight_decay=args.weight_decay)
+  # optimizer = torch.optim.SGD(
+  #     cnn_model.parameters(),
+  #     args.learning_rate,
+  #     momentum=args.momentum,
+  #     weight_decay=args.weight_decay
+  #     )
 
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
@@ -95,39 +101,39 @@ def main():
   for epoch in tqdm(range(args.epochs)):
     scheduler.step()
     logger.info('epoch %d lr %e', epoch, scheduler.get_lr()[0])
-    model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
+    cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
-    train_acc, train_obj = train(train_queue, model, criterion, optimizer)
+    train_acc, train_obj = train(train_queue, cnn_model, criterion, optimizer)
     logger.info('train_acc %f', train_acc)
 
-    valid_acc, valid_obj = infer(valid_queue, model, criterion)
+    valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
     logger.info('valid_acc %f', valid_acc)
 
-    utils.save(model, os.path.join(args.save, 'weights.pt'))
+    utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
 
 
-def train(train_queue, model, criterion, optimizer):
+def train(train_queue, cnn_model, criterion, optimizer):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
-  model.train()
+  cnn_model.train()
 
-  for step, (input, target) in enumerate(tqdm(train_queue)):
-    input = Variable(input).cuda()
+  for step, (input_batch, target) in enumerate(tqdm(train_queue)):
+    input_batch = Variable(input_batch).cuda()
     target = Variable(target).cuda(async=True)
 
     optimizer.zero_grad()
-    logits, logits_aux = model(input)
+    logits, logits_aux = cnn_model(input_batch)
     loss = criterion(logits, target)
     if args.auxiliary:
       loss_aux = criterion(logits_aux, target)
       loss += args.auxiliary_weight*loss_aux
     loss.backward()
-    nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+    nn.utils.clip_grad_norm_(cnn_model.parameters(), args.grad_clip)
     optimizer.step()
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-    n = input.size(0)
+    n = input_batch.size(0)
     objs.update(loss.data.item(), n)
     top1.update(prec1.data.item(), n)
     top5.update(prec5.data.item(), n)
@@ -138,18 +144,18 @@ def train(train_queue, model, criterion, optimizer):
   return top1.avg, objs.avg
 
 
-def infer(valid_queue, model, criterion):
+def infer(valid_queue, cnn_model, criterion):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
-  model.eval()
+  cnn_model.eval()
 
   with torch.no_grad():
     for step, (input, target) in enumerate(valid_queue):
       input = Variable(input).cuda()
       target = Variable(target).cuda(async=True)
 
-      logits, _ = model(input)
+      logits, _ = cnn_model(input)
       loss = criterion(logits, target)
 
       prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
