@@ -159,8 +159,8 @@ PNASNet = Genotype(
 )
 
 # search-20181213-172120-choke_flood_simple_mixed_aux_v2-cifar10
-CHOKE_FLOOD = Genotype(normal=[('skip_connect', 0), ('skip_connect', 1), ('max_pool_3x3', 2), ('skip_connect', 1), ('max_pool_3x3', 0), ('max_pool_3x3', 2), ('max_pool_3x3', 0), ('max_pool_3x3', 2)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('dil_flood_conv_3x3', 2), ('skip_connect', 1), ('max_pool_3x3', 3), ('max_pool_3x3', 1), ('dil_flood_conv_3x3', 2), ('dil_choke_conv_3x3', 3)], reduce_concat=range(
-2, 6),
+CHOKE_FLOOD = Genotype(normal=[('skip_connect', 0), ('skip_connect', 1), ('max_pool_3x3', 2), ('skip_connect', 1), ('max_pool_3x3', 0), ('max_pool_3x3', 2), ('max_pool_3x3', 0), ('max_pool_3x3', 2)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('dil_flood_conv_3x3', 2), ('skip_connect', 1), ('max_pool_3x3', 3), ('max_pool_3x3', 1), ('dil_flood_conv_3x3', 2), ('dil_choke_conv_3x3', 3)],
+  reduce_concat=range(2, 6),
   start = [],
   start_concat = [],
   end = [],
