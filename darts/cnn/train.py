@@ -106,14 +106,12 @@ def main():
 
   for epoch in tqdm(range(args.epochs), dynamic_ncols=True):
     scheduler.step()
-    logger.info('epoch %d lr %e', epoch, scheduler.get_lr()[0])
     cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
     train_acc, train_obj = train(train_queue, cnn_model, criterion, optimizer)
-    logger.info('train_acc %f', train_acc)
 
     valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
-    logger.info('valid_acc %f', valid_acc)
+    logger.info('epoch %d lr %e train_acc %f valid_acc %f',  epoch, scheduler.get_lr()[0], train_acc, valid_acc)
 
     utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
 
@@ -124,7 +122,8 @@ def train(train_queue, cnn_model, criterion, optimizer):
   top5 = utils.AvgrageMeter()
   cnn_model.train()
 
-  for step, (input_batch, target) in enumerate(tqdm(train_queue, dynamic_ncols=True)):
+  progbar = tqdm(train_queue, dynamic_ncols=True)
+  for step, (input_batch, target) in enumerate(progbar):
     input_batch = Variable(input_batch).cuda()
     target = Variable(target).cuda(async=True)
 
@@ -144,8 +143,7 @@ def train(train_queue, cnn_model, criterion, optimizer):
     top1.update(prec1.data.item(), n)
     top5.update(prec5.data.item(), n)
 
-    if step % args.report_freq == 0:
-      logger.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+    progbar.set_description('loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f}'.format(objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
@@ -170,8 +168,7 @@ def infer(valid_queue, cnn_model, criterion):
       top1.update(prec1.data.item(), n)
       top5.update(prec5.data.item(), n)
 
-      if step % args.report_freq == 0:
-        logger.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+    logger.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
 
   return top1.avg, objs.avg
 
