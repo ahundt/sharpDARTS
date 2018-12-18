@@ -111,7 +111,7 @@ def main():
     train_acc, train_obj = train(train_queue, cnn_model, criterion, optimizer)
 
     valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
-    logger.info('epoch %d lr %e train_acc %f valid_acc %f',  epoch, scheduler.get_lr()[0], train_acc, valid_acc)
+    logger.info('epoch, %d, lr, %e, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f',  epoch, scheduler.get_lr()[0], train_acc, valid_acc, train_obj, valid_obj)
 
     utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
 
