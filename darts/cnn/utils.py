@@ -86,6 +86,40 @@ def accuracy(output, target, topk=(1,)):
   return res
 
 
+def random_eraser(input_img, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=1/0.3, v_l=0, v_h=255, pixel_level=True):
+    """ Cutout and random erasing algorithms for data augmentation
+
+    source:
+    https://github.com/yu4u/cutout-random-erasing/blob/master/random_eraser.py
+
+    modified for batch, channel, height, width dimension order, and so there are no while loop delays.
+    """
+    img_c, img_h, img_w = input_img.shape
+    p_1 = np.random.rand()
+
+    if p_1 > p:
+        return input_img
+
+    s = np.random.uniform(s_l, s_h) * img_h * img_w
+    r = np.random.uniform(r_1, r_2)
+    w = int(np.sqrt(s / r))
+    h = int(np.sqrt(s * r))
+    left = np.random.randint(0, img_w)
+    top = np.random.randint(0, img_h)
+    # ensure boundaries fit in the image border
+    w = np.clip(w, 0, img_w - left)
+    h = np.clip(h, 0, img_h - top)
+
+    if pixel_level:
+        c = np.random.uniform(v_l, v_h, (img_c, h, w))
+    else:
+        c = np.random.uniform(v_l, v_h)
+
+    input_img[:, top:top + h, left:left + w] = c
+
+    return input_img
+
+
 class Cutout(object):
     def __init__(self, length):
         self.length = length
@@ -160,7 +194,8 @@ def _data_transforms_mnist(args):
     transforms.Normalize(MNIST_MEAN, MNIST_STD),
   ])
   if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
+    # train_transform.transforms.append(Cutout(args.cutout_length))
+    train_transform.transforms.append(random_eraser)
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
