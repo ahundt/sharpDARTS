@@ -37,6 +37,7 @@ parser.add_argument('--partial', default=1/8, type=float, help='partially adapti
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=50, help='num of training epochs')
+parser.add_argument('--warm_restarts', type=int, default=10, help='warm restarts of cosine annealing')
 parser.add_argument('--init_channels', type=int, default=16, help='num of init channels')
 parser.add_argument('--layers_of_cells', type=int, default=8, help='total number of cells in the whole network, default is 8 cells')
 parser.add_argument('--layers_in_cells', type=int, default=4, help='total number of layers in each cell, aka number of steps')
