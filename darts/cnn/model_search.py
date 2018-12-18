@@ -352,6 +352,11 @@ class Network(nn.Module):
         self.alphas_end = torch.nn.Parameter(self.alphas_end)
         self._arch_parameters += [self.alphas_start]
 
+    if self.auxs is not None and len(self.auxs.alphas):
+      # if the user is resetting alphas,
+      # aux alphas don't change but must still be re-added to arch parameters
+      self._arch_parameters += [self.auxs.alphas]
+
   def arch_parameters(self):
     return self._arch_parameters
 

@@ -22,6 +22,7 @@ from tqdm import tqdm
 import dataset
 from Padam import Padam
 import json
+from allennlp.training.learning_rate_schedulers import CosineWithRestarts
 
 parser = argparse.ArgumentParser("Common Argument Parser")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
@@ -54,7 +55,7 @@ parser.add_argument('--unrolled', action='store_true', default=False, help='use 
 parser.add_argument('--arch_learning_rate', type=float, default=0.1, help='learning rate for arch encoding Padam optimizer')
 # parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding Adam optimizer')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
-parser.add_argument('--reset_weights', action='store_true', default=False, help='reset architecture weights when cosine annealing resets')
+parser.add_argument('--reset_weights', action='store_true', default=False, help='reset architecture weights alphas when cosine annealing resets')
 args = parser.parse_args()
 
 args.save = 'search-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset)
@@ -96,8 +97,9 @@ def main():
 
   # Get the training queue, select training and validation from training set
   train_queue, valid_queue = dataset.get_training_queues(args.dataset, train_transform, args.data, args.batch_size, args.train_portion)
-  scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, float(args.epochs), eta_min=args.learning_rate_min)
+  # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+  #       optimizer, float(args.epochs), eta_min=args.learning_rate_min)
+  scheduler = CosineWithRestarts(optimizer, t_max=float(args.warm_restarts), eta_min=float(args.learning_rate_min), factor=2)
 
   if args.no_architect:
     architect = None
@@ -106,6 +108,8 @@ def main():
 
   perfor = None
   # perfor = utils.Performance(os.path.join(args.save, 'architecture_performance_history.npy'))
+  # initialize prev_lr so it is definitely higher than the initial learning rate
+  prev_lr = args.learning_rate + 1
 
   for epoch in tqdm(range(args.epochs), dynamic_ncols=True):
     scheduler.step()
@@ -113,6 +117,13 @@ def main():
 
     genotype = model.genotype()
     logger.info('genotype = %s', genotype)
+
+    if args.reset_weights and lr > prev_lr:
+      # re-initialize the weighting of models
+      # so pre-training benefits are realized
+      model._initialize_alphas()
+      genotype = model.genotype()
+      logger.info('reset to RANDOM genotype = %s', genotype)
 
     # print(F.softmax(model.alphas_normal, dim=-1))
     # print(F.softmax(model.alphas_reduce, dim=-1))
@@ -129,6 +140,7 @@ def main():
 
     utils.save(model, os.path.join(args.save, 'weights.pt'))
 
+  # print the final model
   genotype = model.genotype()
   logger.info('genotype = %s', genotype)
 
