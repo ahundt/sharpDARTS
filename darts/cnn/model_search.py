@@ -68,6 +68,7 @@ class MixedAux(nn.Module):
     self._ops = nn.ModuleList()
     self._weights_are_parameters = weights_are_parameters
     self.global_pooling = nn.AdaptiveMaxPool2d(1)
+    self.alphas = None
 
   def add_aux(self, C_prev):
     op = nn.Linear(C_prev, self._num_classes)
@@ -352,7 +353,7 @@ class Network(nn.Module):
         self.alphas_end = torch.nn.Parameter(self.alphas_end)
         self._arch_parameters += [self.alphas_start]
 
-    if self.auxs is not None and len(self.auxs.alphas):
+    if self.auxs is not None and self.auxs.alphas is not None:
       # if the user is resetting alphas,
       # aux alphas don't change but must still be re-added to arch parameters
       self._arch_parameters += [self.auxs.alphas]
