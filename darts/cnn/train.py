@@ -143,7 +143,7 @@ def train(train_queue, cnn_model, criterion, optimizer):
     top1.update(prec1.data.item(), n)
     top5.update(prec5.data.item(), n)
 
-    progbar.set_description('Training loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f}'.format(objs.avg, top1.avg, top5.avg))
+    progbar.set_description('Training loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f} progress'.format(objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
@@ -155,7 +155,8 @@ def infer(valid_queue, cnn_model, criterion):
   cnn_model.eval()
 
   with torch.no_grad():
-    for step, (input_batch, target) in enumerate(tqdm(valid_queue, dynamic_ncols=True)):
+    progbar = tqdm(valid_queue, dynamic_ncols=True)
+    for step, (input_batch, target) in enumerate(progbar):
       input_batch = Variable(input_batch).cuda()
       target = Variable(target).cuda(async=True)
 
@@ -167,8 +168,7 @@ def infer(valid_queue, cnn_model, criterion):
       objs.update(loss.data.item(), n)
       top1.update(prec1.data.item(), n)
       top5.update(prec5.data.item(), n)
-
-    logger.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+      progbar.set_description('Validation step: {0}, loss: {1:9.5f}, top 1: {2:5.2f} top 5: {3:5.2f} progress'.format(step, objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
