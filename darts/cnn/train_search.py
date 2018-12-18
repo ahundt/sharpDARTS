@@ -29,7 +29,7 @@ parser.add_argument('--dataset', type=str, default='cifar10', help='which datase
                     cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
 parser.add_argument('--batch_size', type=int, default=64, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.1, help='init learning rate')
-parser.add_argument('--learning_rate_min', type=float, default=0.001, help='min learning rate')
+parser.add_argument('--learning_rate_min', type=float, default=0.0001, help='min learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
 parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
@@ -54,6 +54,7 @@ parser.add_argument('--unrolled', action='store_true', default=False, help='use 
 parser.add_argument('--arch_learning_rate', type=float, default=0.1, help='learning rate for arch encoding Padam optimizer')
 # parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding Adam optimizer')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
+parser.add_argument('--reset_weights', action='store_true', default=False, help='reset architecture weights when cosine annealing resets')
 args = parser.parse_args()
 
 args.save = 'search-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset)
@@ -109,7 +110,6 @@ def main():
   for epoch in tqdm(range(args.epochs), dynamic_ncols=True):
     scheduler.step()
     lr = scheduler.get_lr()[0]
-    logger.info('epoch %d lr %e', epoch, lr)
 
     genotype = model.genotype()
     logger.info('genotype = %s', genotype)
@@ -119,15 +119,18 @@ def main():
 
     # training
     train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor)
-    logger.info('train_acc %f', train_acc)
+    logger.info('epoch %d lr %e train_acc %f', epoch, lr, train_acc)
 
     # perfor.save()
 
     # validation
     valid_acc, valid_obj = infer(valid_queue, model, criterion)
-    logger.info('valid_acc %f', valid_acc)
+    logger.info('epoch %d lr %e valid_acc %f', epoch, lr, valid_acc)
 
     utils.save(model, os.path.join(args.save, 'weights.pt'))
+
+  genotype = model.genotype()
+  logger.info('genotype = %s', genotype)
 
 def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor):
   objs = utils.AvgrageMeter()
@@ -166,8 +169,7 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
     top1.update(prec1.data.item(), n)
     top5.update(prec5.data.item(), n)
 
-    if step % args.report_freq == 0:
-      logger.info('train %03d %e %f %f %f', step, objs.avg, top1.avg, top5.avg, lr)
+  logger.info('train %03d %e %f %f %f %d', step, objs.avg, top1.avg, top5.avg, lr, epoch)
 
   return top1.avg, objs.avg
 
