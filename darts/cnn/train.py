@@ -19,6 +19,7 @@ from tqdm import tqdm
 from Padam import Padam
 import darts.cnn.model as model
 import dataset
+from allennlp.training.learning_rate_schedulers import CosineWithRestarts
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")
@@ -27,12 +28,14 @@ parser.add_argument('--dataset', type=str, default='cifar10', help='which datase
                     cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
 parser.add_argument('--batch_size', type=int, default=96, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.1, help='init learning rate')
+parser.add_argument('--learning_rate_min', type=float, default=0.0001, help='min learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
 parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
-parser.add_argument('--epochs', type=int, default=600, help='num of training epochs')
+parser.add_argument('--epochs', type=int, default=700, help='num of training epochs')
+parser.add_argument('--warm_restarts', type=int, default=10, help='warm restarts of cosine annealing')
 parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
 parser.add_argument('--layers', type=int, default=20, help='total number of layers')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
@@ -99,7 +102,7 @@ def main():
   train_queue, valid_queue = dataset.get_training_queues(
     args.dataset, train_transform, args.data, args.batch_size, train_proportion=1.0, train=False)
 
-  scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
+  scheduler = CosineWithRestarts(optimizer, t_max=float(args.warm_restarts), eta_min=float(args.learning_rate_min), factor=2)
 
   for epoch in tqdm(range(args.epochs), dynamic_ncols=True):
     scheduler.step()
