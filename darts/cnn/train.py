@@ -104,16 +104,26 @@ def main():
 
   scheduler = CosineWithRestarts(optimizer, t_max=float(args.warm_restarts), eta_min=float(args.learning_rate_min), factor=2)
 
-  for epoch in tqdm(range(args.epochs), dynamic_ncols=True):
+  prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
+  best_valid_acc = 0.0
+  best_epoch = 0
+  for epoch in prog_epoch:
     scheduler.step()
     cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
     train_acc, train_obj = train(train_queue, cnn_model, criterion, optimizer)
 
     valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
-    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e',  epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0])
 
-    utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
+    if valid_acc > best_valid_acc:
+        # new best epoch, save weights
+        utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
+        best_epoch = epoch
+        best_valid_acc = valid_acc
+
+    best_valid_acc = max(best_valid_acc, valid_acc)
+    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
+                epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
 
 
 def train(train_queue, cnn_model, criterion, optimizer):
