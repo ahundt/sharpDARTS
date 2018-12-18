@@ -85,12 +85,12 @@ def main():
   criterion = criterion.cuda()
   number_of_classes = dataset.class_dict[args.dataset]
   in_channels = dataset.inp_channel_dict[args.dataset]
-  model = Network(args.init_channels, number_of_classes, layers=args.layers_of_cells, criterion=criterion,
+  cnn_model = Network(args.init_channels, number_of_classes, layers=args.layers_of_cells, criterion=criterion,
                   in_channels=in_channels, steps=args.layers_in_cells, weights_are_parameters=args.no_architect)
-  model = model.cuda()
-  logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
+  cnn_model = cnn_model.cuda()
+  logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
-  optimizer = Padam(model.parameters(), args.learning_rate, partial=args.partial, weight_decay=args.weight_decay)
+  optimizer = Padam(cnn_model.parameters(), args.learning_rate, partial=args.partial, weight_decay=args.weight_decay)
 
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
@@ -104,7 +104,7 @@ def main():
   if args.no_architect:
     architect = None
   else:
-    architect = Architect(model, args.momentum, args.weight_decay, args.arch_learning_rate, arch_weight_decay=args.arch_weight_decay)
+    architect = Architect(cnn_model, args.momentum, args.weight_decay, args.arch_learning_rate, arch_weight_decay=args.arch_weight_decay)
 
   perfor = None
   # perfor = utils.Performance(os.path.join(args.save, 'architecture_performance_history.npy'))
@@ -115,42 +115,47 @@ def main():
     scheduler.step()
     lr = scheduler.get_lr()[0]
 
-    genotype = model.genotype()
+    genotype = cnn_model.genotype()
     logger.info('genotype = %s', genotype)
 
     if args.reset_weights and lr > prev_lr:
       # re-initialize the weighting of models
       # so pre-training benefits are realized
-      model._initialize_alphas()
-      genotype = model.genotype()
+      cnn_model._initialize_alphas()
+      genotype = cnn_model.genotype()
       logger.info('reset to RANDOM genotype = %s', genotype)
 
     # print(F.softmax(model.alphas_normal, dim=-1))
     # print(F.softmax(model.alphas_reduce, dim=-1))
 
     # training
-    train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor)
-    logger.info('epoch %d lr %e train_acc %f', epoch, lr, train_acc)
+    train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr, perfor)
 
     # perfor.save()
 
     # validation
-    valid_acc, valid_obj = infer(valid_queue, model, criterion)
-    logger.info('epoch %d lr %e valid_acc %f', epoch, lr, valid_acc)
+    valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
 
-    utils.save(model, os.path.join(args.save, 'weights.pt'))
+    if valid_acc > best_valid_acc:
+        # new best epoch, save weights
+        utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
+        best_epoch = epoch
+        best_valid_acc = valid_acc
+
+    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
+                epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
 
   # print the final model
-  genotype = model.genotype()
+  genotype = cnn_model.genotype()
   logger.info('genotype = %s', genotype)
 
-def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, perfor):
+def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr, perfor):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
 
   for step, (input_batch, target) in enumerate(tqdm(train_queue, dynamic_ncols=True)):
-    model.train()
+    cnn_model.train()
     n = input_batch.size(0)
 
     input_batch = Variable(input_batch, requires_grad=False).cuda()
@@ -168,11 +173,11 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
       # perfor.update(model.alphas_normal, model.alphas_reduce, val_loss)
 
     optimizer.zero_grad()
-    logits = model(input_batch)
+    logits = cnn_model(input_batch)
     loss = criterion(logits, target)
 
     loss.backward()
-    nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+    nn.utils.clip_grad_norm_(cnn_model.parameters(), args.grad_clip)
 
     optimizer.step()
 
@@ -181,33 +186,32 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr, 
     top1.update(prec1.data.item(), n)
     top5.update(prec5.data.item(), n)
 
-  logger.info('train %03d %e %f %f %f %d', step, objs.avg, top1.avg, top5.avg, lr, epoch)
+    progbar.set_description('Training loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f} progress'.format(objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
 
-def infer(valid_queue, model, criterion):
+def infer(valid_queue, cnn_model, criterion):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
-  model.eval()
+  cnn_model.eval()
 
   with torch.no_grad():
-    for step, (input, target) in enumerate(valid_queue):
-      input = Variable(input).cuda()
+    progbar = tqdm(valid_queue, dynamic_ncols=True)
+    for step, (input_batch, target) in enumerate(progbar):
+      input_batch = Variable(input_batch).cuda()
       target = Variable(target).cuda(async=True)
 
-      logits = model(input)
+      logits = cnn_model(input_batch)
       loss = criterion(logits, target)
 
       prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-      n = input.size(0)
+      n = input_batch.size(0)
       objs.update(loss.data.item(), n)
       top1.update(prec1.data.item(), n)
       top5.update(prec5.data.item(), n)
-
-      if step % args.report_freq == 0:
-        logger.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+      progbar.set_description('Search Validation step: {0}, loss: {1:9.5f}, top 1: {2:5.2f} top 5: {3:5.2f} progress'.format(step, objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
