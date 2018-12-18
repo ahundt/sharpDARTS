@@ -111,7 +111,7 @@ def main():
     train_acc, train_obj = train(train_queue, cnn_model, criterion, optimizer)
 
     valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
-    logger.info('epoch, %d, lr, %e, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f',  epoch, scheduler.get_lr()[0], train_acc, valid_acc, train_obj, valid_obj)
+    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e',  epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0])
 
     utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
 
@@ -143,7 +143,7 @@ def train(train_queue, cnn_model, criterion, optimizer):
     top1.update(prec1.data.item(), n)
     top5.update(prec5.data.item(), n)
 
-    progbar.set_description('loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f}'.format(objs.avg, top1.avg, top5.avg))
+    progbar.set_description('Training loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f}'.format(objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
