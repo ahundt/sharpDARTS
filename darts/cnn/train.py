@@ -19,7 +19,7 @@ from tqdm import tqdm
 from Padam import Padam
 import darts.cnn.model as model
 import dataset
-from allennlp.training.learning_rate_schedulers import CosineWithRestarts
+from learning_rate_schedulers import CosineWithRestarts
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")

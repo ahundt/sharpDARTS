@@ -22,7 +22,7 @@ from tqdm import tqdm
 import dataset
 from Padam import Padam
 import json
-from allennlp.training.learning_rate_schedulers import CosineWithRestarts
+from learning_rate_schedulers import CosineWithRestarts
 
 parser = argparse.ArgumentParser("Common Argument Parser")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
