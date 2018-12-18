@@ -155,7 +155,8 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
 
-  for step, (input_batch, target) in enumerate(tqdm(train_queue, dynamic_ncols=True)):
+  progbar = tqdm(train_queue, dynamic_ncols=True)
+  for step, (input_batch, target) in enumerate(progbar):
     cnn_model.train()
     n = input_batch.size(0)
 
