@@ -40,7 +40,7 @@ class MixedOp(nn.Module):
       self._ops.append(op)
 
   def forward(self, x, weights):
-    result = 0
+    # result = 0
     # print('-------------------- forward')
     # print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
     # for i, (w, op) in enumerate(zip(weights, self._ops)):
