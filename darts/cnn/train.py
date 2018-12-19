@@ -28,7 +28,7 @@ parser.add_argument('--dataset', type=str, default='cifar10', help='which datase
                     cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
 parser.add_argument('--batch_size', type=int, default=96, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.1, help='init learning rate')
-parser.add_argument('--learning_rate_min', type=float, default=0.0001, help='min learning rate')
+parser.add_argument('--learning_rate_min', type=float, default=0.00001, help='min learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
 parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
