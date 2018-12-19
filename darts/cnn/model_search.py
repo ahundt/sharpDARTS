@@ -13,7 +13,7 @@ from genotypes import Genotype
 
 class MixedOp(nn.Module):
 
-  def __init__(self, C_in, C_out, stride, primitives=None, op_dict=None):
+  def __init__(self, C_in, C_out, stride, primitives=None, op_dict=None, probabilistic=True):
     """ Perform a mixed forward pass incorporating multiple primitive operations like conv, max pool, etc.
 
     # Arguments
@@ -39,8 +39,21 @@ class MixedOp(nn.Module):
       # print('primitive: ' + str(primitive) + ' cin: ' + str(C_in) + ' cout: ' + str(C_out) + ' stride: ' + str(stride))
       self._ops.append(op)
 
+    if probabilistic:
+      def run_forward(x, weights):
+        # do a weighted random sampling
+        # see https://pytorch.org/docs/stable/data.html?highlight=weightedrandomsampler#torch.utils.data.WeightedRandomSampler
+        # Based on ProxylessNAS: Direct Neural Architecture Search on Target Task and Hardware https://arxiv.org/abs/1812.00332
+        return self._ops[torch.multinomial(weights, 1, replacement=True)](x)
+    else:
+      def run_forward(x, weights):
+        # run all ops applying the appropriate weights to each
+        return sum(w * op(x) for w, op in zip(weights, self._ops))
+    self.run_forward = run_forward
+
+
   def forward(self, x, weights):
-    result = 0
+    # result = 0
     # print('-------------------- forward')
     # print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
     # for i, (w, op) in enumerate(zip(weights, self._ops)):
@@ -50,7 +63,7 @@ class MixedOp(nn.Module):
     #   result += w * op_out
     # return result
     # apply all ops with intensity corresponding to their weight
-    return sum(w * op(x) for w, op in zip(weights, self._ops))
+    return self.run_forward(x, weights)
 
 
 class MixedAux(nn.Module):
