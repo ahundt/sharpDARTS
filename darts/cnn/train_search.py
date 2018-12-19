@@ -111,6 +111,8 @@ def main():
   # perfor = utils.Performance(os.path.join(args.save, 'architecture_performance_history.npy'))
   # initialize prev_lr so it is definitely higher than the initial learning rate
   prev_lr = args.learning_rate + 1
+  best_valid_acc = 0.0
+  best_epoch = 0
 
   for epoch in tqdm(range(args.epochs), dynamic_ncols=True):
     scheduler.step()
@@ -125,6 +127,7 @@ def main():
       cnn_model._initialize_alphas()
       genotype = cnn_model.genotype()
       logger.info('reset to RANDOM genotype = %s', genotype)
+    prev_lr = lr
 
     # print(F.softmax(model.alphas_normal, dim=-1))
     # print(F.softmax(model.alphas_reduce, dim=-1))
@@ -138,10 +141,10 @@ def main():
     valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
 
     if valid_acc > best_valid_acc:
-        # new best epoch, save weights
-        utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
-        best_epoch = epoch
-        best_valid_acc = valid_acc
+      # new best epoch, save weights
+      utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
+      best_epoch = epoch
+      best_valid_acc = valid_acc
 
     logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
                 epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
