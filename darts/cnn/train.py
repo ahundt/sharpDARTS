@@ -107,6 +107,7 @@ def main():
   prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
   best_valid_acc = 0.0
   best_epoch = 0
+  weights_file = os.path.join(args.save, 'weights.pt')
   for epoch in prog_epoch:
     scheduler.step()
     cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
@@ -116,11 +117,13 @@ def main():
     valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
 
     if valid_acc > best_valid_acc:
-        # new best epoch, save weights
-        utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
-        best_epoch = epoch
-        best_valid_acc = valid_acc
-
+      # new best epoch, save weights
+      utils.save(cnn_model, weights_file)
+      best_epoch = epoch
+      best_valid_acc = valid_acc
+    else:
+      # not best epoch, load best weights
+      utils.load(cnn_model, weights_file)
     logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
                 epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
 
