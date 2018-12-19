@@ -35,7 +35,7 @@ parser.add_argument('--partial', default=1/8, type=float, help='partially adapti
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=700, help='num of training epochs')
-parser.add_argument('--warm_restarts', type=int, default=10, help='warm restarts of cosine annealing')
+parser.add_argument('--warm_restarts', type=int, default=20, help='warm restarts of cosine annealing')
 parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
 parser.add_argument('--layers', type=int, default=20, help='total number of layers')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
@@ -121,9 +121,9 @@ def main():
       utils.save(cnn_model, weights_file)
       best_epoch = epoch
       best_valid_acc = valid_acc
-    else:
-      # not best epoch, load best weights
-      utils.load(cnn_model, weights_file)
+    # else:
+    #   # not best epoch, load best weights
+    #   utils.load(cnn_model, weights_file)
     logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
                 epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
 
