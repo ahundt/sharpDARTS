@@ -191,20 +191,37 @@ class Network(nn.Module):
     self._num_primitives = len(primitives)
     self._num_reduce_primitives = len(reduce_primitives)
     self._weights_are_parameters = weights_are_parameters
+
+    # alphas are the weights used to determine network layer
+    # and connection priority in the search.
+    # The options below define how the layers of cells will be split
+    # among start, normal, reduce, and end cell types
     self.alphas_start = None
     if start_cell_weights:
-          self.alphas_start = True
+      self.alphas_start = True
 
     self.alphas_end = None
     if end_cell_weights:
-          self.alphas_end = True
+      self.alphas_end = True
 
+    # alphas reduce and normal are enabled by default
+    # but are disabled in certain configuration
+    self.alphas_reduce = True
+    self.alphas_normal = True
+    if reduce_spacing is not None:
+      if reduce_spacing == 1:
+        self.alphas_normal = None
+      elif reduce_spacing >= layers:
+        self.alphas_reduce = None
+
+    # initial convolution at the architecture start
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
       nn.Conv2d(in_channels, C_curr, 3, padding=1, bias=False),
       nn.BatchNorm2d(C_curr)
     )
 
+    # mixed auxiliary connections is being investigated to speed up training
     if mixed_aux:
       self.auxs = MixedAux(num_classes, weights_are_parameters=weights_are_parameters)
     else:
@@ -308,7 +325,6 @@ class Network(nn.Module):
   def _initialize_alphas(self):
     ''' Initialzie network differentiable parameters. Note that auxs needs to be initialized separately later if enabled.
     '''
-    k = sum(1 for i in range(self._steps) for n in range(2+i))
     num_ops = self._num_primitives
     num_reduce_ops = self._num_reduce_primitives
     self._arch_parameters = []
@@ -316,42 +332,48 @@ class Network(nn.Module):
 
     # the quantity of alphas is the number of primitives * k
     # and k is based on the number of steps
-    # TODO(ahundt) attempted fix by removing more efficient alphas when no reductions are used to try fixing crash.
-    if self.alphas_start is not None:
-      self.alphas_start = 1e-3 * torch.randn(k, num_ops, requires_grad=True).cuda()
-      if self._weights_are_parameters:
-        # in simpler training modes the weights are just regular parameters
-        self.alphas_start = torch.nn.Parameter(self.alphas_start)
-      self._arch_parameters += [self.alphas_start]
+    def initialize_one_cell_type_alphas(alphas_var, num_steps, num_primitives):
+      """ Initalize the weights for one type of cell.
 
-    if self._reduce_spacing is None or self._reduce_spacing != 1:
-      # reduce spacing of 1 means there won't be any normal layers
-      self.alphas_normal = 1e-3 * torch.randn(k, num_ops, requires_grad=True).cuda()
-      self.alphas_reduce = 1e-3 * torch.randn(k, num_reduce_ops, requires_grad=True).cuda()
+      # Arguments
+         alphas_var: the variable to modify
 
-      if self._weights_are_parameters:
-        # in simpler training modes the weights are just regular parameters
-        self.alphas_normal = torch.nn.Parameter(self.alphas_normal)
-        self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
-      self._arch_parameters += [
-        self.alphas_normal,
-        self.alphas_reduce,
-      ]
-    else:
-      self.alphas_normal = None
-      self.alphas_reduce = Variable(1e-3*torch.randn(k, num_reduce_ops).cuda(), requires_grad=True)
+      # Returns
 
-      if self._weights_are_parameters:
-        # in simpler training modes the weights are just regular parameters
-        self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
-      self._arch_parameters = [self.alphas_reduce]
-
-    if self.alphas_end is not None:
-      self.alphas_end = 1e-3 * torch.randn(k, num_ops, requires_grad=True).cuda()
-      if self._weights_are_parameters:
-        # in simpler training modes the weights are just regular parameters
-        self.alphas_end = torch.nn.Parameter(self.alphas_end)
+          returns updated alphas_var and directly modifies
+          self._arch_parameters list
+      """
+      # k is the number of (node, previous_node) pairs,
+      # equivalent to combinatorics choose notation:
+      #     from scipy.special import comb
+      #     k = comb(steps + 2, 2, exact=True) - 1
+      # https://docs.scipy.org/doc/scipy-0.19.1/reference/generated/scipy.misc.comb.html
+      # https://en.wikipedia.org/wiki/Binomial_coefficient
+      # The choice is of one  pair,
+      # except for the second input cell cannot connect to the first cell,
+      # so we remove one choice at the end.
+      #
+      # Note that the sum below is very inefficient compared to the code above,
+      # but it is only called very rarely so that doesn't matter.
+      num_choices = sum(1 for i in range(num_steps) for n in range(2+i))
+      if alphas_var is not None:
+        alphas = 1e-3 * torch.randn(num_choices, num_primitives, requires_grad=True).cuda()
+        if self._weights_are_parameters:
+          # in simpler training modes the weights are just regular parameters
+          alphas = torch.nn.Parameter(alphas)
         self._arch_parameters += [self.alphas_start]
+      return alphas
+
+    # initialize or re-initialize all variables as appropriate
+    # Variables that should not be changed will be set as None
+    self.alphas_start = initialize_one_cell_type_alphas(
+      self.alphas_start, self._steps, num_ops)
+    self.alphas_reduce = initialize_one_cell_type_alphas(
+        self.alphas_reduce, self._steps, num_reduce_ops)
+    self.alphas_normal = initialize_one_cell_type_alphas(
+        self.alphas_normal, self._steps, num_ops)
+    self.alphas_end = initialize_one_cell_type_alphas(
+        self.alphas_end, self._steps, num_ops)
 
     if self.auxs is not None and self.auxs.alphas is not None:
       # if the user is resetting alphas,
