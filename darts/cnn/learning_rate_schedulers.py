@@ -31,7 +31,8 @@ class CosineWithRestarts(torch.optim.lr_scheduler._LRScheduler):  # pylint: disa
                  t_max,
                  eta_min=0.,
                  last_epoch=-1,
-                 factor=1.):
+                 factor=1.,
+                 cycle_decay_factor=0.9):
         assert t_max > 0
         assert eta_min >= 0
         if t_max == 1 and factor == 1:
@@ -43,6 +44,7 @@ class CosineWithRestarts(torch.optim.lr_scheduler._LRScheduler):  # pylint: disa
         self._last_restart = 0
         self._cycle_counter = 0
         self._cycle_factor = 1.
+        self._cycle_decay_factor = cycle_decay_factor
         self._updated_cycle_len = t_max
         self._initialized = False
         super(CosineWithRestarts, self).__init__(optimizer, last_epoch)
@@ -67,7 +69,7 @@ class CosineWithRestarts(torch.optim.lr_scheduler._LRScheduler):  # pylint: disa
                                 (self._cycle_counter % self._updated_cycle_len) /
                                 self._updated_cycle_len
                         ) + 1
-                )
+                ) * (self._cycle_decay_factor ** (self._cycle_factor - 1.0))
                 for lr in self.base_lrs
         ]
 
