@@ -88,17 +88,17 @@ def main():
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
 
-if args.optimizer == 'padam':
-  optimizer = Padam(cnn_model.parameters(), args.learning_rate, partial=args.partial, weight_decay=args.weight_decay)
-elif args.optimizer == 'sgd':
-  optimizer = torch.optim.SGD(
-      cnn_model.parameters(),
-      args.learning_rate,
-      momentum=args.momentum,
-      weight_decay=args.weight_decay
-      )
-else:
-  raise ValueError('Unsupported optimizer ' + str(args.optimizer) + ', options are padam and sgd')
+  if args.optimizer == 'padam':
+    optimizer = Padam(cnn_model.parameters(), args.learning_rate, partial=args.partial, weight_decay=args.weight_decay)
+  elif args.optimizer == 'sgd':
+    optimizer = torch.optim.SGD(
+        cnn_model.parameters(),
+        args.learning_rate,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay
+        )
+  else:
+    raise ValueError('Unsupported optimizer ' + str(args.optimizer) + ', options are padam and sgd')
 
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
