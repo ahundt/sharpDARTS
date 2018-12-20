@@ -50,7 +50,7 @@ parser.add_argument('--arch', type=str, default='CHOKE_FLOOD', help='which archi
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
 args = parser.parse_args()
 
-args.save = 'eval-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
+args.save = 'eval-{}-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"), args.arch)
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_file_path = os.path.join(args.save, 'log.txt')
