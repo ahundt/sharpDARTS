@@ -358,7 +358,10 @@ class Network(nn.Module):
       num_choices = sum(1 for i in range(num_steps) for n in range(2+i))
       if alphas_var is not None:
         alphas = 1e-3 * torch.randn(num_choices, num_primitives, requires_grad=True).cuda()
-        if self._weights_are_parameters:
+        if isinstance(alphas_var, torch.nn.Parameter):
+          # TODO(ahundt) ensure this case works and allows continued backprop when a reset is done in the midst of training
+          alphas_var.data = alphas
+        elif self._weights_are_parameters:
           # in simpler training modes the weights are just regular parameters
           alphas = torch.nn.Parameter(alphas)
         self._arch_parameters += [self.alphas_start]
