@@ -27,10 +27,10 @@ parser.add_argument('--data', type=str, default='../data', help='location of the
 parser.add_argument('--dataset', type=str, default='cifar10', help='which dataset:\
                     cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
 parser.add_argument('--batch_size', type=int, default=96, help='batch size')
-parser.add_argument('--learning_rate', type=float, default=0.1, help='init learning rate')
+parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
 parser.add_argument('--learning_rate_min', type=float, default=0.00001, help='min learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
-parser.add_argument('--weight_decay', type=float, default=5e-4, help='weight decay')
+parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
 parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
@@ -107,7 +107,8 @@ def main():
   train_queue, valid_queue = dataset.get_training_queues(
     args.dataset, train_transform, args.data, args.batch_size, train_proportion=1.0, train=False)
 
-  scheduler = CosineWithRestarts(optimizer, t_max=float(args.warm_restarts), eta_min=float(args.learning_rate_min), factor=2)
+  scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
+  # scheduler = CosineWithRestarts(optimizer, t_max=float(args.warm_restarts), eta_min=float(args.learning_rate_min), factor=2)
 
   prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
   best_valid_acc = 0.0
