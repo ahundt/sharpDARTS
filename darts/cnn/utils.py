@@ -173,7 +173,8 @@ def _data_transforms_cifar10(args):
     transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
   ])
   if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
+    # train_transform.transforms.append(Cutout(args.cutout_length))
+    train_transform.transforms.append(random_eraser)
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
@@ -216,7 +217,8 @@ def _data_transforms_fashion(args):
     transforms.Normalize(FASHION_MEAN, FASHION_STD),
   ])
   if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
+    # train_transform.transforms.append(Cutout(args.cutout_length))
+    train_transform.transforms.append(random_eraser)
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
@@ -237,7 +239,8 @@ def _data_transforms_emnist(args):
     transforms.Normalize(EMNIST_MEAN, EMNIST_STD),
   ])
   if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
+    # train_transform.transforms.append(Cutout(args.cutout_length))
+    train_transform.transforms.append(random_eraser)
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
@@ -300,7 +303,8 @@ def _data_transforms_devanagari(args):
     transforms.Normalize(DEVANAGARI_MEAN, DEVANAGARI_STD),
   ])
   if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
+    # train_transform.transforms.append(Cutout(args.cutout_length))
+    train_transform.transforms.append(random_eraser)
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
