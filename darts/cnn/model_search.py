@@ -69,10 +69,19 @@ class MixedAux(nn.Module):
     self._weights_are_parameters = weights_are_parameters
     self.global_pooling = nn.AdaptiveMaxPool2d(1)
     self.alphas = None
+    self._c_prevs = []
 
   def add_aux(self, C_prev):
-    op = nn.Linear(C_prev, self._num_classes)
-    self._ops.append(op)
+    self._c_prevs += [C_prev]
+
+  def build(self):
+    for C_prev in self._c_prevs:
+      op = nn.Linear(C_prev, C_prev)
+      self._ops.append(op)
+    total = sum(self._c_prevs)
+    self.activation = nn.ReLU()
+    self.classifier = nn.Linear(total, self._num_classes)
+    self.initialize_alphas()
 
   def initialize_alphas(self):
       self.alphas = 1e-3 * torch.randn(len(self._ops), requires_grad=True).cuda()
@@ -102,7 +111,8 @@ class MixedAux(nn.Module):
       logits += [w * op(out.view(out.size(0), -1))]
       # print('op_out size: ' + str(out.size()) + ' len logits list: ' + str(len(logits)))
     # print('MixedAux logits: ' + str(logits))
-    return sum(logits)
+    logits = self.activation(logits)
+    return self.classifier(logits)
 
   def genotype(self):
     return [float(w) for w in self.get_weights()]
@@ -278,7 +288,7 @@ class Network(nn.Module):
       self.classifier = nn.Linear(C_prev, num_classes)
     else:
       # init params to prioritize auxiliary decision making networks
-      self.auxs.initialize_alphas()
+      self.auxs.build()
       self._arch_parameters += [self.auxs.alphas]
 
   def new(self):
