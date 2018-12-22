@@ -115,7 +115,9 @@ def random_eraser(input_img, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=1/0.3, v_l=0
     else:
         c = np.random.uniform(v_l, v_h)
 
-    input_img[:, top:top + h, left:left + w] = torch.from_numpy(c)
+    c = torch.from_numpy(c)
+    c = c.expand_as(input_img)
+    input_img[:, top:top + h, left:left + w] = c
 
     return input_img
 
