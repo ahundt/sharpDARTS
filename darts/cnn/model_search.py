@@ -343,6 +343,7 @@ class Network(nn.Module):
     num_ops = self._num_primitives
     num_reduce_ops = self._num_reduce_primitives
     self._arch_parameters = []
+    print('self._arch_parameters: ' + str(self._arch_parameters))
     # print('\nk: ' + str(k) + ' num_ops: ' + str(num_ops) + ' num_reduce_ops: ' + str(num_reduce_ops))
 
     # the quantity of alphas is the number of primitives * k
