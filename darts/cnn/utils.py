@@ -95,7 +95,7 @@ def random_eraser(input_img, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=1/0.3, v_l=0
     modified for batch, channel, height, width dimension order, and so there are no while loop delays.
     """
     img_c, img_h, img_w = input_img.shape
-    print('input_img.shape' + str(input_img.shape))
+    # print('input_img.shape' + str(input_img.shape))
     p_1 = np.random.rand()
 
     if p_1 > p:
@@ -118,7 +118,7 @@ def random_eraser(input_img, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=1/0.3, v_l=0
 
     c = torch.from_numpy(c)
 
-    print('c.shape' + str(c.shape))
+    # print('c.shape' + str(c.shape))
     input_img[:, top:top + h, left:left + w] = c
 
     return input_img
