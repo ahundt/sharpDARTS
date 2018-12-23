@@ -147,8 +147,8 @@ def train(train_queue, cnn_model, criterion, optimizer):
     input_batch = Variable(input_batch)
     target = Variable(target)
     if torch.cuda.is_available():
-      input_batch.cuda()
-      target.cuda(async=True)
+      input_batch = input_batch.cuda()
+      target = target.cuda(async=True)
 
     optimizer.zero_grad()
     logits, logits_aux = cnn_model(input_batch)
