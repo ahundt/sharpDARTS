@@ -305,7 +305,8 @@ class Network(nn.Module):
 
   def random_alphas(self):
     for alphas in self.arch_parameters():
-        alphas.data.copy_(1e-3 * torch.randn(alphas.data.shape(0), alphas.data.shape(1), requires_grad=True).cuda())
+      print('alphas: ' + str(alphas))
+      alphas.data.copy_(1e-3 * torch.randn(alphas.data.shape(0), alphas.data.shape(1), requires_grad=True).cuda())
 
   def forward(self, input_batch):
     s0 = s1 = self.stem(input_batch)
