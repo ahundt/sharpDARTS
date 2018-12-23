@@ -61,16 +61,16 @@ with open(params_path, 'w') as f:
     json.dump(vars(args), f)
 
 def main():
+  np.random.seed(args.seed)
   if not torch.cuda.is_available():
     logger.info('no gpu device available')
-    sys.exit(1)
-
-  np.random.seed(args.seed)
-  torch.cuda.set_device(args.gpu)
-  cudnn.benchmark = True
-  torch.manual_seed(args.seed)
-  cudnn.enabled=True
-  torch.cuda.manual_seed(args.seed)
+    # sys.exit(1)
+  else:
+    torch.cuda.set_device(args.gpu)
+    cudnn.benchmark = True
+    torch.manual_seed(args.seed)
+    cudnn.enabled=True
+    torch.cuda.manual_seed(args.seed)
   logger.info('gpu device = %d' % args.gpu)
   logger.info("args = %s", args)
 
@@ -146,7 +146,7 @@ def train(train_queue, cnn_model, criterion, optimizer):
   for step, (input_batch, target) in enumerate(progbar):
     input_batch = Variable(input_batch)
     target = Variable(target)
-    if torch.cuda.is_available:
+    if torch.cuda.is_available():
       input_batch.cuda()
       target.cuda(async=True)
 
