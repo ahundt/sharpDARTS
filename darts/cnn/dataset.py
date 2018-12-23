@@ -43,7 +43,7 @@ inp_channel_dict = {'cifar10': 3,
                     'stl10': 3,
                     'devanagari' : 1}
 
-def get_training_queues(dataset_name, train_transform, dataset_location=None, batch_size=32, train_proportion=0.9, train=True):
+def get_training_queues(dataset_name, train_transform, dataset_location=None, batch_size=32, train_proportion=0.9, search_architecture=True):
   print("Getting " + dataset_name + " data")
   if dataset_name == 'cifar10':
     print("Using CIFAR10")
@@ -192,7 +192,7 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
 
   num_train = len(train_data)
   indices = list(range(num_train))
-  if train:
+  if search_architecture:
     # select the 'validation' set from the training data
     split = int(np.floor(train_proportion * num_train))
     print("Total Training size", num_train)
@@ -204,16 +204,16 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
     # get the actual train/test set
     if dataset_name == 'cifar10':
         print("Using CIFAR10")
-        valid_data = dset.CIFAR10(root=dataset_location, train=train, download=True, transform=train_transform)
+        valid_data = dset.CIFAR10(root=dataset_location, train=search_architecture, download=True, transform=train_transform)
     elif dataset_name == 'mnist':
         print("Using MNIST")
-        valid_data = dset.MNIST(root=dataset_location, train=train, download=True, transform=train_transform)
+        valid_data = dset.MNIST(root=dataset_location, train=search_architecture, download=True, transform=train_transform)
     elif dataset_name == 'emnist':
         print("Using EMNIST")
-        valid_data = dset.EMNIST(root=dataset_location, split='balanced', train=train, download=True, transform=train_transform)
+        valid_data = dset.EMNIST(root=dataset_location, split='balanced', train=search_architecture, download=True, transform=train_transform)
     elif dataset_name == 'fashion':
         print("Using Fashion")
-        valid_data = dset.FashionMNIST(root=dataset_location, train=train, download=True, transform=train_transform)
+        valid_data = dset.FashionMNIST(root=dataset_location, train=search_architecture, download=True, transform=train_transform)
     elif dataset_name == 'svhn':
         print("Using SVHN")
         valid_data = dset.SVHN(root=dataset_location, split='test', download=True, transform=train_transform)
@@ -242,18 +242,18 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
   train_queue = torch.utils.data.DataLoader(
       train_data, batch_size=batch_size,
       sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[:split]),
-      pin_memory=True, num_workers=4)
+      pin_memory=True, num_workers=4, shuffle=not search_architecture)
 
-  if train:
+  if search_architecture:
     # validation sampled from training set
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=batch_size,
         sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train]),
-        pin_memory=True, num_workers=4)
+        pin_memory=False, num_workers=4)
   else:
     # test set
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=batch_size,
-        pin_memory=True, num_workers=4)
+        pin_memory=False, num_workers=4)
 
   return train_queue, valid_queue
