@@ -81,13 +81,13 @@ def main():
   cnn_model = model.NetworkCIFAR(
     args.init_channels, number_of_classes, args.layers,
     args.auxiliary, genotype, in_channels=in_channels)
-  if toch.cuda.is_available():
+  if torch.cuda.is_available():
     cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
   criterion = nn.CrossEntropyLoss()
-  if toch.cuda.is_available():
+  if torch.cuda.is_available():
     criterion = criterion.cuda()
 
   if args.optimizer == 'padam':
