@@ -399,6 +399,8 @@ class Network(nn.Module):
       # aux alphas don't change but must still be re-added to arch parameters
       self._arch_parameters += [self.auxs.alphas]
 
+    print('self._arch_parameters: ' + str(self._arch_parameters))
+
   def arch_parameters(self):
     return self._arch_parameters
 
