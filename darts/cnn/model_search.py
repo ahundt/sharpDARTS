@@ -380,7 +380,7 @@ class Network(nn.Module):
         elif self._weights_are_parameters:
           # in simpler training modes the weights are just regular parameters
           alphas = torch.nn.Parameter(alphas)
-        self._arch_parameters += [self.alphas_start]
+        self._arch_parameters += [alphas]
       return alphas
 
     # initialize or re-initialize all variables as appropriate
