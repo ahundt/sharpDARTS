@@ -121,10 +121,10 @@ def main():
     genotype = cnn_model.genotype()
     logger.info('genotype = %s', genotype)
 
-    if args.reset_weights and lr > prev_lr:
+    if (args.reset_weights and lr > prev_lr) or epoch == 0:
       # re-initialize the weighting of models
       # so pre-training benefits are realized
-      cnn_model._initialize_alphas()
+      cnn_model.random_alphas()
       genotype = cnn_model.genotype()
       logger.info('reset to RANDOM genotype = %s', genotype)
     prev_lr = lr

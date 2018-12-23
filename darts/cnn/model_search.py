@@ -303,6 +303,10 @@ class Network(nn.Module):
     for x, y in zip(self.arch_parameters(), model_old.arch_parameters()):
         x.data.copy_(y.data)
 
+  def random_alphas(self):
+    for alphas in self.arch_parameters():
+        alphas.data.copy(1e-3 * torch.randn(alphas.data.shape(0), alphas.data.shape(1), requires_grad=True).cuda())
+
   def forward(self, input_batch):
     s0 = s1 = self.stem(input_batch)
     s1s = []
