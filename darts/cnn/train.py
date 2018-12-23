@@ -81,12 +81,14 @@ def main():
   cnn_model = model.NetworkCIFAR(
     args.init_channels, number_of_classes, args.layers,
     args.auxiliary, genotype, in_channels=in_channels)
-  cnn_model = cnn_model.cuda()
+  if toch.cuda.is_available():
+    cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
   criterion = nn.CrossEntropyLoss()
-  criterion = criterion.cuda()
+  if toch.cuda.is_available():
+    criterion = criterion.cuda()
 
   if args.optimizer == 'padam':
     optimizer = Padam(cnn_model.parameters(), args.learning_rate, partial=args.partial, weight_decay=args.weight_decay)
@@ -142,8 +144,11 @@ def train(train_queue, cnn_model, criterion, optimizer):
 
   progbar = tqdm(train_queue, dynamic_ncols=True)
   for step, (input_batch, target) in enumerate(progbar):
-    input_batch = Variable(input_batch).cuda()
-    target = Variable(target).cuda(async=True)
+    input_batch = Variable(input_batch)
+    target = Variable(target)
+    if torch.cuda.is_available:
+      input_batch.cuda()
+      target.cuda(async=True)
 
     optimizer.zero_grad()
     logits, logits_aux = cnn_model(input_batch)
