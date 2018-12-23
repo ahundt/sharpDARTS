@@ -111,6 +111,8 @@ class MixedAux(nn.Module):
       logits += [w * op(out.view(out.size(0), -1))]
       # print('op_out size: ' + str(out.size()) + ' len logits list: ' + str(len(logits)))
     # print('MixedAux logits: ' + str(logits))
+    logits = torch.stack(logits)
+    logits = logits.view(logits.size(0), -1)
     logits = self.activation(logits)
     return self.classifier(logits)
 
