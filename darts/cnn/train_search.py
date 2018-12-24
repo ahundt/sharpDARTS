@@ -98,9 +98,9 @@ def main():
 
   # Get the training queue, select training and validation from training set
   train_queue, valid_queue = dataset.get_training_queues(args.dataset, train_transform, args.data, args.batch_size, args.train_portion)
-  # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-  #       optimizer, float(args.epochs), eta_min=args.learning_rate_min)
-  scheduler = CosineWithRestarts(optimizer, t_max=float(args.warm_restarts), eta_min=float(args.learning_rate_min), factor=2)
+  scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, float(args.epochs), eta_min=args.learning_rate_min)
+  # scheduler = CosineWithRestarts(optimizer, t_max=float(args.warm_restarts), eta_min=float(args.learning_rate_min), factor=2)
 
   if args.no_architect:
     architect = None
