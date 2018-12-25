@@ -137,7 +137,7 @@ class AuxiliaryHeadImageNet(nn.Module):
 class NetworkCIFAR(nn.Module):
 
   def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3, reduce_spacing=None,
-               mixed_aux=False, weights_are_parameters=False):
+               mixed_aux=False):
     """
     # Arguments
 
@@ -162,7 +162,7 @@ class NetworkCIFAR(nn.Module):
     )
 
     if mixed_aux:
-      self.auxs = MixedAux(num_classes, weights_are_parameters=weights_are_parameters)
+      self.auxs = MixedAux(num_classes, weights_are_parameters=True)
     else:
       self.auxs = None
 
