@@ -52,7 +52,7 @@ parser.add_argument('--optimizer', type=str, default='sgd', help='which optimize
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
 args = parser.parse_args()
 
-args.save = 'eval-{}-{}-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"), args.dataset, args.arch)
+args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_file_path = os.path.join(args.save, 'log.txt')
