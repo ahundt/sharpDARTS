@@ -185,22 +185,35 @@ class NetworkCIFAR(nn.Module):
       elif i == 2*layers//3:
         C_to_auxiliary = C_prev
 
-    if auxiliary:
+    if self.auxs is None and auxiliary:
       self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
-    # self.global_pooling = nn.AdaptiveMaxPool2d(1)
-    self.global_pooling = nn.AdaptiveAvgPool2d(1)
-    self.classifier = nn.Linear(C_prev, num_classes)
+    elif self.auxs is None:
+      self.global_pooling = nn.AdaptiveMaxPool2d(1)
+      # self.global_pooling = nn.AdaptiveAvgPool2d(1)
+      self.classifier = nn.Linear(C_prev, num_classes)
+    else:
+      # init params to prioritize auxiliary decision making networks
+      self.auxs.build()
 
   def forward(self, input):
     logits_aux = None
     s0 = s1 = self.stem(input)
+    s1s = []
     for i, cell in enumerate(self.cells):
       s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
-      if i == 2*self._layers//3:
-        if self._auxiliary and self.training:
+      if self.auxs is not None:
+        # print('network forward i: ' + str(i) + ' s1 shape: ' + str(s1.shape))
+        s1s += [s1]
+      elif i == 2 * self._layers // 3 and self._auxiliary and self.training:
           logits_aux = self.auxiliary_head(s1)
-    out = self.global_pooling(s1)
-    logits = self.classifier(out.view(out.size(0),-1))
+
+    if self.auxs is not None:
+      # combine the result of all aux networks
+      # print('calling auxs, s1s len: ' + str(len(s1s)))
+      logits = self.auxs(s1s)
+    else:
+      out = self.global_pooling(s1)
+      logits = self.classifier(out.view(out.size(0),-1))
     return logits, logits_aux
 
 

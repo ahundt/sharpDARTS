@@ -40,6 +40,7 @@ parser.add_argument('--init_channels', type=int, default=36, help='num of init c
 parser.add_argument('--layers', type=int, default=20, help='total number of layers')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
+parser.add_argument('--mixed_auxiliary', action='store_true', default=False, help='Learn weights for auxiliary networks during training. Overrides auxiliary flag')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
@@ -80,7 +81,7 @@ def main():
 
   cnn_model = model.NetworkCIFAR(
     args.init_channels, number_of_classes, args.layers,
-    args.auxiliary, genotype, in_channels=in_channels)
+    args.auxiliary, genotype, in_channels=in_channels, mixed_aux=args.mixed_auxiliary)
   if torch.cuda.is_available():
     cnn_model = cnn_model.cuda()
 
