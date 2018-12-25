@@ -154,9 +154,9 @@ def train(train_queue, cnn_model, criterion, optimizer):
     optimizer.zero_grad()
     logits, logits_aux = cnn_model(input_batch)
     loss = criterion(logits, target)
-    if args.auxiliary:
+    if logits_aux is not None and args.auxiliary:
       loss_aux = criterion(logits_aux, target)
-      loss += args.auxiliary_weight*loss_aux
+      loss += args.auxiliary_weight * loss_aux
     loss.backward()
     nn.utils.clip_grad_norm_(cnn_model.parameters(), args.grad_clip)
     optimizer.step()

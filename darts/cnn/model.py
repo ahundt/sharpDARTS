@@ -195,9 +195,9 @@ class NetworkCIFAR(nn.Module):
       # init params to prioritize auxiliary decision making networks
       self.auxs.build()
 
-  def forward(self, input):
+  def forward(self, input_batch):
     logits_aux = None
-    s0 = s1 = self.stem(input)
+    s0 = s1 = self.stem(input_batch)
     s1s = []
     for i, cell in enumerate(self.cells):
       s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
