@@ -185,9 +185,9 @@ class NetworkCIFAR(nn.Module):
       elif i == 2*layers//3:
         C_to_auxiliary = C_prev
 
-    if self.auxs is None and auxiliary:
-      self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
-    elif self.auxs is None:
+    if self.auxs is None:
+      if auxiliary:
+        self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
       self.global_pooling = nn.AdaptiveMaxPool2d(1)
       # self.global_pooling = nn.AdaptiveAvgPool2d(1)
       self.classifier = nn.Linear(C_prev, num_classes)
