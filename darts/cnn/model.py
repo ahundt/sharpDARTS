@@ -15,7 +15,7 @@ from .model_search import MixedAux
 
 class Cell(nn.Module):
 
-  def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev,
+  def __init__(self, genotype_sequence, concat_sequence, C_prev_prev, C_prev, C, reduction, reduction_prev,
                op_dict=None, separate_reduce_cell=True):
     """Create a final cell with a single architecture.
 
@@ -43,13 +43,8 @@ class Cell(nn.Module):
       self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0)
     self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0)
 
-    if reduction and separate_reduce_cell:
-      op_names, indices = zip(*genotype.reduce)
-      concat = genotype.reduce_concat
-    else:
-      op_names, indices = zip(*genotype.normal)
-      concat = genotype.normal_concat
-    self._compile(C, op_names, indices, concat, reduction)
+    op_names, indices = zip(*genotype_sequence)
+    self._compile(C, op_names, indices, concat_sequence, reduction)
 
   def _compile(self, C, op_names, indices, concat, reduction):
     assert len(op_names) == len(indices)
@@ -456,9 +451,22 @@ class DQNAS(nn.Module):
           (reduce_spacing is not None and ((i + 1) % reduce_spacing == 0))):
         C_curr *= 2
         reduction = True
+        cell = Cell(genotype.reduce, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
       else:
         reduction = False
-      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+        if i == 0 and genotype.start:
+          # start cell is nonempty
+          sequence = genotype.start
+          concat = genotype.start_concat
+        elif i == layers - 1 and genotype.end:
+          # end cell is nonempty
+          sequence = genotype.end
+          concat = genotype.end_concat
+        else:
+          # we are on a normal cell
+          sequence = genotype.normal
+          concat = genotype.normal_concat
+        cell = Cell(sequence, concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, cell.multiplier*C_curr
