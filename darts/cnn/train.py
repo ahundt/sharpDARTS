@@ -135,6 +135,7 @@ def main():
     #   utils.load(cnn_model, weights_file)
     logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
                 epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
+  logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 
 def train(train_queue, cnn_model, criterion, optimizer):

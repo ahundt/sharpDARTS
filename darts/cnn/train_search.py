@@ -152,6 +152,7 @@ def main():
   # print the final model
   genotype = cnn_model.genotype()
   logger.info('genotype = %s', genotype)
+  logger.info('Search for Model Complete! Save dir: ' + str(args.save))
 
 def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr, perfor):
   objs = utils.AvgrageMeter()
