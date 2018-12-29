@@ -169,9 +169,22 @@ class NetworkCIFAR(nn.Module):
           (reduce_spacing is not None and ((i + 1) % reduce_spacing == 0))):
         C_curr *= 2
         reduction = True
+        cell = Cell(genotype.reduce, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
       else:
         reduction = False
-      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+        if i == 0 and genotype.start:
+          # start cell is nonempty
+          sequence = genotype.start
+          concat = genotype.start_concat
+        elif i == layers - 1 and genotype.end:
+          # end cell is nonempty
+          sequence = genotype.end
+          concat = genotype.end_concat
+        else:
+          # we are on a normal cell
+          sequence = genotype.normal
+          concat = genotype.normal_concat
+        cell = Cell(sequence, concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, cell.multiplier*C_curr
