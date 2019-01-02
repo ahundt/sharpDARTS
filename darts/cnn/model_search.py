@@ -67,7 +67,8 @@ class MixedAux(nn.Module):
     self._num_classes = num_classes
     self._ops = nn.ModuleList()
     self._weights_are_parameters = weights_are_parameters
-    self.global_pooling = nn.AdaptiveMaxPool2d(1)
+    # self.global_pooling = nn.AdaptiveMaxPool2d(1)
+    self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.alphas = None
     self._c_prevs = []
 
@@ -285,8 +286,8 @@ class Network(nn.Module):
         self.auxs.add_aux(C_prev)
 
     if self.auxs is None:
-      self.global_pooling = nn.AdaptiveMaxPool2d(1)
-      # self.global_pooling = nn.AdaptiveAvgPool2d(1)
+      # self.global_pooling = nn.AdaptiveMaxPool2d(1)
+      self.global_pooling = nn.AdaptiveAvgPool2d(1)
       self.classifier = nn.Linear(C_prev, num_classes)
     else:
       # init params to prioritize auxiliary decision making networks
