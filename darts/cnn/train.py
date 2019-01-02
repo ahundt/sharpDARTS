@@ -50,7 +50,7 @@ parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path
 parser.add_argument('--save', type=str, default='EXP', help='experiment name')
 parser.add_argument('--seed', type=int, default=0, help='random seed')
 parser.add_argument('--arch', type=str, default='CHOKE_FLOOD', help='which architecture to use')
-parser.add_argument('--ops', type=str, default='CHOKE_FLOOD', help='which operations to use, options are OPS and DARTS_OPS')
+parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
 parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
 args = parser.parse_args()
