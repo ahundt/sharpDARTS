@@ -176,9 +176,10 @@ def _data_transforms_cifar10(args):
     transforms.ToTensor(),
     transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
   ])
-  if args.cutout:
-    # train_transform.transforms.append(Cutout(args.cutout_length))
+  if args.random_eraser:
     train_transform.transforms.append(random_eraser)
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
@@ -198,9 +199,10 @@ def _data_transforms_mnist(args):
     transforms.ToTensor(),
     transforms.Normalize(MNIST_MEAN, MNIST_STD),
   ])
-  if args.cutout:
-    # train_transform.transforms.append(Cutout(args.cutout_length))
+  if args.random_eraser:
     train_transform.transforms.append(random_eraser)
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
@@ -220,9 +222,10 @@ def _data_transforms_fashion(args):
     transforms.ToTensor(),
     transforms.Normalize(FASHION_MEAN, FASHION_STD),
   ])
-  if args.cutout:
-    # train_transform.transforms.append(Cutout(args.cutout_length))
+  if args.random_eraser:
     train_transform.transforms.append(random_eraser)
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
@@ -242,9 +245,10 @@ def _data_transforms_emnist(args):
     transforms.ToTensor(),
     transforms.Normalize(EMNIST_MEAN, EMNIST_STD),
   ])
-  if args.cutout:
-    # train_transform.transforms.append(Cutout(args.cutout_length))
+  if args.random_eraser:
     train_transform.transforms.append(random_eraser)
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
@@ -264,6 +268,8 @@ def _data_transforms_svhn(args):
     transforms.ToTensor(),
     transforms.Normalize(SVHN_MEAN, SVHN_STD),
   ])
+  if args.random_eraser:
+    train_transform.transforms.append(random_eraser)
   if args.cutout:
     train_transform.transforms.append(Cutout(args.cutout_length))
 
@@ -285,6 +291,8 @@ def _data_transforms_stl10(args):
     transforms.ToTensor(),
     transforms.Normalize(STL_MEAN, STL_STD),
   ])
+  if args.random_eraser:
+    train_transform.transforms.append(random_eraser)
   if args.cutout:
     train_transform.transforms.append(Cutout(args.cutout_length))
 
@@ -306,9 +314,10 @@ def _data_transforms_devanagari(args):
     transforms.ToTensor(),
     transforms.Normalize(DEVANAGARI_MEAN, DEVANAGARI_STD),
   ])
-  if args.cutout:
-    # train_transform.transforms.append(Cutout(args.cutout_length))
+  if args.random_eraser:
     train_transform.transforms.append(random_eraser)
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
 
   valid_transform = transforms.Compose([
     transforms.ToTensor(),
