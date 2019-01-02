@@ -44,7 +44,6 @@ parser.add_argument('--auxiliary', action='store_true', default=False, help='use
 parser.add_argument('--mixed_auxiliary', action='store_true', default=False, help='Learn weights for auxiliary networks during training. Overrides auxiliary flag')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
-parser.add_argument('--cutout', action='store_true', default=False, help='use random eraser')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
 parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
