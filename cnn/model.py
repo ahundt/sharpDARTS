@@ -15,6 +15,7 @@ import operations
 import genotypes
 from operations import FactorizedReduce
 from operations import Identity
+from operations import ReLUConvBN
 from utils import drop_path
 
 
