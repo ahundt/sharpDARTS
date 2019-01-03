@@ -177,18 +177,23 @@ class NetworkCIFAR(nn.Module):
         cell = Cell(genotype.reduce, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict)
       else:
         reduction = False
-        if i == 0 and genotype.start:
-          # start cell is nonempty
-          sequence = genotype.start
-          concat = genotype.start_concat
-        elif i == layers - 1 and genotype.end:
-          # end cell is nonempty
-          sequence = genotype.end
-          concat = genotype.end_concat
-        else:
-          # we are on a normal cell
-          sequence = genotype.normal
-          concat = genotype.normal_concat
+        # TODO(ahundt) re-enable extended genotype
+        # if i == 0 and genotype.start:
+        #   # start cell is nonempty
+        #   sequence = genotype.start
+        #   concat = genotype.start_concat
+        # elif i == layers - 1 and genotype.end:
+        #   # end cell is nonempty
+        #   sequence = genotype.end
+        #   concat = genotype.end_concat
+        # else:
+        #   # we are on a normal cell
+        #   sequence = genotype.normal
+        #   concat = genotype.normal_concat
+        # we are on a normal cell
+        # TODO(ahundt) comment two lines below when re-enabling extended genotype
+        sequence = genotype.normal
+        concat = genotype.normal_concat
         cell = Cell(sequence, concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict)
       reduction_prev = reduction
       self.cells += [cell]
