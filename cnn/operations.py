@@ -33,7 +33,7 @@ class ReLUConvBN(nn.Module):
     return self.op(x)
 
 class DilConv(nn.Module):
-    
+
   def __init__(self, C_in, C_out, kernel_size, stride, padding, dilation, affine=True):
     super(DilConv, self).__init__()
     self.op = nn.Sequential(
@@ -48,7 +48,7 @@ class DilConv(nn.Module):
 
 
 class SepConv(nn.Module):
-    
+
   def __init__(self, C_in, C_out, kernel_size, stride, padding, affine=True):
     super(SepConv, self).__init__()
     self.op = nn.Sequential(
@@ -89,17 +89,18 @@ class Zero(nn.Module):
 
 class FactorizedReduce(nn.Module):
 
-  def __init__(self, C_in, C_out, affine=True):
+  def __init__(self, C_in, C_out, kernel_size=1, stride=2, padding=0, affine=True):
     super(FactorizedReduce, self).__init__()
     assert C_out % 2 == 0
     self.relu = nn.ReLU(inplace=False)
-    self.conv_1 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-    self.conv_2 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False) 
+    self.conv_1 = nn.Conv2d(C_in, C_out // 2, kernel_size, stride=stride, padding=padding, bias=False)
+    self.conv_2 = nn.Conv2d(C_in, C_out // 2, kernel_size, stride=stride, padding=padding, bias=False)
     self.bn = nn.BatchNorm2d(C_out, affine=affine)
+    self.pad = nn.ConstantPad2d((0, 1, 0, 1), 0)
 
   def forward(self, x):
     x = self.relu(x)
-    out = torch.cat([self.conv_1(x), self.conv_2(x[:,:,1:,1:])], dim=1)
+    y = self.pad(x)
+    out = torch.cat([self.conv_1(x), self.conv_2(y[:,:,1:,1:])], dim=1)
     out = self.bn(out)
     return out
-
