@@ -16,6 +16,7 @@ import torch.backends.cudnn as cudnn
 
 from torch.autograd import Variable
 from model import NetworkCIFAR as Network
+from tqdm import tqdm
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")
