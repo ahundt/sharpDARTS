@@ -5,4 +5,4 @@ __author__ = ''
 __all__ = []
 
 from . import cnn
-from . import rnn
+# from . import rnn
