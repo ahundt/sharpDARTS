@@ -132,7 +132,7 @@ class AuxiliaryHeadImageNet(nn.Module):
 class NetworkCIFAR(nn.Module):
 
   def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3, reduce_spacing=None,
-               mixed_aux=False):
+               mixed_aux=False, op_dict=None):
     """
     # Arguments
 
@@ -143,6 +143,8 @@ class NetworkCIFAR(nn.Module):
             default of None is at 1/3 and 2/3 of the total number of layers.
             1 means all cells are reduction. 2 means the first layer is
             normal then the second
+        op_dict: The dictionary of possible operation creation functions.
+            All primitive name strings defined in the genotype must be in the op_dict.
     """
     super(NetworkCIFAR, self).__init__()
     self._layers = layers
@@ -169,7 +171,7 @@ class NetworkCIFAR(nn.Module):
           (reduce_spacing is not None and ((i + 1) % reduce_spacing == 0))):
         C_curr *= 2
         reduction = True
-        cell = Cell(genotype.reduce, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+        cell = Cell(genotype.reduce, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict)
       else:
         reduction = False
         if i == 0 and genotype.start:
@@ -184,7 +186,7 @@ class NetworkCIFAR(nn.Module):
           # we are on a normal cell
           sequence = genotype.normal
           concat = genotype.normal_concat
-        cell = Cell(sequence, concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+        cell = Cell(sequence, concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, cell.multiplier*C_curr

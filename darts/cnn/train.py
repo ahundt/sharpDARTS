@@ -78,7 +78,10 @@ def main():
   logger.info('gpu device = %d' % args.gpu)
   logger.info("args = %s", args)
   # load the correct ops dictionary
-  operations.OPS = eval("operations.%s" % args.ops)
+  op_dict_to_load = "operations.%s" % args.ops
+  print('loading op dict: ' + str(op_dict_to_load))
+  op_dict = eval(op_dict_to_load)
+  operations.OPS = op_dict
 
   # load the architecture genotype
   genotype = eval("genotypes.%s" % args.arch)
@@ -87,7 +90,8 @@ def main():
 
   cnn_model = model.NetworkCIFAR(
     args.init_channels, number_of_classes, args.layers,
-    args.auxiliary, genotype, in_channels=in_channels, mixed_aux=args.mixed_auxiliary)
+    args.auxiliary, genotype, in_channels=in_channels, mixed_aux=args.mixed_auxiliary,
+    op_dict=op_dict)
   if torch.cuda.is_available():
     cnn_model = cnn_model.cuda()
 

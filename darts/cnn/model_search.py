@@ -185,7 +185,7 @@ class Network(nn.Module):
   def __init__(self, C, num_classes, layers, criterion, in_channels=3, steps=4,
                multiplier=4, stem_multiplier=3, reduce_spacing=None, primitives=None,
                reduce_primitives=None, op_dict=None, weights_are_parameters=False,
-               mixed_aux=True, start_cell_weights=True, end_cell_weights=True):
+               mixed_aux=False, start_cell_weights=False, end_cell_weights=False):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
