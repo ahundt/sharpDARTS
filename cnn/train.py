@@ -149,9 +149,9 @@ def train(train_queue, cnn_model, criterion, optimizer):
       loss += args.auxiliary_weight * loss_aux
     loss.backward()
     nn.utils.clip_grad_norm_(cnn_model.parameters(), args.grad_clip)
-    if cnn_model.auxs is not None:
-      # clip the aux weights even more so they don't jump too quickly
-      nn.utils.clip_grad_norm_(cnn_model.auxs.alphas, args.grad_clip/10)
+    # if cnn_model.auxs is not None:
+    #   # clip the aux weights even more so they don't jump too quickly
+    #   nn.utils.clip_grad_norm_(cnn_model.auxs.alphas, args.grad_clip/10)
     optimizer.step()
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
