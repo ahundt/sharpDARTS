@@ -11,6 +11,8 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 # from .utils import drop_path
 # from .model_search import MixedAux
+import operations
+import genotypes
 from operations import FactorizedReduce
 from operations import Identity
 from utils import drop_path
