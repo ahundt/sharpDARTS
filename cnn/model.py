@@ -2,15 +2,18 @@ import math
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from . import operations
-from . import genotypes
-from .operations import ReLUConvBN
-from .operations import ConvBNReLU
-from .operations import FactorizedReduce
-from .operations import Identity
+# from . import operations
+# from . import genotypes
+# from .operations import ReLUConvBN
+# from .operations import ConvBNReLU
+# from .operations import FactorizedReduce
+# from .operations import Identity
 from torch.autograd import Variable
-from .utils import drop_path
-from .model_search import MixedAux
+# from .utils import drop_path
+# from .model_search import MixedAux
+from operations import FactorizedReduce
+from operations import Identity
+from utils import drop_path
 
 
 class Cell(nn.Module):
