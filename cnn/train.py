@@ -76,15 +76,15 @@ def main():
   CIFAR_CLASSES = 10
 
   genotype = eval("genotypes.%s" % args.arch)
-  model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype)
-  model = model.cuda()
+  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype)
+  cnn_model = cnn_model.cuda()
 
-  logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
+  logging.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
   optimizer = torch.optim.SGD(
-      model.parameters(),
+      cnn_model.parameters(),
       args.learning_rate,
       momentum=args.momentum,
       weight_decay=args.weight_decay
