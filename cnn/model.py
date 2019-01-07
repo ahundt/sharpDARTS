@@ -61,9 +61,8 @@ class Cell(nn.Module):
     self._ops = nn.ModuleList()
     for name, index in zip(op_names, indices):
       stride = 2 if reduction and index < 2 else 1
-      # TODO(ahundt) uncomment next line comment line after
-      # op = self._op_dict[name](C, C, stride, True)
-      op = self._op_dict[name](C, stride, True)
+      op = self._op_dict[name](C, C, stride, True)
+      # op = self._op_dict[name](C, stride, True)
       self._ops += [op]
     self._indices = indices
 

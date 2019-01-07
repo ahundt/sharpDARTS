@@ -1,23 +1,125 @@
 import torch
 import torch.nn as nn
 
+# Simplified new version based on actual results, partially adapted from PNASNet https://github.com/chenxi116/PNASNet.pytorch
 OPS = {
-  'none' : lambda C, stride, affine: Zero(stride),
-  'avg_pool_3x3' : lambda C, stride, affine: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
-  'max_pool_3x3' : lambda C, stride, affine: nn.MaxPool2d(3, stride=stride, padding=1),
-  'skip_connect' : lambda C, stride, affine: Identity() if stride == 1 else FactorizedReduce(C, C, affine=affine),
-  'sep_conv_3x3' : lambda C, stride, affine: SepConv(C, C, 3, stride, 1, affine=affine),
-  'sep_conv_5x5' : lambda C, stride, affine: SepConv(C, C, 5, stride, 2, affine=affine),
-  'sep_conv_7x7' : lambda C, stride, affine: SepConv(C, C, 7, stride, 3, affine=affine),
-  'dil_conv_3x3' : lambda C, stride, affine: DilConv(C, C, 3, stride, 2, 2, affine=affine),
-  'dil_conv_5x5' : lambda C, stride, affine: DilConv(C, C, 5, stride, 4, 2, affine=affine),
-  'conv_7x1_1x7' : lambda C, stride, affine: nn.Sequential(
+  'none': lambda C_in, C_out, stride, affine: Zero(stride),
+  'avg_pool_3x3': lambda C_in, C_out, stride, affine: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False) if C_in == C_out else nn.Sequential(
+    nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
+    nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=False),
+    nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+    ),
+  'max_pool_3x3': lambda C_in, C_out, stride, affine: nn.MaxPool2d(3, stride=stride, padding=1) if C_in == C_out else nn.Sequential(
+    nn.MaxPool2d(3, stride=stride, padding=1),
+    nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=False),
+    nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+    ),
+  'skip_connect': lambda C_in, C_out, stride, affine: Identity() if stride == 1 else FactorizedReduce(C_in, C_out, 1, stride, 0, affine=affine),
+  'sep_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine),
+  # 'sep_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 2, affine=affine),
+  # 'sep_conv_7x7': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 7, stride, 3, affine=affine),
+  'dil_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=2, dilation=2, affine=affine),
+  # 'dil_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 4, dilation=2, affine=affine),
+  # 'conv_7x1_1x7': lambda C_in, C_out, stride, affine: nn.Sequential(
+  #   nn.ReLU(inplace=False),
+  #   nn.Conv2d(C_in, C_in, (1, 7), stride=(1, stride), padding=(0, 3), bias=False),
+  #   nn.Conv2d(C_in, C_out, (7, 1), stride=(stride, 1), padding=(3, 0), bias=False),
+  #   nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+  #   ),
+  'flood_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid_mult=4),
+  'dil_flood_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=2, dilation=2, affine=affine, C_mid_mult=4),
+  'choke_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid=32),
+  'dil_choke_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=2, dilation=2, affine=affine, C_mid=32),
+}
+# TODO(ahundt) Only have primitives be independent? combined ops?
+# TODO(ahundt) if REDUCE_OPS and OPS OR THE PRIMITIVES need to be the same size, fix that...
+# REDUCE_OPS = {
+#   'none': lambda C_in, C_out, stride, affine: Zero(stride),
+#   'avg_pool_3x3': lambda C_in, C_out, stride, affine: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False) if C_in == C_out else nn.Sequential(
+#     nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
+#     nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=False),
+#     nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+#     ),
+#   'max_pool_3x3': lambda C_in, C_out, stride, affine: nn.MaxPool2d(3, stride=stride, padding=1) if C_in == C_out else nn.Sequential(
+#     nn.MaxPool2d(3, stride=stride, padding=1),
+#     nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=False),
+#     nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+#     ),
+#   'skip_connect': lambda C_in, C_out, stride, affine: Identity() if stride == 1 else ReLUConvBN(C_in, C_out, 1, stride, 0, affine=affine),
+#   # 'sep_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, 1, affine=affine),
+#   # 'sep_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 2, affine=affine),
+#   # 'sep_conv_7x7': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 7, stride, 3, affine=affine),
+#   # 'dil_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, 2, dilation=2, affine=affine),
+#   # 'dil_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 4, dilation=2, affine=affine),
+#   # 'conv_7x1_1x7': lambda C_in, C_out, stride, affine: nn.Sequential(
+#   #   nn.ReLU(inplace=False),
+#   #   nn.Conv2d(C_in, C_in, (1, 7), stride=(1, stride), padding=(0, 3), bias=False),
+#   #   nn.Conv2d(C_in, C_out, (7, 1), stride=(stride, 1), padding=(3, 0), bias=False),
+#   #   nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+#   #   ),
+# }
+'''
+# New version partially adapted from PNASNet https://github.com/chenxi116/PNASNet.pytorch
+OPS = {
+  'none': lambda C_in, C_out, stride, affine: Zero(stride),
+  'avg_pool_3x3': lambda C_in, C_out, stride, affine: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False) if C_in == C_out else nn.Sequential(
+    nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
+    nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=False),
+    nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+    ),
+  'max_pool_3x3': lambda C_in, C_out, stride, affine: nn.MaxPool2d(3, stride=stride, padding=1) if C_in == C_out else nn.Sequential(
+    nn.MaxPool2d(3, stride=stride, padding=1),
+    nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=False),
+    nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+    ),
+  'skip_connect': lambda C_in, C_out, stride, affine: Identity() if stride == 1 else ReLUConvBN(C_in, C_out, 1, stride, 0, affine=affine),
+  'sep_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, 1, affine=affine),
+  'sep_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 2, affine=affine),
+  'sep_conv_7x7': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 7, stride, 3, affine=affine),
+  'dil_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, 2, dilation=2, affine=affine),
+  'dil_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 4, dilation=2, affine=affine),
+  'conv_7x1_1x7': lambda C_in, C_out, stride, affine: nn.Sequential(
     nn.ReLU(inplace=False),
-    nn.Conv2d(C, C, (1,7), stride=(1, stride), padding=(0, 3), bias=False),
-    nn.Conv2d(C, C, (7,1), stride=(stride, 1), padding=(3, 0), bias=False),
-    nn.BatchNorm2d(C, affine=affine)
+    nn.Conv2d(C_in, C_in, (1, 7), stride=(1, stride), padding=(0, 3), bias=False),
+    nn.Conv2d(C_in, C_out, (7, 1), stride=(stride, 1), padding=(3, 0), bias=False),
+    nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
     ),
 }
+'''
+# Old Version
+DARTS_OPS = {
+  'none': lambda C, C_out, stride, affine: Zero(stride),
+  'avg_pool_3x3': lambda C, C_out, stride, affine: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
+  'max_pool_3x3': lambda C, C_out, stride, affine: nn.MaxPool2d(3, stride=stride, padding=1),
+  'skip_connect': lambda C, C_out, stride, affine: Identity() if stride == 1 else FactorizedReduce(C, C, affine=affine),
+  'sep_conv_3x3': lambda C, C_out, stride, affine: SepConv(C, C, 3, stride, 1, affine=affine),
+  'sep_conv_5x5': lambda C, C_out, stride, affine: SepConv(C, C, 5, stride, 2, affine=affine),
+  'sep_conv_7x7': lambda C, C_out, stride, affine: SepConv(C, C, 7, stride, 3, affine=affine),
+  'dil_conv_3x3': lambda C, C_out, stride, affine: DilConv(C, C, 3, stride, 2, 2, affine=affine),
+  'dil_conv_5x5': lambda C, C_out, stride, affine: DilConv(C, C, 5, stride, 4, 2, affine=affine),
+  'conv_7x1_1x7': lambda C, C_out, stride, affine: nn.Sequential(
+    nn.ReLU(inplace=False),
+    nn.Conv2d(C, C, (1, 7), stride=(1, stride), padding=(0, 3), bias=False),
+    nn.Conv2d(C, C, (7, 1), stride=(stride, 1), padding=(3, 0), bias=False),
+    nn.BatchNorm2d(C, affine=affine)
+    ),
+  'nor_conv_3x3': lambda C, C_out, stride, affine: ConvBNReLU(C, C, 3, stride, 1, affine=affine),
+  'nor_conv_5x5': lambda C, C_out, stride, affine: ConvBNReLU(C, C, 5, stride, 2, affine=affine),
+  'nor_conv_7x7': lambda C, C_out, stride, affine: ConvBNReLU(C, C, 7, stride, 3, affine=affine),
+}
+
+class ConvBNReLU(nn.Module):
+
+  def __init__(self, C_in, C_out, kernel_size, stride, padding, affine=True):
+    super(ConvBNReLU, self).__init__()
+    self.op = nn.Sequential(
+      nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False),
+      nn.BatchNorm2d(C_out, affine=affine),
+      nn.ReLU(inplace=False)
+    )
+
+  def forward(self, x):
+    return self.op(x)
 
 class ReLUConvBN(nn.Module):
 
@@ -31,6 +133,7 @@ class ReLUConvBN(nn.Module):
 
   def forward(self, x):
     return self.op(x)
+
 
 class DilConv(nn.Module):
 
@@ -107,3 +210,4 @@ class FactorizedReduce(nn.Module):
     out = torch.cat([self.conv_1(x), self.conv_2(y[:,:,1:,1:])], dim=1)
     out = self.bn(out)
     return out
+
