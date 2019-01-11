@@ -16,16 +16,16 @@ OPS = {
     ),
   'skip_connect': lambda C_in, C_out, stride, affine: Identity() if stride == 1 else FactorizedReduce(C_in, C_out, 1, stride, 0, affine=affine),
   'sep_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine),
-  # 'sep_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 2, affine=affine),
-  # 'sep_conv_7x7': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 7, stride, 3, affine=affine),
+  'sep_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 2, affine=affine),
+  'sep_conv_7x7': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 7, stride, 3, affine=affine),
   'dil_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=2, dilation=2, affine=affine),
-  # 'dil_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 4, dilation=2, affine=affine),
-  # 'conv_7x1_1x7': lambda C_in, C_out, stride, affine: nn.Sequential(
-  #   nn.ReLU(inplace=False),
-  #   nn.Conv2d(C_in, C_in, (1, 7), stride=(1, stride), padding=(0, 3), bias=False),
-  #   nn.Conv2d(C_in, C_out, (7, 1), stride=(stride, 1), padding=(3, 0), bias=False),
-  #   nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
-  #   ),
+  'dil_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, 4, dilation=2, affine=affine),
+  'conv_7x1_1x7': lambda C_in, C_out, stride, affine: nn.Sequential(
+    nn.ReLU(inplace=False),
+    nn.Conv2d(C_in, C_in, (1, 7), stride=(1, stride), padding=(0, 3), bias=False),
+    nn.Conv2d(C_in, C_out, (7, 1), stride=(stride, 1), padding=(3, 0), bias=False),
+    nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+    ),
   'flood_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid_mult=4),
   'dil_flood_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=2, dilation=2, affine=affine, C_mid_mult=4),
   'choke_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid=32),
