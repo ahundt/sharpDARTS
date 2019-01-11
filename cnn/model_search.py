@@ -13,7 +13,8 @@ class MixedOp(nn.Module):
     super(MixedOp, self).__init__()
     self._ops = nn.ModuleList()
     for primitive in PRIMITIVES:
-      op = OPS[primitive](C, stride, False)
+      op = OPS[primitive](C, C, stride, False)
+      # op = OPS[primitive](C, stride, False)
       if 'pool' in primitive:
         op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
       self._ops.append(op)
@@ -74,7 +75,7 @@ class Network(nn.Module):
       nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
       nn.BatchNorm2d(C_curr)
     )
- 
+
     C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
     self.cells = nn.ModuleList()
     reduction_prev = False
@@ -114,7 +115,7 @@ class Network(nn.Module):
 
   def _loss(self, input, target):
     logits = self(input)
-    return self._criterion(logits, target) 
+    return self._criterion(logits, target)
 
   def _initialize_alphas(self):
     k = sum(1 for i in range(self._steps) for n in range(2+i))
