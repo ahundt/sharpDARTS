@@ -16,6 +16,13 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 from model_search import Network
 from architect import Architect
+from PIL import Image
+import random
+from tqdm import tqdm
+# import dataset
+# from Padam import Padam
+import json
+# from learning_rate_schedulers import CosineWithRestarts
 
 
 parser = argparse.ArgumentParser("cifar")
@@ -46,12 +53,11 @@ args = parser.parse_args()
 args.save = 'search-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
-log_format = '%(asctime)s %(message)s'
-logging.basicConfig(stream=sys.stdout, level=logging.INFO,
-    format=log_format, datefmt='%m/%d %I:%M:%S %p')
-fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
-fh.setFormatter(logging.Formatter(log_format))
-logging.getLogger().addHandler(fh)
+log_file_path = os.path.join(args.save, 'log.txt')
+logger = utils.logging_setup(log_file_path)
+params_path = os.path.join(args.save, 'commandline_args.json')
+with open(params_path, 'w') as f:
+    json.dump(vars(args), f)
 
 
 CIFAR_CLASSES = 10
@@ -73,12 +79,12 @@ def main():
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
-  model = Network(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
-  model = model.cuda()
-  logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
+  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
+  cnn_model = cnn_model.cuda()
+  logging.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
   optimizer = torch.optim.SGD(
-      model.parameters(),
+      cnn_model.parameters(),
       args.learning_rate,
       momentum=args.momentum,
       weight_decay=args.weight_decay)
@@ -103,40 +109,50 @@ def main():
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
-  architect = Architect(model, args)
+  architect = Architect(cnn_model, args)
 
   for epoch in range(args.epochs):
     scheduler.step()
     lr = scheduler.get_lr()[0]
-    logging.info('epoch %d lr %e', epoch, lr)
 
-    genotype = model.genotype()
+    genotype = cnn_model.genotype()
     logging.info('genotype = %s', genotype)
 
-    print(F.softmax(model.alphas_normal, dim=-1))
-    print(F.softmax(model.alphas_reduce, dim=-1))
+    print(F.softmax(cnn_model.alphas_normal, dim=-1))
+    print(F.softmax(cnn_model.alphas_reduce, dim=-1))
 
     # training
-    train_acc, train_obj = train(train_queue, valid_queue, model, architect, criterion, optimizer, lr)
-    logging.info('train_acc %f', train_acc)
+    train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr)
 
     # validation
-    valid_acc, valid_obj = infer(valid_queue, model, criterion)
-    logging.info('valid_acc %f', valid_acc)
+    valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
 
-    utils.save(model, os.path.join(args.save, 'weights.pt'))
+    if valid_acc > best_valid_acc:
+      # new best epoch, save weights
+      utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
+      best_epoch = epoch
+      best_valid_acc = valid_acc
+
+    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
+                epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
+
+  # print the final model
+  genotype = cnn_model.genotype()
+  logger.info('genotype = %s', genotype)
+  logger.info('Search for Model Complete! Save dir: ' + str(args.save))
 
 
-def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr):
+def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
 
-  for step, (input, target) in enumerate(train_queue):
-    model.train()
-    n = input.size(0)
+  progbar = tqdm(train_queue, dynamic_ncols=True)
+  for step, (input_batch, target) in enumerate(progbar):
+    cnn_model.train()
+    n = input_batch.size(0)
 
-    input = Variable(input, requires_grad=False).cuda()
+    input_batch = Variable(input_batch, requires_grad=False).cuda()
     target = Variable(target, requires_grad=False).cuda(async=True)
 
     # get a random minibatch from the search queue with replacement
@@ -144,23 +160,22 @@ def train(train_queue, valid_queue, model, architect, criterion, optimizer, lr):
     input_search = Variable(input_search, requires_grad=False).cuda()
     target_search = Variable(target_search, requires_grad=False).cuda(async=True)
 
-    architect.step(input, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
+    architect.step(input_batch, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
 
     optimizer.zero_grad()
-    logits = model(input)
+    logits = cnn_model(input_batch)
     loss = criterion(logits, target)
 
     loss.backward()
-    nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
+    nn.utils.clip_grad_norm(cnn_model.parameters(), args.grad_clip)
     optimizer.step()
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-    objs.update(loss.data[0], n)
-    top1.update(prec1.data[0], n)
-    top5.update(prec5.data[0], n)
+    objs.update(loss.data.item(), n)
+    top1.update(prec1.data.item(), n)
+    top5.update(prec5.data.item(), n)
 
-    if step % args.report_freq == 0:
-      logging.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+    progbar.set_description('Training loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f} progress'.format(objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
@@ -171,25 +186,25 @@ def infer(valid_queue, model, criterion):
   top5 = utils.AvgrageMeter()
   model.eval()
 
-  for step, (input, target) in enumerate(valid_queue):
-    input = Variable(input, volatile=True).cuda()
-    target = Variable(target, volatile=True).cuda(async=True)
+  with torch.no_grad():
+    progbar = tqdm(valid_queue, dynamic_ncols=True)
+    for step, (input_batch, target) in enumerate(progbar):
+      input_batch = Variable(input_batch).cuda()
+      target = Variable(target).cuda(async=True)
 
-    logits = model(input)
-    loss = criterion(logits, target)
+      logits = model(input_batch)
+      loss = criterion(logits, target)
 
-    prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-    n = input.size(0)
-    objs.update(loss.data[0], n)
-    top1.update(prec1.data[0], n)
-    top5.update(prec5.data[0], n)
-
-    if step % args.report_freq == 0:
-      logging.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
+      prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
+      n = input_batch.size(0)
+      objs.update(loss.data.item(), n)
+      top1.update(prec1.data.item(), n)
+      top5.update(prec5.data.item(), n)
+      progbar.set_description('Search Validation step: {0}, loss: {1:9.5f}, top 1: {2:5.2f} top 5: {3:5.2f} progress'.format(step, objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
 
 if __name__ == '__main__':
-  main() 
+  main()
 
