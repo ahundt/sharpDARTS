@@ -23,6 +23,7 @@ from tqdm import tqdm
 # from Padam import Padam
 import json
 # from learning_rate_schedulers import CosineWithRestarts
+import operations
 
 
 parser = argparse.ArgumentParser("cifar")
@@ -49,6 +50,7 @@ parser.add_argument('--train_portion', type=float, default=0.5, help='portion of
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
+parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
 args = parser.parse_args()
 
 args.save = 'search-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
@@ -77,6 +79,12 @@ def main():
   torch.cuda.manual_seed(args.seed)
   logging.info('gpu device = %d' % args.gpu)
   logging.info("args = %s", args)
+
+  # load the correct ops dictionary
+  op_dict_to_load = "operations.%s" % args.ops
+  print('loading op dict: ' + str(op_dict_to_load))
+  op_dict = eval(op_dict_to_load)
+  operations.OPS = op_dict
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
