@@ -86,7 +86,7 @@ def main():
   operations.OPS = op_dict
 
   # load the correct primitives list
-  primitives_to_load = "primitives.%s" % args.primitives
+  primitives_to_load = "genotypes.%s" % args.primitives
   print('loading primitives: ' + str(primitives_to_load))
   primitives_list = eval(primitives_to_load)
   genotypes.PRIMITIVES = primitives_list
