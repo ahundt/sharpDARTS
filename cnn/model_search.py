@@ -12,6 +12,7 @@ class MixedOp(nn.Module):
   def __init__(self, C, stride):
     super(MixedOp, self).__init__()
     self._ops = nn.ModuleList()
+    self._stride = stride
     for primitive in PRIMITIVES:
       op = OPS[primitive](C, C, stride, False)
       # op = OPS[primitive](C, stride, False)
