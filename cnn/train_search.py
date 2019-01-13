@@ -111,6 +111,8 @@ def main():
         optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
   architect = Architect(cnn_model, args)
+  best_valid_acc = 0.0
+  best_epoch = 0
 
   for epoch in range(args.epochs):
     scheduler.step()
