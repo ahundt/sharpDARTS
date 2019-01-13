@@ -130,10 +130,11 @@ def main():
         optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
   architect = Architect(cnn_model, args)
+
+  prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
   best_valid_acc = 0.0
   best_epoch = 0
-
-  for epoch in range(args.epochs):
+  for epoch in prog_epoch:
     scheduler.step()
     lr = scheduler.get_lr()[0]
 
