@@ -157,13 +157,17 @@ class SepConv(nn.Module):
       c_mid = C_mid
     else:
       c_mid = int(C_out * C_mid_mult)
+
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
       nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=C_in, bias=False),
       nn.Conv2d(C_in, c_mid, kernel_size=1, padding=0, bias=False),
       nn.BatchNorm2d(c_mid, affine=affine),
       nn.ReLU(inplace=False),
-      nn.Conv2d(c_mid, c_mid, kernel_size=kernel_size, stride=1, padding=1, dilation=1, groups=c_mid, bias=False),
+      # Padding is set based on the kernel size for this convolution which is always stride 1 and not dilated
+      # https://pytorch.org/docs/stable/nn.html#conv2d
+      # H_out = (((H_in + (2*padding) − dilation * (kernel_size − 1) − 1 ) / stride) + 1)
+      nn.Conv2d(c_mid, c_mid, kernel_size=kernel_size, stride=1, padding=(kernel_size-1)//2, dilation=1, groups=c_mid, bias=False),
       nn.Conv2d(c_mid, C_out, kernel_size=1, padding=0, bias=False),
       nn.BatchNorm2d(C_out, affine=affine),
       )
