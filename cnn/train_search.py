@@ -95,6 +95,7 @@ def main():
   print('loading primitives: ' + str(primitives_to_load))
   primitives_list = eval(primitives_to_load)
   genotypes.PRIMITIVES = primitives_list
+  print('primitives: ' + str(genotypes.PRIMITIVES))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
