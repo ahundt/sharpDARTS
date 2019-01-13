@@ -51,6 +51,9 @@ parser.add_argument('--unrolled', action='store_true', default=False, help='use 
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
 parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
+parser.add_argument('--primitives', type=str, default='PRIMITIVES',
+                    help='which primitive layers to use inside a cell search space,'
+                         ' options are PRIMITIVES and DARTS_PRIMITIVES')
 args = parser.parse_args()
 
 args.save = 'search-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
@@ -85,6 +88,12 @@ def main():
   print('loading op dict: ' + str(op_dict_to_load))
   op_dict = eval(op_dict_to_load)
   operations.OPS = op_dict
+
+  # load the correct primitives list
+  primitives_to_load = "primitives.%s" % args.primitives
+  print('loading primitives: ' + str(primitives_to_load))
+  primitives_list = eval(primitives_to_load)
+  primitives.PRIMITIVES = primitives_list
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()

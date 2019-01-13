@@ -47,6 +47,9 @@ parser.add_argument('--save', type=str, default='EXP', help='experiment name')
 parser.add_argument('--seed', type=int, default=0, help='random seed')
 parser.add_argument('--arch', type=str, default='DARTS', help='which architecture to use')
 parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
+parser.add_argument('--primitives', type=str, default='PRIMITIVES',
+                    help='which primitive layers to use inside a cell search space,'
+                         ' options are PRIMITIVES and DARTS_PRIMITIVES')
 parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
 args = parser.parse_args()
@@ -73,6 +76,19 @@ def main():
   torch.cuda.manual_seed(args.seed)
   logging.info('gpu device = %d' % args.gpu)
   logging.info("args = %s", args)
+
+  # load the correct ops dictionary
+  op_dict_to_load = "operations.%s" % args.ops
+  print('loading op dict: ' + str(op_dict_to_load))
+  op_dict = eval(op_dict_to_load)
+  operations.OPS = op_dict
+
+  # load the correct primitives list
+  primitives_to_load = "primitives.%s" % args.primitives
+  print('loading primitives: ' + str(primitives_to_load))
+  primitives_list = eval(primitives_to_load)
+  primitives.PRIMITIVES = primitives_list
+
   CIFAR_CLASSES = 10
 
   genotype = eval("genotypes.%s" % args.arch)
