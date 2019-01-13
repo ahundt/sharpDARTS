@@ -24,6 +24,7 @@ from tqdm import tqdm
 import json
 # from learning_rate_schedulers import CosineWithRestarts
 import operations
+import genotypes
 
 
 parser = argparse.ArgumentParser("cifar")
@@ -93,7 +94,7 @@ def main():
   primitives_to_load = "primitives.%s" % args.primitives
   print('loading primitives: ' + str(primitives_to_load))
   primitives_list = eval(primitives_to_load)
-  primitives.PRIMITIVES = primitives_list
+  genotypes.PRIMITIVES = primitives_list
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()

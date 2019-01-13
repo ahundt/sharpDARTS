@@ -9,7 +9,6 @@ import utils
 import logging
 import argparse
 import torch.nn as nn
-import genotypes
 import torch.utils
 import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
@@ -17,6 +16,9 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 from model import NetworkCIFAR as Network
 from tqdm import tqdm
+
+import genotypes
+import operations
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")
@@ -87,7 +89,7 @@ def main():
   primitives_to_load = "primitives.%s" % args.primitives
   print('loading primitives: ' + str(primitives_to_load))
   primitives_list = eval(primitives_to_load)
-  primitives.PRIMITIVES = primitives_list
+  genotypes.PRIMITIVES = primitives_list
 
   CIFAR_CLASSES = 10
 
