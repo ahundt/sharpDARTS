@@ -3,26 +3,27 @@ from collections import namedtuple
 Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
 
 # Primitives for the dilation, sep_conv, flood, and choke 3x3 only search space
-PRIMITIVES = [
-    'none',
-    'max_pool_3x3',
-    # 'avg_pool_3x3',
-    'skip_connect',
-    'sep_conv_3x3',
-    # 'sep_conv_5x5',
-    'dil_conv_3x3',
-    # 'dil_conv_5x5',
-    # 'nor_conv_3x3',
-    # 'nor_conv_5x5',
-    # 'nor_conv_7x7',
-    'flood_conv_3x3',
-    'dil_flood_conv_3x3',
-    'choke_conv_3x3',
-    'dil_choke_conv_3x3',
-]
+# PRIMITIVES = [
+#     'none',
+#     'max_pool_3x3',
+#     # 'avg_pool_3x3',
+#     'skip_connect',
+#     'sep_conv_3x3',
+#     # 'sep_conv_5x5',
+#     'dil_conv_3x3',
+#     # 'dil_conv_5x5',
+#     # 'nor_conv_3x3',
+#     # 'nor_conv_5x5',
+#     # 'nor_conv_7x7',
+#     'flood_conv_3x3',
+#     'dil_flood_conv_3x3',
+#     'choke_conv_3x3',
+#     'dil_choke_conv_3x3',
+# ]
 
 # Primitives for the original darts search space
-DARTS_PRIMITIVES = [
+# DARTS_PRIMITIVES = [
+PRIMITIVES = [
     'none',
     'max_pool_3x3',
     'avg_pool_3x3',
