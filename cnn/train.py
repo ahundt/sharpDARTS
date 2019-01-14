@@ -67,7 +67,7 @@ with open(params_path, 'w') as f:
 
 def main():
   if not torch.cuda.is_available():
-    logging.info('no gpu device available')
+    logger.info('no gpu device available')
     sys.exit(1)
 
   np.random.seed(args.seed)
@@ -76,8 +76,8 @@ def main():
   torch.manual_seed(args.seed)
   cudnn.enabled=True
   torch.cuda.manual_seed(args.seed)
-  logging.info('gpu device = %d' % args.gpu)
-  logging.info("args = %s", args)
+  logger.info('gpu device = %d' % args.gpu)
+  logger.info("args = %s", args)
 
   # load the correct ops dictionary
   op_dict_to_load = "operations.%s" % args.ops
@@ -97,7 +97,7 @@ def main():
   cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype)
   cnn_model = cnn_model.cuda()
 
-  logging.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
+  logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()

@@ -72,7 +72,7 @@ CIFAR_CLASSES = 10
 
 def main():
   if not torch.cuda.is_available():
-    logging.info('no gpu device available')
+    logger.info('no gpu device available')
     sys.exit(1)
 
   np.random.seed(args.seed)
@@ -81,8 +81,8 @@ def main():
   torch.manual_seed(args.seed)
   cudnn.enabled=True
   torch.cuda.manual_seed(args.seed)
-  logging.info('gpu device = %d' % args.gpu)
-  logging.info("args = %s", args)
+  logger.info('gpu device = %d' % args.gpu)
+  logger.info("args = %s", args)
 
   # # load the correct ops dictionary
   # op_dict_to_load = "operations.%s" % args.ops
@@ -101,7 +101,7 @@ def main():
   criterion = criterion.cuda()
   cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
   cnn_model = cnn_model.cuda()
-  logging.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
+  logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
   optimizer = torch.optim.SGD(
       cnn_model.parameters(),
@@ -139,10 +139,10 @@ def main():
     lr = scheduler.get_lr()[0]
 
     genotype = cnn_model.genotype()
-    logging.info('genotype = %s', genotype)
+    logger.info('genotype = %s', genotype)
 
-    logging.info('alphas_normal = %s', F.softmax(cnn_model.alphas_normal, dim=-1))
-    logging.info('alphas_reduce = %s', F.softmax(cnn_model.alphas_reduce, dim=-1))
+    logger.info('alphas_normal = %s', F.softmax(cnn_model.alphas_normal, dim=-1))
+    logger.info('alphas_reduce = %s', F.softmax(cnn_model.alphas_reduce, dim=-1))
 
     # training
     train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr)
