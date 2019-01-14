@@ -141,8 +141,8 @@ def main():
     genotype = cnn_model.genotype()
     logging.info('genotype = %s', genotype)
 
-    print(F.softmax(cnn_model.alphas_normal, dim=-1))
-    print(F.softmax(cnn_model.alphas_reduce, dim=-1))
+    logging.info('alphas_normal = %s', F.softmax(cnn_model.alphas_normal, dim=-1))
+    logging.info('alphas_reduce = %s', F.softmax(cnn_model.alphas_reduce, dim=-1))
 
     # training
     train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr)
