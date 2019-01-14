@@ -51,10 +51,10 @@ parser.add_argument('--train_portion', type=float, default=0.5, help='portion of
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
-parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
-parser.add_argument('--primitives', type=str, default='PRIMITIVES',
-                    help='which primitive layers to use inside a cell search space,'
-                         ' options are PRIMITIVES and DARTS_PRIMITIVES')
+# parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
+# parser.add_argument('--primitives', type=str, default='PRIMITIVES',
+#                     help='which primitive layers to use inside a cell search space,'
+#                          ' options are PRIMITIVES and DARTS_PRIMITIVES')
 args = parser.parse_args()
 
 args.save = 'search-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
@@ -84,18 +84,18 @@ def main():
   logging.info('gpu device = %d' % args.gpu)
   logging.info("args = %s", args)
 
-  # load the correct ops dictionary
-  op_dict_to_load = "operations.%s" % args.ops
-  print('loading op dict: ' + str(op_dict_to_load))
-  op_dict = eval(op_dict_to_load)
-  operations.OPS = op_dict
+  # # load the correct ops dictionary
+  # op_dict_to_load = "operations.%s" % args.ops
+  # print('loading op dict: ' + str(op_dict_to_load))
+  # op_dict = eval(op_dict_to_load)
+  # operations.OPS = op_dict
 
-  # load the correct primitives list
-  primitives_to_load = "genotypes.%s" % args.primitives
-  print('loading primitives: ' + str(primitives_to_load))
-  primitives_list = eval(primitives_to_load)
-  genotypes.PRIMITIVES = primitives_list
-  print('primitives: ' + str(genotypes.PRIMITIVES))
+  # # load the correct primitives list
+  # primitives_to_load = "genotypes.%s" % args.primitives
+  # print('loading primitives: ' + str(primitives_to_load))
+  # primitives_list = eval(primitives_to_load)
+  # genotypes.PRIMITIVES = primitives_list
+  # print('primitives: ' + str(genotypes.PRIMITIVES))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
