@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 import genotypes
 import operations
-
+import cifar10_1
 
 parser = argparse.ArgumentParser("Common Argument Parser")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
@@ -142,6 +142,17 @@ def main():
     #   utils.load(cnn_model, weights_file)
     logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
                 epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
+
+  if args.dataset == 'cifar10':
+    # evaluate best model weights on cifar 10.1
+    # https://github.com/modestyachts/CIFAR-10.1
+    valid_data = cifar10_1.CIFAR10_1(root=args.data, train=False, download=True, transform=valid_transform)
+    valid_queue = torch.utils.data.DataLoader(
+        valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=2)
+    # load the best model weights
+    utils.load(cnn_model, weights_file)
+    cifar10_1_valid_acc, cifar10_1_valid_loss = infer(valid_queue, cnn_model, criterion)
+    logger.info('CIFAR10.1, best_epoch, %d, cifar10_1_valid_acc, %f, cifar10_1_valid_loss, %f, best_valid_acc, %f', best_epoch, cifar10_1_valid_acc, cifar10_1_valid_loss, best_valid_acc)
   logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 
