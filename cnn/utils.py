@@ -17,6 +17,8 @@ except ImportError:
 from tqdm import tqdm
 import colorlog
 
+from autoaugment import CIFAR10Policy
+
 class TqdmHandler(logging.StreamHandler):
     def __init__(self):
         logging.StreamHandler.__init__(self)
@@ -169,13 +171,18 @@ def get_data_transforms(args):
 def _data_transforms_cifar10(args):
   CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
   CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
-
-  train_transform = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
+  transform_list = [
+    transforms.RandomCrop(32, padding=4, fill=128),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
-    transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
-  ])
+  ]
+
+  if args.autoaugment:
+        transforms += [CIFAR10Policy]
+
+  transform_list += [transforms.Normalize(CIFAR_MEAN, CIFAR_STD)]
+
+  train_transform = transforms.Compose(transform_list)
   if args.random_eraser:
     train_transform.transforms.append(random_eraser)
   if args.cutout:
