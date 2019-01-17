@@ -138,6 +138,10 @@ def main():
       utils.save(cnn_model, weights_file)
       best_epoch = epoch
       best_valid_acc = valid_acc
+      best_valid_loss = valid_obj
+      best_train_loss = train_obj
+      best_train_acc = train_acc
+      best_lr = scheduler.get_lr()[0]
     # else:
     #   # not best epoch, load best weights
     #   utils.load(cnn_model, weights_file)
@@ -153,7 +157,9 @@ def main():
     # load the best model weights
     utils.load(cnn_model, weights_file)
     cifar10_1_valid_acc, cifar10_1_valid_loss = infer(valid_queue, cnn_model, criterion)
-    logger.info('CIFAR10.1, best_epoch, %d, cifar10_1_valid_acc, %f, cifar10_1_valid_loss, %f, best_valid_acc, %f', best_epoch, cifar10_1_valid_acc, cifar10_1_valid_loss, best_valid_acc)
+    # printout all stats from best epoch including cifar10.1
+    logger.info('best_epoch, %d, best_train_acc, %f, best_valid_acc, %f, best_train_loss, %f, best_valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f cifar10.1_valid_acc, %f, cifar10.1_valid_loss, %f',
+                best_epoch, best_train_acc, best_valid_acc, train_obj, valid_obj, best_lr, best_epoch, best_valid_acc, cifar10_1_valid_acc, cifar10_1_valid_loss)
   logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 
