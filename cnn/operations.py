@@ -4,16 +4,8 @@ import torch.nn as nn
 # Simplified new version based on actual results, partially adapted from PNASNet https://github.com/chenxi116/PNASNet.pytorch
 OPS = {
   'none': lambda C_in, C_out, stride, affine: Zero(stride),
-  'avg_pool_3x3': lambda C_in, C_out, stride, affine: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False) if C_in == C_out else nn.Sequential(
-    nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
-    nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=False),
-    nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
-    ),
-  'max_pool_3x3': lambda C_in, C_out, stride, affine: nn.MaxPool2d(3, stride=stride, padding=1) if C_in == C_out else nn.Sequential(
-    nn.MaxPool2d(3, stride=stride, padding=1),
-    nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=False),
-    nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
-    ),
+  'avg_pool_3x3': lambda C_in, C_out, stride, affine: ResizablePool(C_in, C_out, 3, stride, padding=1, affine=affine, pool_type=nn.AvgPool2d),
+  'max_pool_3x3': lambda C_in, C_out, stride, affine: ResizablePool(C_in, C_out, 3, stride, padding=1, affine=affine),
   'skip_connect': lambda C_in, C_out, stride, affine: Identity() if stride == 1 else FactorizedReduce(C_in, C_out, 1, stride, 0, affine=affine),
   'sep_conv_3x3': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 3, stride, padding=1, affine=affine),
   'sep_conv_5x5': lambda C_in, C_out, stride, affine: SepConv(C_in, C_out, 5, stride, padding=2, affine=affine),
@@ -107,6 +99,23 @@ DARTS_OPS = {
   'nor_conv_5x5': lambda C, C_out, stride, affine: ConvBNReLU(C, C, 5, stride, 2, affine=affine),
   'nor_conv_7x7': lambda C, C_out, stride, affine: ConvBNReLU(C, C, 7, stride, 3, affine=affine),
 }
+
+
+class ResizablePool(nn.Module):
+
+  def __init__(self, C_in, C_out, kernel_size=3, stride=1, padding=1, affine=True, pool_type=nn.MaxPool2d):
+    if C_in == C_out:
+      self.op = pool_type(kernel_size=kernel_size, stride=stride, padding=padding)
+    else:
+      self.op = nn.Sequential(
+        pool_type(kernel_size=kernel_size, stride=stride, padding=padding),
+        nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=False),
+        nn.BatchNorm2d(C_out, eps=1e-3, affine=affine)
+      )
+
+  def forward(self, x):
+    return self.op(x)
+
 
 class ConvBNReLU(nn.Module):
 
