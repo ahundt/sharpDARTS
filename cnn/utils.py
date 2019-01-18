@@ -178,7 +178,7 @@ def _data_transforms_cifar10(args):
       transforms.RandomCrop(32, padding=0),
       transforms.RandomHorizontalFlip(),
       transforms.ToTensor(),
-      autoaugment.CIFAR10Policy,
+      autoaugment.CIFAR10Policy(),
       transforms.Normalize(CIFAR_MEAN, CIFAR_STD)
     ])
   else:
