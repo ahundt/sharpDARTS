@@ -173,3 +173,181 @@ class Network(nn.Module):
     )
     return genotype
 
+
+class MultiChannelNetwork(nn.Module):
+
+  def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3):
+    super(SharpNetwork, self).__init__()
+    self._C = C
+    self._num_classes = num_classes
+    self._layers = layers
+    self._criterion = criterion
+    self._steps = steps
+    self._multiplier = multiplier
+
+    self.normal_index = 0
+    self.reduce_index = 1
+    self.layer_types = 2
+    self.strides = np.array([self.normal_index, self.reduce_index])
+    self.C_start = 5
+    self.C_end = 10
+    self.Cs = np.exp2(np.arange(self.C_start,self.C_end))
+    self.C_size = len(self.Cs)
+    # $ print(C)
+    # [ 32.  64. 128. 256. 512.]
+    C_in, C_out = np.meshgrid(self.Cs,self.Cs, indexing='ij')
+    # $ print(C_in)
+    # [[ 32.  32.  32.  32.  32.]
+    #  [ 64.  64.  64.  64.  64.]
+    #  [128. 128. 128. 128. 128.]
+    #  [256. 256. 256. 256. 256.]
+    #  [512. 512. 512. 512. 512.]]
+    # $ print(C_in)
+    # [[ 32.  64. 128. 256. 512.]
+    #  [ 32.  64. 128. 256. 512.]
+    #  [ 32.  64. 128. 256. 512.]
+    #  [ 32.  64. 128. 256. 512.]
+    #  [ 32.  64. 128. 256. 512.]]
+    self.op_types = [operations.SepConv, operations.ResizablePool]
+    self.stem = nn.ModuleList()
+
+    self.op_grid = nn.ModuleList()
+    for stride_idx in self.strides:
+      in_modules = nn.ModuleList()
+      for C_in_idx in self.Cs:
+        out_modules = nn.ModuleList()
+        for C_out_idx in self.Cs:
+          type_modules = nn.ModuleList()
+          for OpType in self.op_types:
+             op = OpType(C_in[C_in_idx], C_out[C_out_idx], kernel_size=3, stride=stride_idx + 1)
+             type_modules.append(op)
+          out_modules.append(type_modules)
+        in_modules.append(out_modules)
+      # op grid is stride_modules
+      self.op_grid.append(in_modules)
+
+    # C_in will be defined by the previous layer's c_out
+    self.weights_shape = [len(self.strides), layers, self.C_size, len(self.op_types)]
+    # N = C_size * len(self.op_types)
+    N = weights_shape[-1] * weights_shape[-2]
+    self.min_score = 1 / (N*N)
+
+    self.global_pooling = nn.AdaptiveAvgPool2d(1)
+    self.classifier = nn.Linear(C_prev, num_classes)
+
+    self._initialize_alphas()
+
+  def new(self):
+    model_new = Network(self._C, self._num_classes, self._layers, self._criterion).cuda()
+    for x, y in zip(model_new.arch_parameters(), self.arch_parameters()):
+        x.data.copy_(y.data)
+    return model_new
+
+  def forward(self, input_batch):
+    # [in, normal_out, reduce_out]
+    num_empties = len(self.Cs)
+    s0s = [[], [None] * num_empties, [None] * num_empties]
+    for i, C_in in enumerate(self.Cs):
+      # Make the set of features with different numbers of channels.
+      s0s[0] += [self.stem[i](input_batch)]
+
+    # calculate weights, there are two weight views according to stride
+    weight_views = []
+    for stride_idx in self.strides:
+      # ops are stored as layer, stride, cin, cout, num_layer_types
+      # while weights are ordered stride_index, layer, cout, num_layer_types
+      # first exclude the stride_idx because we already know that
+      view_shape = self.weights_shape[1:]
+      # softmax of weights should be select for a (c_out, layer_type) pair
+      softmax_view_shape = view_shape[:-2]
+      softmax_view_shape[-1] *= self.weights_shape[-1]
+      weights_softmax_view = self._arch_parameters[stride_idx].view(softmax_view_shape)
+      # apply softmax and convert to an indexable view
+      weights = F.softmax(weights_softmax_view, dim=-1).view(view_shape)
+      weight_views += [weights]
+    # Duplicate s0s to account for 2 different strides
+    # s0s += [[]]
+    # s1s = [None] * layers + 1
+    for layer in range(self._layers):
+      # layer is how many times we've called everything, i.e. the number of "layers"
+      # this is different from the number of layer types which is len([SepConv, ResizablePool]) == 2
+      for stride_idx in self.strides:
+        for C_out_idx, C_out in enumerate(self.Cs):
+          # take all the layers with the same output so we can sum them
+          c_outs = []
+          for C_in_idx, C_in in enumerate(self.Cs):
+            for op_type_idx in range(len(self.op_types)):
+              # get the specific weight for this op
+              w = weight_views[stride_idx, layer, C_out_idx]
+              # apply the operation then weight, equivalent to
+              # w * op(input_feature_map)
+              if w > self.min_score:
+                # only apply an op if weight score isn't too low: w > 1/(N*N)
+                x = w * op_grid[C_in_idx][C_out_idx][op_type_idx](s0s[stride_idx][C_in_idx])
+              c_outs += [x]
+          # combined values with the same c_out dimension
+          combined = sum(c_outs)
+          s_idx = 1 + stride_idx
+          if s0s[s_idx][C_out_idx] is None:
+            # first call sets the value
+            s0s[s_idx][C_out_idx] = combined
+          else:
+            s0s[s_idx][C_out_idx] += combined
+
+      # downscale reduced input as next output
+      s0s = [s0s[2], [None] * num_empties, [None] * num_empties]
+
+    out = s0s[0][-1]
+    out = self.global_pooling(out)
+    logits = self.classifier(out.view(out.size(0),-1))
+    return logits
+
+  def _loss(self, input, target):
+    logits = self(input)
+    return self._criterion(logits, target)
+
+  def _initialize_alphas(self):
+    # divide by two because alphas_normal and alphas reduce are separate
+    k = sum(self.weights_shape) // 2
+    num_ops = len(PRIMITIVES)
+
+    self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+    self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+    self._arch_parameters = [
+      self.alphas_normal,
+      self.alphas_reduce,
+    ]
+
+  def arch_parameters(self):
+    return self._arch_parameters
+
+  def genotype(self):
+    # TODO(ahundt) genotype not implemented yet
+    def _parse(weights):
+      gene = []
+      n = 2
+      start = 0
+      for i in range(self._steps):
+        end = start + n
+        W = weights[start:end].copy()
+        edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != PRIMITIVES.index('none')))[:2]
+        for j in edges:
+          k_best = None
+          for k in range(len(W[j])):
+            if k != PRIMITIVES.index('none'):
+              if k_best is None or W[j][k] > W[j][k_best]:
+                k_best = k
+          gene.append((PRIMITIVES[k_best], j))
+        start = end
+        n += 1
+      return gene
+
+    gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
+    gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
+
+    concat = range(2+self._steps-self._multiplier, self._steps+2)
+    genotype = Genotype(
+      normal=gene_normal, normal_concat=concat,
+      reduce=gene_reduce, reduce_concat=concat
+    )
+    return genotype
