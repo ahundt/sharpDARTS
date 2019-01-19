@@ -257,14 +257,7 @@ class MultiChannelNetwork(nn.Module):
       # ops are stored as layer, stride, cin, cout, num_layer_types
       # while weights are ordered stride_index, layer, cout, num_layer_types
       # first exclude the stride_idx because we already know that
-      view_shape = self.weights_shape[1:]
-      # softmax of weights should be select for a (c_out, layer_type) pair
-      softmax_view_shape = view_shape[:-2]
-      softmax_view_shape[-1] *= self.weights_shape[-1]
-      weights_softmax_view = self._arch_parameters[stride_idx].view(softmax_view_shape)
-      # apply softmax and convert to an indexable view
-      weights = F.softmax(weights_softmax_view, dim=-1).view(view_shape)
-      weight_views += [weights]
+      weight_views += [self.weights(stride_idx)]
     # Duplicate s0s to account for 2 different strides
     # s0s += [[]]
     # s1s = [None] * layers + 1
@@ -302,6 +295,19 @@ class MultiChannelNetwork(nn.Module):
     logits = self.classifier(out.view(out.size(0),-1))
     return logits
 
+  def weights(self, stride_idx):
+    # ops are stored as layer, stride, cin, cout, num_layer_types
+    # while weights are ordered stride_index, layer, cout, num_layer_types
+    # first exclude the stride_idx because we already know that
+    view_shape = self.weights_shape[1:]
+    # softmax of weights should be select for a (c_out, layer_type) pair
+    softmax_view_shape = view_shape[:-2]
+    softmax_view_shape[-1] *= self.weights_shape[-1]
+    weights_softmax_view = self._arch_parameters[stride_idx].view(softmax_view_shape)
+    # apply softmax and convert to an indexable view
+    weights = F.softmax(weights_softmax_view, dim=-1).view(view_shape)
+    return weights
+
   def _loss(self, input, target):
     logits = self(input)
     return self._criterion(logits, target)
@@ -322,32 +328,12 @@ class MultiChannelNetwork(nn.Module):
     return self._arch_parameters
 
   def genotype(self):
-    # TODO(ahundt) genotype not implemented yet
-    def _parse(weights):
-      gene = []
-      n = 2
-      start = 0
-      for i in range(self._steps):
-        end = start + n
-        W = weights[start:end].copy()
-        edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != PRIMITIVES.index('none')))[:2]
-        for j in edges:
-          k_best = None
-          for k in range(len(W[j])):
-            if k != PRIMITIVES.index('none'):
-              if k_best is None or W[j][k] > W[j][k_best]:
-                k_best = k
-          gene.append((PRIMITIVES[k_best], j))
-        start = end
-        n += 1
-      return gene
+    # TODO(ahundt) switch from raw weights to a simpler representation for genotype?
+    gene_normal = [self.weights(0).data.cpu().numpy()]
+    gene_reduce = [self.weights(1).data.cpu().numpy()]
 
-    gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
-    gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
-
-    concat = range(2+self._steps-self._multiplier, self._steps+2)
     genotype = Genotype(
-      normal=gene_normal, normal_concat=concat,
-      reduce=gene_reduce, reduce_concat=concat
+      normal=gene_normal, normal_concat=[],
+      reduce=gene_reduce, reduce_concat=[]
     )
     return genotype
