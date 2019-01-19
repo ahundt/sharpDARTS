@@ -221,7 +221,7 @@ class MultiChannelNetwork(nn.Module):
         for C_out_idx in self.Cs:
           type_modules = nn.ModuleList()
           for OpType in self.op_types:
-             op = OpType(C_in[C_in_idx], C_out[C_out_idx], kernel_size=3, stride=stride_idx + 1)
+             op = OpType(C_in[C_in_idx][C_out_idx], C_out[C_in_idx][C_out_idx], kernel_size=3, stride=stride_idx + 1)
              type_modules.append(op)
           out_modules.append(type_modules)
         in_modules.append(out_modules)
