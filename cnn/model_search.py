@@ -212,6 +212,12 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]]
     self.op_types = [operations.SepConv, operations.ResizablePool]
     self.stem = nn.ModuleList()
+    for c in self.Cs:
+      s = nn.Sequential(
+        nn.Conv2d(3, c, 3, padding=1, bias=False),
+        nn.BatchNorm2d(c)
+      )
+      self.stem.append(s)
 
     self.op_grid = nn.ModuleList()
     for stride_idx in self.strides:
