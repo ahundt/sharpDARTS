@@ -14,7 +14,7 @@ import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
 
 from torch.autograd import Variable
-from model_search import Network
+import model_search
 from architect import Architect
 from PIL import Image
 import random
@@ -52,6 +52,7 @@ parser.add_argument('--train_portion', type=float, default=0.5, help='portion of
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
+parser.add_argument('--multichannelr', action='store_true', default=False, help='perform multi channel search')
 # parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
 # parser.add_argument('--primitives', type=str, default='PRIMITIVES',
 #                     help='which primitive layers to use inside a cell search space,'
@@ -100,7 +101,10 @@ def main():
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
-  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
+  if args.multi_channel_search:
+    cnn_model = model_search.MultiChannelNetwork(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
+  else:
+    cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
   cnn_model = cnn_model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
