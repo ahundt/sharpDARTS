@@ -144,6 +144,12 @@ class Network(nn.Module):
   def arch_parameters(self):
     return self._arch_parameters
 
+  def arch_weights(self, stride_idx):
+    weights_softmax_view = self._arch_parameters[stride_idx]
+    # apply softmax and convert to an indexable view
+    weights = F.softmax(weights_softmax_view, dim=-1)
+    return weights
+
   def genotype(self):
 
     def _parse(weights):
@@ -271,7 +277,7 @@ class MultiChannelNetwork(nn.Module):
       # ops are stored as layer, stride, cin, cout, num_layer_types
       # while weights are ordered stride_index, layer, cout, num_layer_types
       # first exclude the stride_idx because we already know that
-      weight_views += [self.weights(stride_idx)]
+      weight_views += [self.arch_weights(stride_idx)]
     # Duplicate s0s to account for 2 different strides
     # s0s += [[]]
     # s1s = [None] * layers + 1
@@ -310,12 +316,12 @@ class MultiChannelNetwork(nn.Module):
     logits = self.classifier(out.view(out.size(0),-1))
     return logits
 
-  def weights(self, stride_idx):
+  def arch_weights(self, stride_idx):
     # ops are stored as layer, stride, cin, cout, num_layer_types
     # while weights are ordered stride_index, layer, cout, num_layer_types
     # first exclude the stride_idx because we already know that
     view_shape = self.arch_weights_shape[1:]
-    # print('weights() view_shape self.weights_shape[1:]: ' + str(view_shape))
+    # print('arch_weights() view_shape self.weights_shape[1:]: ' + str(view_shape))
     # softmax of weights should occur once for each layer
     num_layers = self.arch_weights_shape[1]
     weights_softmax_view = self._arch_parameters[stride_idx].view(num_layers, -1)
@@ -337,8 +343,8 @@ class MultiChannelNetwork(nn.Module):
 
   def genotype(self):
     # TODO(ahundt) switch from raw weights to a simpler representation for genotype?
-    gene_normal = [self.weights(0).data.cpu().numpy()]
-    gene_reduce = [self.weights(1).data.cpu().numpy()]
+    gene_normal = [self.arch_weights(0).data.cpu().numpy()]
+    gene_reduce = [self.arch_weights(1).data.cpu().numpy()]
 
     genotype = Genotype(
       normal=gene_normal, normal_concat=[],
