@@ -232,11 +232,13 @@ class MultiChannelNetwork(nn.Module):
       self.op_grid.append(in_modules)
 
     # C_in will be defined by the previous layer's c_out
-    self.weights_shape = [len(self.strides), layers, self.C_size, len(self.op_types)]
-    # N = C_size * len(self.op_types)
-    # This is the number of weights in a softmax call
-    N = self.weights_shape[-1] * self.weights_shape[-2]
-    self.min_score = 1 / (N*N)
+    self.arch_weights_shape = [len(self.strides), layers, self.C_size, self.C_size, len(self.op_types)]
+    # number of weights total
+    self.weight_count = np.prod(self.arch_weights_shape)
+    # number of weights in a softmax call
+    self.softmax_weight_count = np.prod(self.arch_weights_shape[2:])
+    # minimum score for a layer to continue being trained
+    self.min_score = 1 / (self.softmax_weight_count * self.softmax_weight_count)
 
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.classifier = nn.Linear(np.max(self.Cs), num_classes)
@@ -305,10 +307,10 @@ class MultiChannelNetwork(nn.Module):
     # ops are stored as layer, stride, cin, cout, num_layer_types
     # while weights are ordered stride_index, layer, cout, num_layer_types
     # first exclude the stride_idx because we already know that
-    view_shape = self.weights_shape[1:]
+    view_shape = self.arch_weights_shape[1:]
     # print('weights() view_shape self.weights_shape[1:]: ' + str(view_shape))
     # softmax of weights should occur once for each layer
-    num_layers = self.weights_shape[1]
+    num_layers = self.arch_weights_shape[1]
     weights_softmax_view = self._arch_parameters[stride_idx].view(num_layers, -1)
     # apply softmax and convert to an indexable view
     weights = F.softmax(weights_softmax_view, dim=-1).view(view_shape)
@@ -320,11 +322,11 @@ class MultiChannelNetwork(nn.Module):
 
   def _initialize_alphas(self):
     # start at index 1 because alphas_normal and alphas reduce are separate
-    k = np.prod(self.weights_shape[1:])
-    num_ops = len(PRIMITIVES)
+    num_strides = self.arch_weights_shape[0]
+    k = np.prod(self.arch_weights_shape) // num_strides
 
-    self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
-    self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+    self.alphas_normal = Variable(1e-3*torch.randn(k).cuda(), requires_grad=True)
+    self.alphas_reduce = Variable(1e-3*torch.randn(k).cuda(), requires_grad=True)
     self._arch_parameters = [
       self.alphas_normal,
       self.alphas_reduce,
