@@ -330,7 +330,7 @@ class MultiChannelNetwork(nn.Module):
   def _initialize_alphas(self):
     self.arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape).cuda(), requires_grad=True)
     # _arch_parameters is a workaround so the Architect class does not need to be modified
-    self._arch_parameters = [arch_parameters]
+    self._arch_parameters = [self.arch_parameters]
 
   def arch_parameters(self):
     return self._arch_parameters
