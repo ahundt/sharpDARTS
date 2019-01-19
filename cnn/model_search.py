@@ -322,8 +322,8 @@ class MultiChannelNetwork(nn.Module):
     return self._criterion(logits, target)
 
   def _initialize_alphas(self):
-    # divide by two because alphas_normal and alphas reduce are separate
-    k = sum(self.weights_shape) // 2
+    # start at index 1 because alphas_normal and alphas reduce are separate
+    k = sum(self.weights_shape[1:])
     num_ops = len(PRIMITIVES)
 
     self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
