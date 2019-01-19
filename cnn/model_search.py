@@ -236,7 +236,7 @@ class MultiChannelNetwork(nn.Module):
             cin = C_in[C_in_idx][C_out_idx]
             cout = C_out[C_in_idx][C_out_idx]
             # print('cin: ' + str(cin) + ' cout: ' + str(cout))
-            op = OpType(cin, cout, kernel_size=3, stride=stride_idx + 1)
+            op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
             type_modules.append(op)
           out_modules.append(type_modules)
         in_modules.append(out_modules)
@@ -329,8 +329,8 @@ class MultiChannelNetwork(nn.Module):
     weights = F.softmax(weights_softmax_view, dim=-1).view(view_shape)
     return weights
 
-  def _loss(self, input, target):
-    logits = self(input)
+  def _loss(self, input_batch, target):
+    logits = self(input_batch)
     return self._criterion(logits, target)
 
   def _initialize_alphas(self):
