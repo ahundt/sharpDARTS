@@ -52,7 +52,7 @@ parser.add_argument('--train_portion', type=float, default=0.5, help='portion of
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
-parser.add_argument('--multichannelr', action='store_true', default=False, help='perform multi channel search')
+parser.add_argument('--multi_channel', action='store_true', default=False, help='perform multi channel search, a completely separate search space')
 # parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
 # parser.add_argument('--primitives', type=str, default='PRIMITIVES',
 #                     help='which primitive layers to use inside a cell search space,'
