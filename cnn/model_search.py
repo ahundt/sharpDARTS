@@ -216,9 +216,9 @@ class MultiChannelNetwork(nn.Module):
     self.op_grid = nn.ModuleList()
     for stride_idx in self.strides:
       in_modules = nn.ModuleList()
-      for C_in_idx in self.Cs:
+      for C_in_idx in range(self.C_size):
         out_modules = nn.ModuleList()
-        for C_out_idx in self.Cs:
+        for C_out_idx in range(self.C_size):
           type_modules = nn.ModuleList()
           for OpType in self.op_types:
             cin = C_in[C_in_idx][C_out_idx]
