@@ -104,6 +104,7 @@ DARTS_OPS = {
 class ResizablePool(nn.Module):
 
   def __init__(self, C_in, C_out, kernel_size=3, stride=1, padding=1, affine=True, pool_type=nn.MaxPool2d):
+    super(ResizablePool, self).__init__()
     if C_in == C_out:
       self.op = pool_type(kernel_size=kernel_size, stride=stride, padding=padding)
     else:
