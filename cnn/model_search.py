@@ -306,9 +306,12 @@ class MultiChannelNetwork(nn.Module):
     # while weights are ordered stride_index, layer, cout, num_layer_types
     # first exclude the stride_idx because we already know that
     view_shape = self.weights_shape[1:]
+    print('weights() view_shape self.weights_shape[1:]: ' + str(view_shape))
     # softmax of weights should be select for a (c_out, layer_type) pair
     softmax_view_shape = view_shape[:-2]
+    print('weights() softmax_view_shape view_shape[:-2]: ' + str(softmax_view_shape))
     softmax_view_shape[-1] *= self.weights_shape[-1]
+    print('weights() softmax_view_shape softmax_view_shape[-1] *= self.weights_shape[-1]: ' + str(softmax_view_shape))
     weights_softmax_view = self._arch_parameters[stride_idx].view(softmax_view_shape)
     # apply softmax and convert to an indexable view
     weights = F.softmax(weights_softmax_view, dim=-1).view(view_shape)
