@@ -320,7 +320,7 @@ class MultiChannelNetwork(nn.Module):
 
   def _initialize_alphas(self):
     # start at index 1 because alphas_normal and alphas reduce are separate
-    k = sum(self.weights_shape[1:])
+    k = np.prod(self.weights_shape[1:])
     num_ops = len(PRIMITIVES)
 
     self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
