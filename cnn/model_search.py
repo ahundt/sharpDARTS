@@ -328,16 +328,7 @@ class MultiChannelNetwork(nn.Module):
     return self._criterion(logits, target)
 
   def _initialize_alphas(self):
-    # start at index 1 because alphas_normal and alphas reduce are separate
-    num_strides = self.arch_weights_shape[0]
-    k = np.prod(self.arch_weights_shape) // num_strides
-
-    self.alphas_normal = Variable(1e-3*torch.randn(k).cuda(), requires_grad=True)
-    self.alphas_reduce = Variable(1e-3*torch.randn(k).cuda(), requires_grad=True)
-    self._arch_parameters = [
-      self.alphas_normal,
-      self.alphas_reduce,
-    ]
+    self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape).cuda(), requires_grad=True)
 
   def arch_parameters(self):
     return self._arch_parameters
