@@ -239,7 +239,7 @@ class MultiChannelNetwork(nn.Module):
     self.min_score = 1 / (N*N)
 
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
-    self.classifier = nn.Linear(C_prev, num_classes)
+    self.classifier = nn.Linear(np.max(self.Cs), num_classes)
 
     self._initialize_alphas()
 
