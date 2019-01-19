@@ -308,7 +308,7 @@ class MultiChannelNetwork(nn.Module):
     view_shape = self.weights_shape[1:]
     print('weights() view_shape self.weights_shape[1:]: ' + str(view_shape))
     # softmax of weights should be select for a (c_out, layer_type) pair
-    softmax_view_shape = view_shape[:-2]
+    softmax_view_shape = view_shape[:-1]
     print('weights() softmax_view_shape view_shape[:-2]: ' + str(softmax_view_shape))
     softmax_view_shape[-1] *= self.weights_shape[-1]
     print('weights() softmax_view_shape softmax_view_shape[-1] *= self.weights_shape[-1]: ' + str(softmax_view_shape))
