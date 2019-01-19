@@ -285,8 +285,8 @@ class MultiChannelNetwork(nn.Module):
           for C_in_idx, C_in in enumerate(self.Cs):
             for op_type_idx in range(len(self.op_types)):
               # get the specific weight for this op
-              w = weight_views[stride_idx][layer, C_in_idx, C_out_idx]
-              print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx]: ' + str(w))
+              w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
+              # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
               if w > self.min_score:
