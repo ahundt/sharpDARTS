@@ -101,7 +101,7 @@ def main():
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
-  if args.multi_channel_search:
+  if args.multi_channel:
     cnn_model = model_search.MultiChannelNetwork(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
   else:
     cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
