@@ -318,7 +318,7 @@ class MultiChannelNetwork(nn.Module):
     # print('weights() view_shape self.weights_shape[1:]: ' + str(view_shape))
     # softmax of weights should occur once for each layer
     num_layers = self.arch_weights_shape[1]
-    weights_softmax_view = self._arch_parameters[stride_idx].view(num_layers, -1)
+    weights_softmax_view = self.arch_parameters[stride_idx].view(num_layers, -1)
     # apply softmax and convert to an indexable view
     weights = F.softmax(weights_softmax_view, dim=-1).view(view_shape)
     return weights
@@ -328,7 +328,9 @@ class MultiChannelNetwork(nn.Module):
     return self._criterion(logits, target)
 
   def _initialize_alphas(self):
-    self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape).cuda(), requires_grad=True)
+    self.arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape).cuda(), requires_grad=True)
+    # _arch_parameters is a workaround so the Architect class does not need to be modified
+    self._arch_parameters = [arch_parameters]
 
   def arch_parameters(self):
     return self._arch_parameters
