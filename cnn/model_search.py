@@ -343,8 +343,8 @@ class MultiChannelNetwork(nn.Module):
 
   def genotype(self):
     # TODO(ahundt) switch from raw weights to a simpler representation for genotype?
-    gene_normal = [list(self.arch_weights(0).data.cpu().numpy())]
-    gene_reduce = [list(self.arch_weights(1).data.cpu().numpy())]
+    gene_normal = np.array(self.arch_weights(0).data.cpu().numpy()).tolist()
+    gene_reduce = np.array(self.arch_weights(1).data.cpu().numpy()).tolist()
 
     genotype = Genotype(
       normal=gene_normal, normal_concat=[],
