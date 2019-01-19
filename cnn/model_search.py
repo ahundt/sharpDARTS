@@ -193,11 +193,11 @@ class MultiChannelNetwork(nn.Module):
     self.strides = np.array([self.normal_index, self.reduce_index])
     self.C_start = 5
     self.C_end = 10
-    self.Cs = np.exp2(np.arange(self.C_start,self.C_end))
+    self.Cs = np.array(np.exp2(np.arange(self.C_start,self.C_end)), dtype='int')
     self.C_size = len(self.Cs)
     # $ print(C)
     # [ 32.  64. 128. 256. 512.]
-    C_in, C_out = np.meshgrid(self.Cs,self.Cs, indexing='ij')
+    C_in, C_out = np.array(np.meshgrid(self.Cs,self.Cs, indexing='ij'), dtype='int')
     # $ print(C_in)
     # [[ 32.  32.  32.  32.  32.]
     #  [ 64.  64.  64.  64.  64.]
