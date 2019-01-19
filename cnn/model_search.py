@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 from operations import *
 from torch.autograd import Variable
 from genotypes import PRIMITIVES
