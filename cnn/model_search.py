@@ -309,7 +309,7 @@ class MultiChannelNetwork(nn.Module):
     # print('weights() view_shape self.weights_shape[1:]: ' + str(view_shape))
     # softmax of weights should occur once for each layer
     num_layers = self.weights_shape[1]
-    weights_softmax_view = self._arch_parameters[stride_idx].view([num_layers, -1])
+    weights_softmax_view = self._arch_parameters[stride_idx].view(num_layers, -1)
     # apply softmax and convert to an indexable view
     weights = F.softmax(weights_softmax_view, dim=-1).view(view_shape)
     return weights
