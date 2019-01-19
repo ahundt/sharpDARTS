@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from operations import *
+import operations
 from torch.autograd import Variable
 from genotypes import PRIMITIVES
 from genotypes import Genotype
