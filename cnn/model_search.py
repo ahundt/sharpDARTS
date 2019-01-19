@@ -259,8 +259,8 @@ class MultiChannelNetwork(nn.Module):
 
   def forward(self, input_batch):
     # [in, normal_out, reduce_out]
-    num_empties = len(self.Cs)
-    s0s = [[], [None] * num_empties, [None] * num_empties]
+    self.C_size = len(self.Cs)
+    s0s = [[], [None] * self.C_size, [None] * self.C_size]
     for i, C_in in enumerate(self.Cs):
       # Make the set of features with different numbers of channels.
       s0s[0] += [self.stem[i](input_batch)]
@@ -285,7 +285,7 @@ class MultiChannelNetwork(nn.Module):
           for C_in_idx, C_in in enumerate(self.Cs):
             for op_type_idx in range(len(self.op_types)):
               # get the specific weight for this op
-              w = weight_views[stride_idx, layer, C_out_idx]
+              w = weight_views[stride_idx][layer, C_in_idx, C_out_idx]
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
               if w > self.min_score:
@@ -302,7 +302,7 @@ class MultiChannelNetwork(nn.Module):
             s0s[s_idx][C_out_idx] += combined
 
       # downscale reduced input as next output
-      s0s = [s0s[2], [None] * num_empties, [None] * num_empties]
+      s0s = [s0s[2], [None] * self.C_size, [None] * self.C_size]
 
     out = s0s[0][-1]
     out = self.global_pooling(out)
