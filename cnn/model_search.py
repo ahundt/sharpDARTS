@@ -177,7 +177,7 @@ class Network(nn.Module):
 class MultiChannelNetwork(nn.Module):
 
   def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3):
-    super(SharpNetwork, self).__init__()
+    super(MultiChannelNetwork, self).__init__()
     self._C = C
     self._num_classes = num_classes
     self._layers = layers
