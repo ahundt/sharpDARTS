@@ -194,9 +194,9 @@ class MultiChannelNetwork(nn.Module):
     self.C_start = 5
     self.C_end = 10
     self.Cs = np.array(np.exp2(np.arange(self.C_start,self.C_end)), dtype='int')
-    self.C_size = len(self.Cs)
-    # $ print(C)
+    # $ print(Cs)
     # [ 32.  64. 128. 256. 512.]
+    self.C_size = len(self.Cs)
     C_in, C_out = np.array(np.meshgrid(self.Cs,self.Cs, indexing='ij'), dtype='int')
     # $ print(C_in)
     # [[ 32.  32.  32.  32.  32.]
@@ -204,7 +204,7 @@ class MultiChannelNetwork(nn.Module):
     #  [128. 128. 128. 128. 128.]
     #  [256. 256. 256. 256. 256.]
     #  [512. 512. 512. 512. 512.]]
-    # $ print(C_in)
+    # $ print(C_out)
     # [[ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]
@@ -223,7 +223,7 @@ class MultiChannelNetwork(nn.Module):
           for OpType in self.op_types:
             cin = C_in[C_in_idx][C_out_idx]
             cout = C_out[C_in_idx][C_out_idx]
-            print('cin: ' + str(cin) + 'cout: ' + str(cout))
+            # print('cin: ' + str(cin) + ' cout: ' + str(cout))
             op = OpType(cin, cout, kernel_size=3, stride=stride_idx + 1)
             type_modules.append(op)
           out_modules.append(type_modules)
@@ -234,7 +234,8 @@ class MultiChannelNetwork(nn.Module):
     # C_in will be defined by the previous layer's c_out
     self.weights_shape = [len(self.strides), layers, self.C_size, len(self.op_types)]
     # N = C_size * len(self.op_types)
-    N = weights_shape[-1] * weights_shape[-2]
+    # This is the number of weights in a softmax call
+    N = self.weights_shape[-1] * self.weights_shape[-2]
     self.min_score = 1 / (N*N)
 
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
