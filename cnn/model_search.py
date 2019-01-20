@@ -313,14 +313,14 @@ class MultiChannelNetwork(nn.Module):
           if c_outs:
             # combined values with the same c_out dimension
             combined = sum(c_outs)
-            if s0s[s_idx][C_out_idx] is None:
+            if s0s[stride][C_out_idx] is None:
               # first call sets the value
               s0s[stride][C_out_idx] = combined
             else:
               s0s[stride][C_out_idx] += combined
 
       # downscale reduced input as next output
-      s0s = [s0s[s_idx], [None] * self.C_size, [None] * self.C_size]
+      s0s = [s0s[stride], [None] * self.C_size, [None] * self.C_size]
 
     out = s0s[0][-1]
     out = self.global_pooling(out)
