@@ -59,7 +59,7 @@ parser.add_argument('--multi_channel', action='store_true', default=False, help=
 #                          ' options are PRIMITIVES and DARTS_PRIMITIVES')
 args = parser.parse_args()
 
-args.save = 'search-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
+args.save = 'search-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save)
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_file_path = os.path.join(args.save, 'log.txt')
