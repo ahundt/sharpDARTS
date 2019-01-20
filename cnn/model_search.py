@@ -295,9 +295,10 @@ class MultiChannelNetwork(nn.Module):
               # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
-              if w > self.min_score:
-                # only apply an op if weight score isn't too low: w > 1/(N*N)
-                x = w * self.op_grid[stride_idx][C_in_idx][C_out_idx][op_type_idx](s0s[stride_idx][C_in_idx])
+              # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
+              # if w > self.min_score:
+              #   # only apply an op if weight score isn't too low: w > 1/(N*N)
+              x = w * self.op_grid[stride_idx][C_in_idx][C_out_idx][op_type_idx](s0s[stride_idx][C_in_idx])
               c_outs += [x]
           # combined values with the same c_out dimension
           combined = sum(c_outs)
