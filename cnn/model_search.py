@@ -311,7 +311,7 @@ class MultiChannelNetwork(nn.Module):
             s0s[s_idx][C_out_idx] += combined
 
       # downscale reduced input as next output
-      s0s = [s0s[2], [None] * self.C_size, [None] * self.C_size]
+      s0s = [s0s[s_idx], [None] * self.C_size, [None] * self.C_size]
 
     out = s0s[0][-1]
     out = self.global_pooling(out)
