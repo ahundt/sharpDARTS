@@ -285,6 +285,12 @@ class MultiChannelNetwork(nn.Module):
       # layer is how many times we've called everything, i.e. the number of "layers"
       # this is different from the number of layer types which is len([SepConv, ResizablePool]) == 2
       for stride_idx in self.strides:
+        stride = 1 + stride_idx
+        # we don't pass the gradient along max_w because it is the weight for a different operation.
+        # TODO(ahundt) is there a better way to create this variable without gradients & reallocating repeatedly?
+        # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
+        # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
+        max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           c_outs = []
@@ -296,19 +302,22 @@ class MultiChannelNetwork(nn.Module):
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
               # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
-              # if w > self.min_score:
-              #   # only apply an op if weight score isn't too low: w > 1/(N*N)
-              # adding 0.5 so range is from 0.5 to 1.5, which might prevent vanishing weights problem
-              x = (w + 0.5) * self.op_grid[stride_idx][C_in_idx][C_out_idx][op_type_idx](s0s[stride_idx][C_in_idx])
-              c_outs += [x]
-          # combined values with the same c_out dimension
-          combined = sum(c_outs)
-          s_idx = 1 + stride_idx
-          if s0s[s_idx][C_out_idx] is None:
-            # first call sets the value
-            s0s[s_idx][C_out_idx] = combined
-          else:
-            s0s[s_idx][C_out_idx] += combined
+              if w > self.min_score:
+                # only apply an op if weight score isn't too low: w > 1/(N*N)
+                # 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
+                s = s0s[stride_idx][C_in_idx]
+                if s is not None:
+                  x = (1 - max_w + w) * self.op_grid[stride][C_in_idx][C_out_idx][op_type_idx](s)
+                  c_outs += [x]
+          # only apply updates to layers of sufficient quality
+          if c_outs:
+            # combined values with the same c_out dimension
+            combined = sum(c_outs)
+            if s0s[s_idx][C_out_idx] is None:
+              # first call sets the value
+              s0s[stride][C_out_idx] = combined
+            else:
+              s0s[stride][C_out_idx] += combined
 
       # downscale reduced input as next output
       s0s = [s0s[s_idx], [None] * self.C_size, [None] * self.C_size]
