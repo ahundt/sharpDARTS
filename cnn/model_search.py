@@ -307,7 +307,7 @@ class MultiChannelNetwork(nn.Module):
                 # 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
-                  x = (1 - max_w + w) * self.op_grid[stride][C_in_idx][C_out_idx][op_type_idx](s)
+                  x = (1 - max_w + w) * self.op_grid[stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                   c_outs += [x]
           # only apply updates to layers of sufficient quality
           if c_outs:
