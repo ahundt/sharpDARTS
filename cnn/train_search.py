@@ -146,8 +146,11 @@ def main():
     genotype = cnn_model.genotype()
     logger.info('genotype = %s', genotype)
 
-    logger.info('alphas_normal = %s', cnn_model.arch_weights(0))
-    logger.info('alphas_reduce = %s', cnn_model.arch_weights(1))
+    if not args.multi_channel:
+      # the genotype is the alphas in the multi-channel case
+      # print the alphas in other cases
+      logger.info('alphas_normal = %s', cnn_model.arch_weights(0))
+      logger.info('alphas_reduce = %s', cnn_model.arch_weights(1))
 
     # training
     train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr)
