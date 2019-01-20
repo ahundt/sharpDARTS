@@ -197,7 +197,7 @@ class MultiChannelNetwork(nn.Module):
     self.reduce_index = 1
     self.layer_types = 2
     self.strides = np.array([self.normal_index, self.reduce_index])
-    self.C_start = 5
+    self.C_start = 6
     self.C_end = 10
     self.Cs = np.array(np.exp2(np.arange(self.C_start,self.C_end)), dtype='int')
     # $ print(Cs)
