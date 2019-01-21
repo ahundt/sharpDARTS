@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 import genotypes
 import operations
-
+import cifar10_1
 
 parser = argparse.ArgumentParser("Common Argument Parser")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
@@ -43,6 +43,7 @@ parser.add_argument('--mixed_auxiliary', action='store_true', default=False, hel
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
+parser.add_argument('--autoaugment', action='store_true', default=False, help='use cifar10 autoaugment https://arxiv.org/abs/1805.09501')
 parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
 parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
 parser.add_argument('--save', type=str, default='EXP', help='experiment name')
@@ -113,10 +114,10 @@ def main():
   valid_data = dset.CIFAR10(root=args.data, train=False, download=True, transform=valid_transform)
 
   train_queue = torch.utils.data.DataLoader(
-      train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=2)
+      train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=4)
 
   valid_queue = torch.utils.data.DataLoader(
-      valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=2)
+      valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
@@ -137,11 +138,28 @@ def main():
       utils.save(cnn_model, weights_file)
       best_epoch = epoch
       best_valid_acc = valid_acc
+      best_valid_loss = valid_obj
+      best_train_loss = train_obj
+      best_train_acc = train_acc
+      best_lr = scheduler.get_lr()[0]
     # else:
     #   # not best epoch, load best weights
     #   utils.load(cnn_model, weights_file)
     logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
                 epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
+
+  if args.dataset == 'cifar10':
+    # evaluate best model weights on cifar 10.1
+    # https://github.com/modestyachts/CIFAR-10.1
+    valid_data = cifar10_1.CIFAR10_1(root=args.data, train=False, download=True, transform=valid_transform)
+    valid_queue = torch.utils.data.DataLoader(
+        valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
+    # load the best model weights
+    utils.load(cnn_model, weights_file)
+    cifar10_1_valid_acc, cifar10_1_valid_loss = infer(valid_queue, cnn_model, criterion)
+    # printout all stats from best epoch including cifar10.1
+    logger.info('best_epoch, %d, best_train_acc, %f, best_valid_acc, %f, best_train_loss, %f, best_valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f cifar10.1_valid_acc, %f, cifar10.1_valid_loss, %f',
+                best_epoch, best_train_acc, best_valid_acc, train_obj, valid_obj, best_lr, best_epoch, best_valid_acc, cifar10_1_valid_acc, cifar10_1_valid_loss)
   logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 

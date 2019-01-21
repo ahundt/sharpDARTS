@@ -17,6 +17,8 @@ except ImportError:
 from tqdm import tqdm
 import colorlog
 
+import autoaugment
+
 class TqdmHandler(logging.StreamHandler):
     def __init__(self):
         logging.StreamHandler.__init__(self)
@@ -169,13 +171,24 @@ def get_data_transforms(args):
 def _data_transforms_cifar10(args):
   CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
   CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
+  if args.autoaugment:
+    train_transform = transforms.Compose([
+      # NOTE(ahundt) pad and fill has been added to support autoaugment. Results may have changed! https://github.com/DeepVoltaire/AutoAugment/issues/8
+      transforms.Pad(4, fill=128),
+      transforms.RandomCrop(32, padding=0),
+      transforms.RandomHorizontalFlip(),
+      autoaugment.CIFAR10Policy(),
+      transforms.ToTensor(),
+      transforms.Normalize(CIFAR_MEAN, CIFAR_STD)
+    ])
+  else:
+    train_transform = transforms.Compose([
+      transforms.RandomCrop(32, padding=4),
+      transforms.RandomHorizontalFlip(),
+      transforms.ToTensor(),
+      transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
+    ])
 
-  train_transform = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
-  ])
   if args.random_eraser:
     train_transform.transforms.append(random_eraser)
   if args.cutout:
