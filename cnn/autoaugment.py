@@ -389,14 +389,14 @@ class SubPolicy(object):
                 fillcolor=fillcolor),
             "rotate": lambda img, magnitude: rotate_with_fill(img, magnitude),
             # "rotate": lambda img, magnitude: img.rotate(magnitude * random.choice([-1, 1])),
-            "color": lambda img, magnitude: ImageEnhance.color(img).enhance(1 + magnitude * random.choice([-1, 1])),
+            "color": lambda img, magnitude: ImageEnhance.Color(img).enhance(1 + magnitude * random.choice([-1, 1])),
             "posterize": lambda img, magnitude: ImageOps.posterize(img, magnitude),
             "solarize": lambda img, magnitude: ImageOps.solarize(img, magnitude),
-            "contrast": lambda img, magnitude: ImageEnhance.contrast(img).enhance(
+            "contrast": lambda img, magnitude: ImageEnhance.Contrast(img).enhance(
                 1 + magnitude * random.choice([-1, 1])),
-            "sharpness": lambda img, magnitude: ImageEnhance.sharpness(img).enhance(
+            "sharpness": lambda img, magnitude: ImageEnhance.Sharpness(img).enhance(
                 1 + magnitude * random.choice([-1, 1])),
-            "brightness": lambda img, magnitude: ImageEnhance.brightness(img).enhance(
+            "brightness": lambda img, magnitude: ImageEnhance.Brightness(img).enhance(
                 1 + magnitude * random.choice([-1, 1])),
             "autocontrast": lambda img, magnitude: ImageOps.autocontrast(img),
             "equalize": lambda img, magnitude: ImageOps.equalize(img),
