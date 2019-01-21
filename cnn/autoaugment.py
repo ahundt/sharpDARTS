@@ -365,7 +365,8 @@ class SubPolicy(object):
             "brightness": np.linspace(0.0, 0.9, 10),
             "autocontrast": [0] * 10,
             "equalize": [0] * 10,
-            "invert": [0] * 10
+            "invert": [0] * 10,
+            "cutout": np.linspace(0.0, 0.9, 10),
         }
 
         # from https://stackoverflow.com/questions/5252170/specify-image-filling-color-when-rotating-in-python-with-pil-and-setting-expand
