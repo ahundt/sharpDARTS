@@ -184,7 +184,7 @@ class Network(nn.Module):
 
 class MultiChannelNetwork(nn.Module):
 
-  def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3):
+  def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3, always_apply_ops=True):
     super(MultiChannelNetwork, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -192,6 +192,7 @@ class MultiChannelNetwork(nn.Module):
     self._criterion = criterion
     self._steps = steps
     self._multiplier = multiplier
+    self._always_apply_ops = always_apply_ops
 
     self.normal_index = 0
     self.reduce_index = 1
@@ -302,7 +303,7 @@ class MultiChannelNetwork(nn.Module):
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
               # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
-              if w > self.min_score:
+              if self._always_apply_ops or w > self.min_score:
                 # only apply an op if weight score isn't too low: w > 1/(N*N)
                 # 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
                 s = s0s[stride_idx][C_in_idx]
