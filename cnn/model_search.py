@@ -330,7 +330,7 @@ class MultiChannelNetwork(nn.Module):
 
   def arch_weights(self, stride_idx):
     # ops are stored as layer, stride, cin, cout, num_layer_types
-    # while weights are ordered stride_index, layer, cout, num_layer_types
+    # while weights are ordered stride_index, layer, cin, cout, num_layer_types
     # first exclude the stride_idx because we already know that
     view_shape = self.arch_weights_shape[1:]
     # print('arch_weights() view_shape self.weights_shape[1:]: ' + str(view_shape))
