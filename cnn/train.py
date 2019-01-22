@@ -151,7 +151,7 @@ def main():
   if args.dataset == 'cifar10':
     # evaluate best model weights on cifar 10.1
     # https://github.com/modestyachts/CIFAR-10.1
-    valid_data = cifar10_1.CIFAR10_1(root=args.data, train=False, download=True, transform=valid_transform)
+    valid_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
     # load the best model weights
