@@ -286,9 +286,10 @@ class CIFAR10Policy(object):
         self.policies = exp0s + exp1s + exp2s
 
     def __call__(self, img):
-        for sub_policy in np.random.choice(self.policies, len(self.policies)):
-            img = sub_policy(img)
-        return img
+        # Choose policy then sub-policy. Note in the original paper the policy is chosen once per epoch.
+        policy = self.policies[np.random.choice(len(self.policies))]
+        sub_policy = policy[np.random.choice(len(policy))]
+        return sub_policy(img)
 
     def __repr__(self):
         return "AutoAugment CIFAR10 Policy"
