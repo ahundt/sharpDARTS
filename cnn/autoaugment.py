@@ -287,8 +287,7 @@ class CIFAR10Policy(object):
 
     def __call__(self, img):
         # Choose policy then sub-policy. Note in the original paper the policy is chosen once per epoch.
-        policy = self.policies[np.random.choice(len(self.policies))]
-        sub_policy = policy[np.random.choice(len(policy))]
+        sub_policy = self.policies[np.random.choice(len(self.policies))]
         return sub_policy(img)
 
     def __repr__(self):
