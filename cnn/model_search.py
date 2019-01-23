@@ -198,7 +198,7 @@ class MultiChannelNetwork(nn.Module):
     self.reduce_index = 1
     self.layer_types = 2
     self.strides = np.array([self.normal_index, self.reduce_index])
-    self.C_start = 6
+    self.C_start = 8
     self.C_end = 10
     self.Cs = np.array(np.exp2(np.arange(self.C_start,self.C_end)), dtype='int')
     # $ print(Cs)
@@ -227,22 +227,25 @@ class MultiChannelNetwork(nn.Module):
       self.stem.append(s)
 
     self.op_grid = nn.ModuleList()
-    for stride_idx in self.strides:
-      in_modules = nn.ModuleList()
-      for C_in_idx in range(self.C_size):
-        out_modules = nn.ModuleList()
-        for C_out_idx in range(self.C_size):
-          type_modules = nn.ModuleList()
-          for OpType in self.op_types:
-            cin = C_in[C_in_idx][C_out_idx]
-            cout = C_out[C_in_idx][C_out_idx]
-            # print('cin: ' + str(cin) + ' cout: ' + str(cout))
-            op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
-            type_modules.append(op)
-          out_modules.append(type_modules)
-        in_modules.append(out_modules)
-      # op grid is stride_modules
-      self.op_grid.append(in_modules)
+    for layer_idx in self.layers:
+      stride_modules = nn.ModuleList()
+      for stride_idx in self.strides:
+        in_modules = nn.ModuleList()
+        for C_in_idx in range(self.C_size):
+          out_modules = nn.ModuleList()
+          for C_out_idx in range(self.C_size):
+            type_modules = nn.ModuleList()
+            for OpType in self.op_types:
+              cin = C_in[C_in_idx][C_out_idx]
+              cout = C_out[C_in_idx][C_out_idx]
+              # print('cin: ' + str(cin) + ' cout: ' + str(cout))
+              op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
+              type_modules.append(op)
+            out_modules.append(type_modules)
+          in_modules.append(out_modules)
+        # op grid is stride_modules
+        stride_modules.append(in_modules)
+      self.op_grid.append(stride_modules)
 
     # C_in will be defined by the previous layer's c_out
     self.arch_weights_shape = [len(self.strides), layers, self.C_size, self.C_size, len(self.op_types)]
@@ -308,7 +311,7 @@ class MultiChannelNetwork(nn.Module):
                 # 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
-                  x = (1 - max_w + w) * self.op_grid[stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                  x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                   c_outs += [x]
           # only apply updates to layers of sufficient quality
           if c_outs:
