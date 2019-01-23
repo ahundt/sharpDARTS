@@ -227,7 +227,7 @@ class MultiChannelNetwork(nn.Module):
       self.stem.append(s)
 
     self.op_grid = nn.ModuleList()
-    for layer_idx in self.layers:
+    for layer_idx in self._layers:
       stride_modules = nn.ModuleList()
       for stride_idx in self.strides:
         in_modules = nn.ModuleList()
