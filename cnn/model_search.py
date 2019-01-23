@@ -184,7 +184,7 @@ class Network(nn.Module):
 
 class MultiChannelNetwork(nn.Module):
 
-  def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3, always_apply_ops=True):
+  def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3, always_apply_ops=False):
     super(MultiChannelNetwork, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -198,7 +198,7 @@ class MultiChannelNetwork(nn.Module):
     self.reduce_index = 1
     self.layer_types = 2
     self.strides = np.array([self.normal_index, self.reduce_index])
-    self.C_start = 8
+    self.C_start = 5
     self.C_end = 10
     self.Cs = np.array(np.exp2(np.arange(self.C_start,self.C_end)), dtype='int')
     # $ print(Cs)
