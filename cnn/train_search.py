@@ -27,8 +27,10 @@ import operations
 import genotypes
 
 
-parser = argparse.ArgumentParser("cifar")
+parser = argparse.ArgumentParser("Common Argument Parser")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
+parser.add_argument('--dataset', type=str, default='cifar10',
+                    help='which dataset: cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
 parser.add_argument('--batch_size', type=int, default=64, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
 parser.add_argument('--learning_rate_min', type=float, default=0.001, help='min learning rate')
@@ -38,13 +40,17 @@ parser.add_argument('--report_freq', type=float, default=50, help='report freque
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=50, help='num of training epochs')
 parser.add_argument('--init_channels', type=int, default=16, help='num of init channels')
-parser.add_argument('--layers', type=int, default=8, help='total number of layers')
+parser.add_argument('--layers_of_cells', type=int, default=8, help='total number of cells in the whole network, default is 8 cells')
+parser.add_argument('--layers_in_cells', type=int, default=4,
+                    help='Total number of nodes in each cell, aka number of steps,'
+                         ' default is 4 nodes, which implies 8 ops')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--autoaugment', action='store_true', default=False, help='use cifar10 autoaugment https://arxiv.org/abs/1805.09501')
 parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
 parser.add_argument('--drop_path_prob', type=float, default=0.3, help='drop path probability')
+parser.add_argument('--no_architect', action='store_true', default=False, help='directly train genotype parameters, disable architect.')
 parser.add_argument('--save', type=str, default='EXP', help='experiment name')
 parser.add_argument('--seed', type=int, default=2, help='random seed')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
@@ -52,13 +58,13 @@ parser.add_argument('--train_portion', type=float, default=0.5, help='portion of
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
-# parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
-# parser.add_argument('--primitives', type=str, default='PRIMITIVES',
-#                     help='which primitive layers to use inside a cell search space,'
-#                          ' options are PRIMITIVES and DARTS_PRIMITIVES')
+parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
+parser.add_argument('--primitives', type=str, default='PRIMITIVES',
+                    help='which primitive layers to use inside a cell search space,'
+                         ' options are PRIMITIVES and DARTS_PRIMITIVES')
 args = parser.parse_args()
 
-args.save = 'search-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
+args.save = 'search-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset)
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_file_path = os.path.join(args.save, 'log.txt')
@@ -86,21 +92,21 @@ def main():
   logger.info("args = %s", args)
 
   # # load the correct ops dictionary
-  # op_dict_to_load = "operations.%s" % args.ops
-  # print('loading op dict: ' + str(op_dict_to_load))
-  # op_dict = eval(op_dict_to_load)
-  # operations.OPS = op_dict
+  op_dict_to_load = "operations.%s" % args.ops
+  logger.info('loading op dict: ' + str(op_dict_to_load))
+  op_dict = eval(op_dict_to_load)
 
-  # # load the correct primitives list
-  # primitives_to_load = "genotypes.%s" % args.primitives
-  # print('loading primitives: ' + str(primitives_to_load))
-  # primitives_list = eval(primitives_to_load)
-  # genotypes.PRIMITIVES = primitives_list
-  # print('primitives: ' + str(genotypes.PRIMITIVES))
+  # load the correct primitives list
+  primitives_to_load = "genotypes.%s" % args.primitives
+  logger.info('loading primitives:' + primitives_to_load)
+  primitives = eval(primitives_to_load)
+  logger.info('primitives: ' + str(primitives))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
-  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, criterion)
+  cnn_model = Network(
+    args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
+    primitives=primitives, op_dict=op_dict, weights_are_parameters=args.no_architect)
   cnn_model = cnn_model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
@@ -130,7 +136,10 @@ def main():
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
-  architect = Architect(cnn_model, args)
+  if args.no_architect:
+    architect = None
+  else:
+    architect = Architect(cnn_model, args)
 
   prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
   best_valid_acc = 0.0
@@ -184,7 +193,9 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
     input_search = Variable(input_search, requires_grad=False).cuda()
     target_search = Variable(target_search, requires_grad=False).cuda(async=True)
 
-    architect.step(input_batch, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
+    # define validation loss for analyzing the importance of hyperparameters
+    if architect is not None:
+      val_loss = architect.step(input_batch, target, input_search, target_search, lr, optimizer, unrolled=args.unrolled)
 
     optimizer.zero_grad()
     logits = cnn_model(input_batch)

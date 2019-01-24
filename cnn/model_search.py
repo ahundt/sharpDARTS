@@ -9,12 +9,24 @@ from genotypes import Genotype
 
 class MixedOp(nn.Module):
 
-  def __init__(self, C, stride):
+  def __init__(self, C, stride, primitives=None, op_dict=None):
+    """ Perform a mixed forward pass incorporating multiple primitive operations like conv, max pool, etc.
+
+    # Arguments
+
+      primitives: the list of strings defining the operations to choose from.
+      op_dict: The dictionary of possible operation creation functions.
+        All primitives must be in the op dict.
+    """
     super(MixedOp, self).__init__()
     self._ops = nn.ModuleList()
     self._stride = stride
-    for primitive in PRIMITIVES:
-      op = OPS[primitive](C, C, stride, False)
+    if primitives is None:
+          primitives = PRIMITIVES
+    if op_dict is None:
+          op_dict = operations.OPS
+    for primitive in primitives:
+      op = op_dict[primitive](C, C, stride, False)
       # op = OPS[primitive](C, stride, False)
       if 'pool' in primitive:
         op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
@@ -36,7 +48,18 @@ class MixedOp(nn.Module):
 
 class Cell(nn.Module):
 
-  def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev):
+  def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, primitives=None, op_dict=None):
+    """Create a searchable cell representing multiple architectures.
+
+    The Cell class in model.py is the equivalent for a single architecture.
+
+    # Arguments
+      steps: The number of primitive operations in the cell,
+        essentially the number of low level layers.
+      multiplier: The rate at which the number of channels increases.
+      op_dict: The dictionary of possible operation creation functions.
+        All primitives must be in the op dict.
+    """
     super(Cell, self).__init__()
     self.reduction = reduction
 
@@ -53,7 +76,7 @@ class Cell(nn.Module):
     for i in range(self._steps):
       for j in range(2+i):
         stride = 2 if reduction and j < 2 else 1
-        op = MixedOp(C, stride)
+        op = MixedOp(C, stride, primitives, op_dict)
         self._ops.append(op)
 
   def forward(self, s0, s1, weights):
@@ -72,7 +95,8 @@ class Cell(nn.Module):
 
 class Network(nn.Module):
 
-  def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3):
+  def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3,
+               primitives=None, op_dict=None, weights_are_parameters=False):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -80,6 +104,7 @@ class Network(nn.Module):
     self._criterion = criterion
     self._steps = steps
     self._multiplier = multiplier
+    self._weights_are_parameters = weights_are_parameters
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
@@ -96,7 +121,7 @@ class Network(nn.Module):
         reduction = True
       else:
         reduction = False
-      cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+      cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, primitives, op_dict)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, multiplier*C_curr
@@ -138,6 +163,9 @@ class Network(nn.Module):
       self.alphas_normal,
       self.alphas_reduce,
     ]
+    if self._weights_are_parameters:
+          # in simpler training modes the weights are just regular parameters
+          self._arch_parameters = torch.nn.Parameter(self._arch_parameters)
 
   def arch_parameters(self):
     return self._arch_parameters
