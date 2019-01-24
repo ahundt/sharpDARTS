@@ -20,6 +20,33 @@ import colorlog
 
 import autoaugment
 
+
+def tqdm_stats(progbar):
+  """ Very brittle function to extract timing stats from tqdm.
+  Replace when https://github.com/tqdm/tqdm/issues/562 is resolved.
+  Example of key string component that will be read:
+     3/3 [00:00<00:00, 12446.01it/s]
+  """
+  s = str(progbar)
+  # get the stats part of the string
+  s = s[s.find("| ")+1:]
+  stats = {
+    'percent_complete': s[:s.find('%')].strip(' '),
+    'current_step': s[:s.find('/')].strip(' '),
+    'total_steps': s[s.find('/')+1:s.find('[')].strip(' '),
+    'time_elapsed': s[s.find('[')+1:s.find('<')].strip(' '),
+    'time_remaining': s[s.find('<')+1:s.find(',')].strip(' '),
+    'step_time': s[s.find(', ')+1:s.find(']')].strip(' '),
+  }
+  return stats
+
+def dict_to_log_string(log={}, separator=', ', key_prepend=''):
+  log_strings = []
+  for k, v in log:
+    log_strings += [key_prepend + k, v]
+  return separator.join(log_strings)
+
+
 class TqdmHandler(logging.StreamHandler):
     def __init__(self):
         logging.StreamHandler.__init__(self)
