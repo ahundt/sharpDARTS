@@ -64,6 +64,8 @@ parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                          ' options are PRIMITIVES and DARTS_PRIMITIVES')
 args = parser.parse_args()
 
+# TODO(ahundt) enable --dataset flag, merge code from mixed_aux branch
+assert args.dataset == 'cifar10'
 args.save = 'search-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset)
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
