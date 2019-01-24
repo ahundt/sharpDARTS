@@ -7,18 +7,38 @@ import shutil
 import torchvision.transforms as transforms
 from torch.autograd import Variable
 import torch.nn.functional as F
-try:
-    import fanova
-except ImportError:
-    print('fanova not available, skipping components ranking hyperparam importance, try:'
-          '    pip install fanova --user --upgrade'
-          'or follow the instructions at https://github.com/automl/fanova')
-    fanova = None
 
 from tqdm import tqdm
 import colorlog
 
 import autoaugment
+
+
+def tqdm_stats(progbar):
+  """ Very brittle function to extract timing stats from tqdm.
+  Replace when https://github.com/tqdm/tqdm/issues/562 is resolved.
+  Example of key string component that will be read:
+     3/3 [00:00<00:00, 12446.01it/s]
+  """
+  s = str(progbar)
+  # get the stats part of the string
+  s = s[s.find("| ")+1:]
+  stats = {
+    'percent_complete': s[:s.find('%')].strip(' '),
+    'current_step': s[:s.find('/')].strip(' '),
+    'total_steps': s[s.find('/')+1:s.find('[')].strip(' '),
+    'time_elapsed': s[s.find('[')+1:s.find('<')].strip(' '),
+    'time_remaining': s[s.find('<')+1:s.find(',')].strip(' '),
+    'step_time': s[s.find(', ')+1:s.find(']')].strip(' '),
+  }
+  return stats
+
+def dict_to_log_string(log={}, separator=', ', key_prepend=''):
+  log_strings = []
+  for k, v in log:
+    log_strings += [key_prepend + k, v]
+  return separator.join(log_strings)
+
 
 class TqdmHandler(logging.StreamHandler):
     def __init__(self):
@@ -379,68 +399,3 @@ def create_exp_dir(path, scripts_to_save=None):
     for script in scripts_to_save:
       dst_file = os.path.join(path, 'scripts', os.path.basename(script))
       shutil.copyfile(script, dst_file)
-
-
-class Performance(object):
-  def __init__(self, path):
-    self.path = path
-    self.data = None
-
-  def update(self, alphas_normal, alphas_reduce, val_loss):
-    a_normal = F.softmax(alphas_normal, dim=-1)
-    # if fanova is None:
-    #   print("alpha normal size: ", a_normal.data.size())
-    a_reduce = F.softmax(alphas_reduce, dim=-1)
-    # if fanova is None:
-    #   print("alpha reduce size: ", a_reduce.data.size())
-    data = np.concatenate([a_normal.data.view(-1),
-                           a_reduce.data.view(-1),
-                           np.array([val_loss.data])]).reshape(1,-1)
-    if self.data is not None:
-      self.data = np.concatenate([self.data, data], axis=0)
-    else:
-      self.data = data
-
-  def save(self):
-    np.save(self.path, self.data)
-
-def importance(path, config):
-  assert os.path.exists(path), 'File %s does not exist' % path
-  assert isinstance(config, dict), 'Input argument config is wrong'
-  if fanova is None:
-        print('fanova is disabled, skipping hyperparameter importance estimate')
-        return []
-
-  data = np.load(path)
-  X = data[:, :-1].astype(np.double)
-  Y = data[:, -1].astype(np.double)
-  n_data, n_params = X.shape
-  print(X.shape)
-  imps = []
-  # TODO: make dims, max_cols more clear & automatically deduce them, may be related to search space
-  dims = (10, )
-  max_cols = 50
-
-  if config['mode'] == 'incremental':
-    interval = config['interval']
-    for i in range(n_data // interval):
-      print('Iteration %d: \n' %i)
-      f = fanova.fANOVA(X[:(i+1)*interval, :max_cols], Y[:(i+1)*interval])
-      imp_dic = f.quantify_importance(dims)
-      print(imp_dic)
-      imps.append(imp_dic)
-  elif config['mode'] == 'fixed':
-    interval = config['interval']
-    for i in range(n_data // interval):
-      print('Iteration %d: \n' %i)
-      f = fanova.fANOVA(X[i*interval:(i+1)*interval, :max_cols], Y[i*interval:(i+1)*interval])
-      imp_dic = f.quantify_importance(dims)
-      print(imp_dic)
-      imps.append(imp_dic)
-  return imps
-
-# if __name__ == '__main__':
-#   path = '/home/zero/Downloads/cifar10_performance.npy'
-#   config = {'mode': 'fixed', 'interval': 1000}
-#   # config = {'mode': 'incremental', 'interval': 1000}
-#   imps = importance(path, config)

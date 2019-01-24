@@ -124,6 +124,7 @@ def main():
   prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
   best_valid_acc = 0.0
   best_epoch = 0
+  best_stats = {}
   weights_file = os.path.join(args.save, 'weights.pt')
   for epoch in prog_epoch:
     scheduler.step()
@@ -131,22 +132,24 @@ def main():
 
     train_acc, train_obj = train(train_queue, cnn_model, criterion, optimizer)
 
-    valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
+    stats = infer(valid_queue, cnn_model, criterion)
 
-    if valid_acc > best_valid_acc:
+    if stats['valid_acc'] > best_valid_acc:
       # new best epoch, save weights
       utils.save(cnn_model, weights_file)
       best_epoch = epoch
-      best_valid_acc = valid_acc
-      best_valid_loss = valid_obj
+      best_valid_acc = stats['valid_acc']
+
+      best_stats = stats
+      best_stats['lr'] = scheduler.get_lr()[0]
+      best_stats['epoch'] = best_epoch
       best_train_loss = train_obj
       best_train_acc = train_acc
-      best_lr = scheduler.get_lr()[0]
     # else:
     #   # not best epoch, load best weights
     #   utils.load(cnn_model, weights_file)
-    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
-                epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
+    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
+                epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
 
   if args.dataset == 'cifar10':
     # evaluate best model weights on cifar 10.1
@@ -156,10 +159,15 @@ def main():
         valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
     # load the best model weights
     utils.load(cnn_model, weights_file)
-    cifar10_1_valid_acc, cifar10_1_valid_loss = infer(valid_queue, cnn_model, criterion)
+    cifar10_1_stats = infer(valid_queue, cnn_model, criterion)
+    cifar10_1_str = utils.dict_to_log_string(cifar10_1_stats, key_prepend='cifar10_1')
+    best_epoch_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
+    logger.info(best_epoch_str + ', ' + cifar10_1_str)
     # printout all stats from best epoch including cifar10.1
-    logger.info('best_epoch, %d, best_train_acc, %f, best_valid_acc, %f, best_train_loss, %f, best_valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f cifar10.1_valid_acc, %f, cifar10.1_valid_loss, %f',
-                best_epoch, best_train_acc, best_valid_acc, train_obj, valid_obj, best_lr, best_epoch, best_valid_acc, cifar10_1_valid_acc, cifar10_1_valid_loss)
+    # TODO(ahundt) add best eval timing string and cifar10.1 eval timing string
+    # logger.info('best_epoch, %d, best_train_acc, %f, best_valid_acc, %f, best_train_loss, %f, best_valid_loss, %f, lr, %e, '
+    #             'best_epoch, %d, best_valid_acc, %f cifar10.1_valid_acc, %f, cifar10.1_valid_loss, %f, cifar10.1_eval_timing, ' + eval_timing_str,
+    #             best_epoch, best_train_acc, best_valid_acc, train_obj, valid_obj, best_stats['lr'], best_epoch, best_valid_acc, cifar10_1_valid_acc, cifar10_1_valid_loss)
   logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 
@@ -174,7 +182,7 @@ def train(train_queue, cnn_model, criterion, optimizer):
     input_batch = Variable(input_batch)
     target = Variable(target)
     if torch.cuda.is_available():
-      input_batch = input_batch.cuda()
+      input_batch = input_batch.cuda(async=True)
       target = target.cuda(async=True)
 
     optimizer.zero_grad()
@@ -208,22 +216,28 @@ def infer(valid_queue, cnn_model, criterion):
   cnn_model.eval()
 
   with torch.no_grad():
-    progbar = tqdm(valid_queue, dynamic_ncols=True)
-    for step, (input_batch, target) in enumerate(progbar):
-      input_batch = Variable(input_batch).cuda()
-      target = Variable(target).cuda(async=True)
+    # dynamic_ncols = false in this case because we want accurate timing stats
+    with tqdm(valid_queue, dynamic_ncols=False, desc='Running Validation') as progbar:
+      for step, (input_batch, target) in enumerate(progbar):
+        input_batch = Variable(input_batch).cuda(async=True)
+        target = Variable(target).cuda(async=True)
 
-      logits, _ = cnn_model(input_batch)
-      loss = criterion(logits, target)
+        logits, _ = cnn_model(input_batch)
+        loss = criterion(logits, target)
 
-      prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-      n = input_batch.size(0)
-      objs.update(loss.data.item(), n)
-      top1.update(prec1.data.item(), n)
-      top5.update(prec5.data.item(), n)
-      progbar.set_description('Validation step: {0}, loss: {1:9.5f}, top 1: {2:5.2f} top 5: {3:5.2f} progress'.format(step, objs.avg, top1.avg, top5.avg))
-
-  return top1.avg, objs.avg
+        prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
+        n = input_batch.size(0)
+        objs.update(loss.data.item(), n)
+        top1.update(prec1.data.item(), n)
+        top5.update(prec5.data.item(), n)
+        # description on each validation step is disabled for performance reasons
+        # progbar.set_description('Validation step: {0}, loss: {1:9.5f}, top 1: {2:5.2f} top 5: {3:5.2f} progress'.format(step, objs.avg, top1.avg, top5.avg))
+      # extract progbar timing stats from tqdm https://github.com/tqdm/tqdm/issues/660
+      stats = utils.tqdm_stats(progbar)
+      stats['valid_acc'] = top1.avg
+      stats['valid_loss'] = objs.avg
+  # return top1, avg loss, and timing stats string
+  return stats
 
 
 if __name__ == '__main__':
