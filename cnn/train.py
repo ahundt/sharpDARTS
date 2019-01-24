@@ -162,7 +162,7 @@ def main():
     cifar10_1_stats = infer(valid_queue, cnn_model, criterion)
     cifar10_1_str = utils.dict_to_log_string(cifar10_1_stats, key_prepend='cifar10_1')
     best_epoch_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
-    logger.info(cifar10_1_str + best_epoch_str)
+    logger.info(best_epoch_str + ', ' + cifar10_1_str)
     # printout all stats from best epoch including cifar10.1
     # TODO(ahundt) add best eval timing string and cifar10.1 eval timing string
     # logger.info('best_epoch, %d, best_train_acc, %f, best_valid_acc, %f, best_train_loss, %f, best_valid_loss, %f, lr, %e, '
