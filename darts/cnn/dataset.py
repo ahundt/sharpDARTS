@@ -43,7 +43,9 @@ inp_channel_dict = {'cifar10': 3,
                     'stl10': 3,
                     'devanagari' : 1}
 
-def get_training_queues(dataset_name, train_transform, dataset_location=None, batch_size=32, train_proportion=0.9, search_architecture=True):
+def get_training_queues(dataset_name, train_transform, dataset_location=None, batch_size=32, train_proportion=0.9, search_architecture=True, 
+                        costar_version='v0.4', costar_set_name=None, costar_subset_name=None, costar_feature_mode=None, costar_output_shape=(224, 224, 3),
+                        costar_random_augmentation=None, costar_one_hot_encoding=True):
   print("Getting " + dataset_name + " data")
   if dataset_name == 'cifar10':
     print("Using CIFAR10")
@@ -74,119 +76,44 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
     # Ensure dataset is present in the directory args.data. Does not support auto download
     train_data = dset.ImageFolder(root=dataset_location, transform=train_transform, loader = grey_pil_loader)
   elif dataset_name == 'stacking':
-      # Support for costar block stacking generator
-      # sites.google.com/costardataset
-      # https://github.com/ahundt/costar_dataset
-      # https://sites.google.com/site/costardataset
-      print("dataset----------------------", self.dataset)
-      Dataset = tf.data.Dataset
-      flags = tf.app.flags
-      FLAGS = flags.FLAGS
-      np.random.seed(0)
-      val_test_size = self.valid_set_size
-      if images["path"] != "":
-          print("datadir------------", images["path"])
-          file_names = glob.glob(os.path.expanduser(images["path"]))
-          train_data = file_names[val_test_size*2:]
-          validation_data = file_names[val_test_size:val_test_size*2]
-          self.validation_data = validation_data
-          test_data = file_names[:val_test_size]
-      else:
-          print("-------Loading train-test-val from txt files-------")
-          self.data_base_path = os.path.expanduser(self.data_base_path)
-          with open(self.data_base_path + 'costar_block_stacking_v0.3_success_only_train_files.txt', mode='r') as myfile:
-              train_data = myfile.read().splitlines()
-          with open(self.data_base_path + 'costar_block_stacking_v0.3_success_only_test_files.txt', mode='r') as myfile:
-              test_data = myfile.read().splitlines()
-          with open(self.data_base_path + 'costar_block_stacking_v0.3_success_only_val_files.txt', mode='r') as myfile:
-              validation_data = myfile.read().splitlines()
-          print(train_data)
-          # train_data = [self.data_base_path + name for name in train_data]
-          # test_data = [self.data_base_path + name for name in test_data]
-          # validation_data = [self.data_base_path + name for name in validation_data]
-          print(validation_data)
-      # number of images to look at per example
-      # TODO(ahundt) currently there is a bug in one of these calculations, lowering images per example to reduce number of steps per epoch for now.
-      estimated_images_per_example = 2
-      print("valid set size", val_test_size)
-      # TODO(ahundt) fix quick hack to proceed through epochs faster
-      # self.num_train_examples = len(train_data) * self.batch_size * estimated_images_per_example
-      # self.num_train_batches = (self.num_train_examples + self.batch_size - 1) // self.batch_size
-      self.num_train_examples = len(train_data) * estimated_images_per_example
-      self.num_train_batches = (self.num_train_examples + self.batch_size - 1) // self.batch_size
-      # output_shape = (32, 32, 3)
-      # WARNING: IF YOU ARE EDITING THIS CODE, MAKE SURE TO ALSO CHECK micro_controller.py and micro_child.py WHICH ALSO HAS A GENERATOR
-      if self.translation_only is True:
-          # We've found evidence (but not concluded finally) in hyperopt
-          # that input of the rotation component actually
-          # lowers translation accuracy at least in the colored block case
-          # switch between the two commented lines to go back to the prvious behavior
-          # data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_15']
-          # self.data_features_len = 15
-          data_features = ['image_0_image_n_vec_xyz_nxygrid_12']
-          self.data_features_len = 12
-          label_features = ['grasp_goal_xyz_3']
-          self.num_classes = 3
-      elif self.rotation_only is True:
-          data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_15']
-          self.data_features_len = 15
-          # disabled 2 lines below below because best run 2018_12_2054 was with settings above
-          # include a normalized xy grid, similar to uber's coordconv
-          # data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_nxygrid_17']
-          # self.data_features_len = 17
-          label_features = ['grasp_goal_aaxyz_nsc_5']
-          self.num_classes = 5
-      elif self.stacking_reward is True:
-          data_features = ['image_0_image_n_vec_0_vec_n_xyz_aaxyz_nsc_nxygrid_25']
-          self.data_features_len = 25
-          label_features = ['stacking_reward']
-          self.num_classes = 1
-      # elif self.use_root is True:
-      #     data_features = ['current_xyz_aaxyz_nsc_8']
-      #     self.data_features_len = 8
-      #     label_features = ['grasp_goal_xyz_3']
-      #     self.num_classes = 8
-      else:
-          # original input block
-          # data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_15']
-          # include a normalized xy grid, similar to uber's coordconv
-          data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_nxygrid_17']
-          self.data_features_len = 17
-          label_features = ['grasp_goal_xyz_aaxyz_nsc_8']
-          self.num_classes = 8
-      if self.one_hot_encoding:
-          self.data_features_len += 40
-      training_generator = CostarBlockStackingSequence(
-          train_data, batch_size=batch_size, verbose=0,
-          label_features_to_extract=label_features,
-          data_features_to_extract=data_features, output_shape=self.image_shape, shuffle=True,
-          random_augmentation=self.random_augmentation, one_hot_encoding=self.one_hot_encoding)
+    # Support for costar block stacking generator implemented by Chia-Hung Lin (rexxarchl)
+    # sites.google.com/costardataset
+    # https://github.com/ahundt/costar_dataset
+    # https://sites.google.com/site/costardataset
+    print("Using CoSTAR Dataset")
+    if costar_set_name is None or costar_set_name not in ['blocks_only', 'blocks_with_plush_toy']:
+      raise ValueError("Specify costar_set_name as one of {'blocks_only', 'blocks_with_plush_toy'}")
+    if costar_subset_name is None or costar_subset_name not in ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']:
+      raise ValueError("Specify costar_subset_name as one of {'success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure'}")
 
-      train_enqueuer = OrderedEnqueuer(
-          training_generator,
-          use_multiprocessing=False,
-          shuffle=True)
-      train_enqueuer.start(workers=10, max_queue_size=100)
+    txt_filename = 'costar_block_stacking_dataset_{0}_{1}_{2}_train_files.txt'.format(costar_version, costar_set_name, costar_subset_name)
+    txt_filename = os.path.expanduser(os.path.join(dataset_location, costar_set_name, txt_filename))
+    print("Loading train filenames from txt files: \n\t{}".format(txt_filename))
+    with open(txt_filename, 'r') as f:
+      train_filenames = f.read().splitlines()
 
-      def train_generator(): return iter(train_enqueuer.get())
+    if costar_feature_mode is None:
+      print("Using the original input block as the features")
+      data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_nxygrid_17']
+      label_features = ['grasp_goal_xyz_aaxyz_nsc_8']
+    else:
+      print("Using feature mode: " + costar_feature_mode)
+      if costar_feature_mode == 'translation_only':
+        data_features = ['image_0_image_n_vec_xyz_nxygrid_12']
+        label_features = ['grasp_goal_xyz_3']
+      elif costar_feature_mode == 'rotation_only':
+        data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_15']
+        label_features = ['grasp_goal_aaxyz_nsc_5']
+      elif costar_feature_mode == 'stacking_reward':
+        data_features = ['image_0_image_n_vec_0_vec_n_xyz_aaxyz_nsc_nxygrid_25']
+        label_features = ['stacking_reward']
 
-      train_dataset = Dataset.from_generator(train_generator, (tf.float32, tf.float32), (tf.TensorShape(
-          [None, self.image_shape[0], self.image_shape[1], self.data_features_len]), tf.TensorShape([None, None])))
-      # if self.use_root is True:
-      #     train_dataset = Dataset.from_generator(train_generator, (tf.float32, tf.float32), (tf.TensorShape(
-      #         [None, 2]), tf.TensorShape([None, None])))
-      trainer = train_dataset.make_one_shot_iterator()
-      x_train, y_train = trainer.get_next()
-      # x_train_list = []
-      # x_train_list[0] = np.reshape(x_train[0][0], [-1, self.image_shape[1], self.image_shape[2], 3])
-      # x_train_list[1] = np.reshape(x_train[0][1], [-1, self.image_shape[1], self.image_shape[2], 3])
-      # x_train_list[2] = np.reshape(x_train[0][2],[-1, ])
-      # print("x shape--------------", x_train.shape)
-      print("batch--------------------------",
-            self.num_train_examples, self.num_train_batches)
-      print("y shape--------------", y_train.shape)
-      self.x_train = x_train
-      self.y_train = y_train
+    train_data = CostarBlockStackingDataset(
+        train_filenames, verbose=0,
+        label_features_to_extract=label_features,
+        data_features_to_extract=data_features, output_shape=costar_output_shape,
+        random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding)
+
   else:
     assert False, "Cannot get training queue for dataset"
 
@@ -230,6 +157,34 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
             return img
         # Ensure dataset is present in the directory args.data. Does not support auto download
         valid_data = dset.ImageFolder(root=dataset_location, transform=train_transform, loader = grey_pil_loader)
+    elif dataset_name == 'stacking':
+        txt_filename = 'costar_block_stacking_dataset_{0}_{1}_{2}_test_files.txt'.format(costar_version, costar_set_name, costar_subset_name)
+        txt_filename = os.path.expanduser(os.path.join(dataset_location, costar_set_name, txt_filename))
+        print("Loading test filenames from txt files: \n\t{}".format(txt_filename))
+        with open(txt_filename, 'r') as f:
+            test_filenames = f.read().splitlines()
+
+        if costar_feature_mode is None:
+            print("Using the original input block as the features")
+            data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_nxygrid_17']
+            label_features = ['grasp_goal_xyz_aaxyz_nsc_8']
+        else:
+            print("Using feature mode: " + costar_feature_mode)
+            if costar_feature_mode == 'translation_only':
+                data_features = ['image_0_image_n_vec_xyz_nxygrid_12']
+                label_features = ['grasp_goal_xyz_3']
+            elif costar_feature_mode == 'rotation_only':
+                data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_15']
+                label_features = ['grasp_goal_aaxyz_nsc_5']
+            elif costar_feature_mode == 'stacking_reward':
+                data_features = ['image_0_image_n_vec_0_vec_n_xyz_aaxyz_nsc_nxygrid_25']
+                label_features = ['stacking_reward']
+
+        valid_data = CostarBlockStackingDataset(
+                test_filenames, verbose=0,
+                label_features_to_extract=label_features,
+                data_features_to_extract=data_features, output_shape=costar_output_shape,
+                random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding)
     else:
         assert False, "Cannot get training queue for dataset"
 
