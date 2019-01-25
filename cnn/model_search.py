@@ -273,7 +273,7 @@ class MultiChannelNetwork(nn.Module):
         in_modules = nn.ModuleList()
         for C_in_idx in range(self.C_size):
           out_modules = nn.ModuleList()
-          print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
+          # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
           for C_out_idx in range(self.C_size):
             type_modules = nn.ModuleList()
             for OpType in self.op_types:
@@ -342,7 +342,7 @@ class MultiChannelNetwork(nn.Module):
           max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
-          print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
+          # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
           c_outs = []
           for C_in_idx, C_in in enumerate(self.Cs):
             for op_type_idx in range(len(self.op_types)):
@@ -366,7 +366,7 @@ class MultiChannelNetwork(nn.Module):
                   c_outs += [x]
           # only apply updates to layers of sufficient quality
           if c_outs:
-            print('combining c_outs' + 'forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
+            # print('combining c_outs' + 'forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
             # combined values with the same c_out dimension
             combined = sum(c_outs)
             if s0s[stride][C_out_idx] is None:
