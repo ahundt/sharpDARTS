@@ -98,7 +98,7 @@ class Cell(nn.Module):
 class Network(nn.Module):
 
   def __init__(self, C=16, num_classes=10, layers=8, criterion=None, steps=4, multiplier=4, stem_multiplier=3,
-               primitives=None, op_dict=None, weights_are_parameters=False):
+               in_channels=3, primitives=None, op_dict=None, weights_are_parameters=False):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -113,7 +113,7 @@ class Network(nn.Module):
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
-      nn.Conv2d(3, C_curr, 3, padding=1, bias=False),
+      nn.Conv2d(in_channels, C_curr, 3, padding=1, bias=False),
       nn.BatchNorm2d(C_curr)
     )
 
@@ -215,8 +215,8 @@ class Network(nn.Module):
 
 class MultiChannelNetwork(nn.Module):
 
-  def __init__(self, C=32, num_classes=10, layers=5, criterion=None, steps=None, multiplier=4, stem_multiplier=3,
-               always_apply_ops=False, visualization=False):
+  def __init__(self, C=32, num_classes=10, layers=3, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
+               in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False):
     """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
     """
     super(MultiChannelNetwork, self).__init__()
@@ -238,7 +238,7 @@ class MultiChannelNetwork(nn.Module):
     self.strides = np.array([self.normal_index, self.reduce_index])
     # 5 is a reasonable number
     self.C_start = int(np.log2(C))
-    self.C_end = self.C_start + layers
+    self.C_end = self.C_start + steps
     print('c_start: ' + str(self.C_start) + ' c_end: ' + str(self.C_end))
     self.Cs = np.array(np.exp2(np.arange(self.C_start,self.C_end)), dtype='int')
     # $ print(Cs)
@@ -261,7 +261,7 @@ class MultiChannelNetwork(nn.Module):
     self.stem = nn.ModuleList()
     for c in self.Cs:
       s = nn.Sequential(
-        nn.Conv2d(3, c, 3, padding=1, bias=False),
+        nn.Conv2d(int(in_channels), int(c), 3, padding=1, bias=False),
         nn.BatchNorm2d(c)
       )
       self.stem.append(s)
