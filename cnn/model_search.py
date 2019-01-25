@@ -383,7 +383,7 @@ class MultiChannelNetwork(nn.Module):
       s0s = [s0s[stride], [None] * self.C_size, [None] * self.C_size]
 
     # combine results with SharpSepConv to dimension of final linear layer
-    outs = []
+    # outs = []
     # print('len s0s[0]: ' + str(len(s0s[0])))
     # for i, op in enumerate(self.base):
     #   outs += [op(s0s[0][i])]
