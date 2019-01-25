@@ -302,7 +302,7 @@ class MultiChannelNetwork(nn.Module):
     # number of weights in a softmax call
     self.softmax_weight_count = np.prod(self.arch_weights_shape[2:])
     # minimum score for a layer to continue being trained
-    self.min_score = torch.ones(1) / (self.softmax_weight_count * self.softmax_weight_count)
+    self.min_score = float(1 / (self.softmax_weight_count * self.softmax_weight_count))
 
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.classifier = nn.Linear(final_linear_filters, num_classes)
