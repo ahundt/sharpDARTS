@@ -215,14 +215,16 @@ class Network(nn.Module):
 
 class MultiChannelNetwork(nn.Module):
 
-  def __init__(self, C=32, num_classes=10, layers=3, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
+  def __init__(self, C=32, num_classes=10, layers=6, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
                in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False):
     """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
     """
     super(MultiChannelNetwork, self).__init__()
     self._C = C
     self._num_classes = num_classes
-    self._layers = layers
+    if layers % 2 == 1:
+      raise ValueError('MultiChannelNetwork layers option must be even, got ' + str(layers))
+    self._layers = layers // 2
     if criterion is None:
       self._criterion = nn.CrossEntropyLoss()
     else:
