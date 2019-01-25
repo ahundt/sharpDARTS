@@ -418,9 +418,10 @@ class MultiChannelNetwork(nn.Module):
     return self._criterion(logits, target)
 
   def _initialize_alphas(self):
-    self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape), requires_grad=True)
     if torch.cuda.is_available():
-      self._arch_parameters.cuda()
+      self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape).cuda(), requires_grad=True)
+    else:
+      self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape), requires_grad=True)
 
   def arch_parameters(self):
     ''' Get list of architecture parameters
