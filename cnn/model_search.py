@@ -382,16 +382,18 @@ class MultiChannelNetwork(nn.Module):
       # downscale reduced input as next output
       s0s = [s0s[stride], [None] * self.C_size, [None] * self.C_size]
 
-    # combine results with SharpSepConv to dimension of final linear layer
+    # combine results
+    # use SharpSepConv to match dimension of final linear layer
+    # then add up all remaining outputs and pool the result
+    out = self.global_pooling(sum(op(x) for op, x in zip(self.base, s0s[0]) if x is not None))
     # outs = []
     # print('len s0s[0]: ' + str(len(s0s[0])))
     # for i, op in enumerate(self.base):
-    #   outs += [op(s0s[0][i])]
+    #   x = s0s[0][i]
+    #   if x is not None:
+    #     outs += [op()]
     # out = sum(outs)
     # out = self.global_pooling(out)
-
-    # add up all remaining outputs and pool the result
-    out = self.global_pooling(sum(op(x) for op, x in zip(self.base, s0s[0]) if x is not None))
     logits = self.classifier(out.view(out.size(0),-1))
     # print('logits')
     return logits
