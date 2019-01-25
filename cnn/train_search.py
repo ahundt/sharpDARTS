@@ -200,7 +200,7 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
 
     # get a random minibatch from the search queue with replacement
     input_search, target_search = next(iter(valid_queue))
-    input_search = Variable(input_search, requires_grad=False).cuda()
+    input_search = Variable(input_search, requires_grad=False).cuda(async=True)
     target_search = Variable(target_search, requires_grad=False).cuda(async=True)
 
     # define validation loss for analyzing the importance of hyperparameters
@@ -234,7 +234,7 @@ def infer(valid_queue, model, criterion):
   with torch.no_grad():
     progbar = tqdm(valid_queue, dynamic_ncols=True)
     for step, (input_batch, target) in enumerate(progbar):
-      input_batch = Variable(input_batch).cuda()
+      input_batch = Variable(input_batch).cuda(async=True)
       target = Variable(target).cuda(async=True)
 
       logits = model(input_batch)
