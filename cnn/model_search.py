@@ -215,7 +215,10 @@ class Network(nn.Module):
 
 class MultiChannelNetwork(nn.Module):
 
-  def __init__(self, C=None, num_classes=10, layers=8, criterion=None, steps=4, multiplier=4, stem_multiplier=3, always_apply_ops=False):
+  def __init__(self, C=32, num_classes=10, layers=5, criterion=None, steps=None, multiplier=4, stem_multiplier=3,
+               always_apply_ops=False, visualization=False):
+    """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
+    """
     super(MultiChannelNetwork, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -227,13 +230,16 @@ class MultiChannelNetwork(nn.Module):
     self._steps = steps
     self._multiplier = multiplier
     self._always_apply_ops = always_apply_ops
+    self._visualization = visualization
 
     self.normal_index = 0
     self.reduce_index = 1
     self.layer_types = 2
     self.strides = np.array([self.normal_index, self.reduce_index])
-    self.C_start = 5
-    self.C_end = 10
+    # 5 is a reasonable number
+    self.C_start = int(np.log2(C))
+    self.C_end = self.C_start + layers
+    print('c_start: ' + str(self.C_start) + ' c_end: ' + str(self.C_end))
     self.Cs = np.array(np.exp2(np.arange(self.C_start,self.C_end)), dtype='int')
     # $ print(Cs)
     # [ 32.  64. 128. 256. 512.]
@@ -267,12 +273,14 @@ class MultiChannelNetwork(nn.Module):
         in_modules = nn.ModuleList()
         for C_in_idx in range(self.C_size):
           out_modules = nn.ModuleList()
+          print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
           for C_out_idx in range(self.C_size):
             type_modules = nn.ModuleList()
             for OpType in self.op_types:
               cin = C_in[C_in_idx][C_out_idx]
               cout = C_out[C_in_idx][C_out_idx]
               # print('cin: ' + str(cin) + ' cout: ' + str(cout))
+              # name = 'layer_' + str(layer_idx) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(self.Cs[C_in_idx]) + '_c_out_' + str(self.Cs[C_out_idx]) + '_op_type_' + str(OpType.__name__)
               op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
               type_modules.append(op)
             out_modules.append(type_modules)
@@ -280,7 +288,7 @@ class MultiChannelNetwork(nn.Module):
         # op grid is stride_modules
         stride_modules.append(in_modules)
       self.op_grid.append(stride_modules)
-
+    # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
     # C_in will be defined by the previous layer's c_out
     self.arch_weights_shape = [len(self.strides), layers, self.C_size, self.C_size, len(self.op_types)]
     # number of weights total
@@ -288,12 +296,13 @@ class MultiChannelNetwork(nn.Module):
     # number of weights in a softmax call
     self.softmax_weight_count = np.prod(self.arch_weights_shape[2:])
     # minimum score for a layer to continue being trained
-    self.min_score = 1 / (self.softmax_weight_count * self.softmax_weight_count)
+    self.min_score = torch.ones(1) / (self.softmax_weight_count * self.softmax_weight_count)
 
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.classifier = nn.Linear(np.max(self.Cs), num_classes)
 
-    self._initialize_alphas()
+    if not self._visualization:
+      self._initialize_alphas()
 
   def new(self):
     model_new = Network(self._C, self._num_classes, self._layers, self._criterion).cuda()
@@ -311,11 +320,12 @@ class MultiChannelNetwork(nn.Module):
 
     # calculate weights, there are two weight views according to stride
     weight_views = []
-    for stride_idx in self.strides:
-      # ops are stored as layer, stride, cin, cout, num_layer_types
-      # while weights are ordered stride_index, layer, cout, num_layer_types
-      # first exclude the stride_idx because we already know that
-      weight_views += [self.arch_weights(stride_idx)]
+    if not self._visualization:
+      for stride_idx in self.strides:
+        # ops are stored as layer, stride, cin, cout, num_layer_types
+        # while weights are ordered stride_index, layer, cout, num_layer_types
+        # first exclude the stride_idx because we already know that
+        weight_views += [self.arch_weights(stride_idx)]
     # Duplicate s0s to account for 2 different strides
     # s0s += [[]]
     # s1s = [None] * layers + 1
@@ -328,14 +338,17 @@ class MultiChannelNetwork(nn.Module):
         # TODO(ahundt) is there a better way to create this variable without gradients & reallocating repeatedly?
         # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
         # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
-        max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
+        if not self._visualization:
+          max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
+          print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
           c_outs = []
           for C_in_idx, C_in in enumerate(self.Cs):
             for op_type_idx in range(len(self.op_types)):
               # get the specific weight for this op
-              w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
+              if not self._visualization:
+                w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
               # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
@@ -345,10 +358,15 @@ class MultiChannelNetwork(nn.Module):
                 # 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
-                  x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                  if not self._visualization:
+                    x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                  else:
+                    # doing visualization, skip the weights
+                    x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                   c_outs += [x]
           # only apply updates to layers of sufficient quality
           if c_outs:
+            print('combining c_outs' + 'forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
             # combined values with the same c_out dimension
             combined = sum(c_outs)
             if s0s[stride][C_out_idx] is None:
@@ -363,6 +381,7 @@ class MultiChannelNetwork(nn.Module):
     out = s0s[0][-1]
     out = self.global_pooling(out)
     logits = self.classifier(out.view(out.size(0),-1))
+    print('logits')
     return logits
 
   def arch_weights(self, stride_idx):
