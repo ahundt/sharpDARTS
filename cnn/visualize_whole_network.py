@@ -11,7 +11,7 @@ import model_search
 import hiddenlayer as hl
 
 print('initializing module')
-cnn_model = model_search.MultiChannelNetwork(always_apply_ops=True, layers=3, visualization=True)
+cnn_model = model_search.MultiChannelNetwork(always_apply_ops=True, layers=3, steps=3, visualization=True)
 transforms = [
   hl.transforms.Fold('MaxPool3x3 > Conv1x1 > BatchNorm', 'ResizableMaxPool', 'ResizableMaxPool'),
   hl.transforms.Fold('MaxPool > Conv > BatchNorm', 'ResizableMaxPool', 'ResizableMaxPool'),
@@ -42,6 +42,8 @@ print('building graph')
 #     torch.onnx._optimize_trace(trace, torch.onnx.OperatorExportTypes.RAW)
 #
 # The graph is very large so building the graph will take a long time.
+# Note that at the time of writing the graph algorithms can't handle multiplying by a constant.
+# Instead, I added if statements that skip the weight component if it is in visualization mode.
 #
 # For progress bars go back to /hiddenlayer/hiddenlayer/pytorch_builder.py:
 # at the top add:
