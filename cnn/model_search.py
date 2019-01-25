@@ -97,13 +97,16 @@ class Cell(nn.Module):
 
 class Network(nn.Module):
 
-  def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3,
+  def __init__(self, C=16, num_classes=10, layers=8, criterion=None, steps=4, multiplier=4, stem_multiplier=3,
                primitives=None, op_dict=None, weights_are_parameters=False):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
     self._layers = layers
-    self._criterion = criterion
+    if criterion is None:
+      self._criterion = nn.CrossEntropyLoss()
+    else:
+      self._criterion = criterion
     self._steps = steps
     self._multiplier = multiplier
     self._weights_are_parameters = weights_are_parameters
@@ -212,12 +215,15 @@ class Network(nn.Module):
 
 class MultiChannelNetwork(nn.Module):
 
-  def __init__(self, C, num_classes, layers, criterion, steps=4, multiplier=4, stem_multiplier=3, always_apply_ops=False):
+  def __init__(self, C=None, num_classes=10, layers=8, criterion=None, steps=4, multiplier=4, stem_multiplier=3, always_apply_ops=False):
     super(MultiChannelNetwork, self).__init__()
     self._C = C
     self._num_classes = num_classes
     self._layers = layers
-    self._criterion = criterion
+    if criterion is None:
+      self._criterion = nn.CrossEntropyLoss()
+    else:
+      self._criterion = criterion
     self._steps = steps
     self._multiplier = multiplier
     self._always_apply_ops = always_apply_ops
@@ -377,7 +383,9 @@ class MultiChannelNetwork(nn.Module):
     return self._criterion(logits, target)
 
   def _initialize_alphas(self):
-    self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape).cuda(), requires_grad=True)
+    self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape), requires_grad=True)
+    if torch.cuda.is_available():
+      self._arch_parameters.cuda()
 
   def arch_parameters(self):
     ''' Get list of architecture parameters
