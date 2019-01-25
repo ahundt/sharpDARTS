@@ -288,6 +288,10 @@ class MultiChannelNetwork(nn.Module):
         # op grid is stride_modules
         stride_modules.append(in_modules)
       self.op_grid.append(stride_modules)
+
+    self.base = nn.ModuleList()
+    for c in self.Cs:
+      self.base.append(operations.SepConv(int(c), int(final_linear_filters), 3))
     # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
     # C_in will be defined by the previous layer's c_out
     self.arch_weights_shape = [len(self.strides), layers, self.C_size, self.C_size, len(self.op_types)]
@@ -299,7 +303,7 @@ class MultiChannelNetwork(nn.Module):
     self.min_score = torch.ones(1) / (self.softmax_weight_count * self.softmax_weight_count)
 
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
-    self.classifier = nn.Linear(np.max(self.Cs), num_classes)
+    self.classifier = nn.Linear(final_linear_filters, num_classes)
 
     if not self._visualization:
       self._initialize_alphas()
@@ -366,7 +370,7 @@ class MultiChannelNetwork(nn.Module):
                   c_outs += [x]
           # only apply updates to layers of sufficient quality
           if c_outs:
-            # print('combining c_outs' + 'forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
+            print('combining c_outs' + 'forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
             # combined values with the same c_out dimension
             combined = sum(c_outs)
             if s0s[stride][C_out_idx] is None:
@@ -378,10 +382,18 @@ class MultiChannelNetwork(nn.Module):
       # downscale reduced input as next output
       s0s = [s0s[stride], [None] * self.C_size, [None] * self.C_size]
 
-    out = s0s[0][-1]
-    out = self.global_pooling(out)
+    # combine results with SharpSepConv to dimension of final linear layer
+    outs = []
+    # print('len s0s[0]: ' + str(len(s0s[0])))
+    # for i, op in enumerate(self.base):
+    #   outs += [op(s0s[0][i])]
+    # out = sum(outs)
+    # out = self.global_pooling(out)
+
+    # add up all remaining outputs and pool the result
+    out = self.global_pooling(sum(op(x) for op, x in zip(self.base, s0s[0]) if x is not None))
     logits = self.classifier(out.view(out.size(0),-1))
-    print('logits')
+    # print('logits')
     return logits
 
   def arch_weights(self, stride_idx):
