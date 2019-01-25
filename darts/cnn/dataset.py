@@ -15,8 +15,8 @@ import torch.backends.cudnn as cudnn
 try:
   import costar_dataset
 except ImportError:
-  print('dataset.py: The costar dataset is not available, so it is being skipped.'
-        'see https://github.com/ahundt/costar_dataset for details')
+  print('dataset.py: The costar dataset is not available, so it is being skipped. '
+        'See https://github.com/ahundt/costar_dataset for details')
   costar_dataset = None
 
 CIFAR_CLASSES = 10
@@ -80,6 +80,9 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
     # sites.google.com/costardataset
     # https://github.com/ahundt/costar_dataset
     # https://sites.google.com/site/costardataset
+    if costar_dataset is None:
+      raise ImportError("Trying to use costar_dataset but it was not imported")
+
     print("Using CoSTAR Dataset")
     if costar_set_name is None or costar_set_name not in ['blocks_only', 'blocks_with_plush_toy']:
       raise ValueError("Specify costar_set_name as one of {'blocks_only', 'blocks_with_plush_toy'}")
@@ -108,7 +111,7 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
         data_features = ['image_0_image_n_vec_0_vec_n_xyz_aaxyz_nsc_nxygrid_25']
         label_features = ['stacking_reward']
 
-    train_data = CostarBlockStackingDataset(
+    train_data = costar_dataset.CostarBlockStackingDataset(
         train_filenames, verbose=0,
         label_features_to_extract=label_features,
         data_features_to_extract=data_features, output_shape=costar_output_shape,
@@ -180,7 +183,7 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
                 data_features = ['image_0_image_n_vec_0_vec_n_xyz_aaxyz_nsc_nxygrid_25']
                 label_features = ['stacking_reward']
 
-        valid_data = CostarBlockStackingDataset(
+        valid_data = costar_dataset.CostarBlockStackingDataset(
                 test_filenames, verbose=0,
                 label_features_to_extract=label_features,
                 data_features_to_extract=data_features, output_shape=costar_output_shape,
