@@ -106,7 +106,7 @@ class DilConv(nn.Module):
 
 class SepConv(nn.Module):
 
-  def __init__(self, C_in, C_out, kernel_size, stride, padding=1, dilation=1, affine=True, C_mid_mult=1, C_mid=None):
+  def __init__(self, C_in, C_out, kernel_size, stride=1, padding=1, dilation=1, affine=True, C_mid_mult=1, C_mid=None):
     super(SepConv, self).__init__()
     if C_mid is not None:
       c_mid = C_mid
