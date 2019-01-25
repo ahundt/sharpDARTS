@@ -54,6 +54,7 @@ parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                     help='which primitive layers to use inside a cell search space,'
                          ' options are PRIMITIVES and DARTS_PRIMITIVES')
 parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
+parser.add_argument('--load', type=str, default='sgd', help='load weights at specified location')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
 args = parser.parse_args()
 
@@ -80,22 +81,21 @@ def main():
   logger.info('gpu device = %d' % args.gpu)
   logger.info("args = %s", args)
 
-  # load the correct ops dictionary
+  # # load the correct ops dictionary
   op_dict_to_load = "operations.%s" % args.ops
-  print('loading op dict: ' + str(op_dict_to_load))
+  logger.info('loading op dict: ' + str(op_dict_to_load))
   op_dict = eval(op_dict_to_load)
-  operations.OPS = op_dict
 
   # load the correct primitives list
   primitives_to_load = "genotypes.%s" % args.primitives
-  print('loading primitives: ' + str(primitives_to_load))
-  primitives_list = eval(primitives_to_load)
-  genotypes.PRIMITIVES = primitives_list
+  logger.info('loading primitives:' + primitives_to_load)
+  primitives = eval(primitives_to_load)
+  logger.info('primitives: ' + str(primitives))
 
   CIFAR_CLASSES = 10
 
   genotype = eval("genotypes.%s" % args.arch)
-  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype)
+  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict)
   cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
