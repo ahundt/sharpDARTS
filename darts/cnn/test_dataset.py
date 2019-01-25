@@ -3,9 +3,9 @@ from dataset import *
 dataset_name = 'stacking'
 train_transform = None
 dataset_location = '~/Documents/costar_block_stacking_dataset_v0.4'
-batch_size = 2
+batch_size = 3
 train_proportion = 0.5
-search_architecture = True
+search_architecture = False
 costar_version = 'v0.4'
 costar_set_name = 'blocks_only'
 costar_subset_name = 'success_only'
@@ -34,11 +34,8 @@ for output in train_queue:
     print("-------------------op")
     x, y = output
 
-    for i, data in enumerate(x):
-        print("x[{}]: ".format(i) + str(data.shape))
-
-    for i, data in enumerate(y):
-        print("y[{}]: ".format(i) + str(data.shape))
+    print(x.shape)
+    print(y.shape)
 
     print("-------------------")
 
@@ -47,10 +44,7 @@ for output in valid_queue:
     print("-------------------op")
     x, y = output
 
-    for i, data in enumerate(x):
-        print("x[{}]: ".format(i) + str(data.shape))
-
-    for i, data in enumerate(y):
-        print("y[{}]: ".format(i) + str(data.shape))
+    print(x.shape)
+    print(y.shape)
 
     print("-------------------")
