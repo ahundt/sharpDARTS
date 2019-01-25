@@ -11,7 +11,7 @@ import model_search
 import hiddenlayer as hl
 
 print('initializing module')
-cnn_model = model_search.MultiChannelNetwork(always_apply_ops=True, layers=3, steps=3, visualization=True)
+cnn_model = model_search.MultiChannelNetwork(always_apply_ops=True, layers=6, steps=3, visualization=True)
 transforms = [
   hl.transforms.Fold('MaxPool3x3 > Conv1x1 > BatchNorm', 'ResizableMaxPool', 'ResizableMaxPool'),
   hl.transforms.Fold('MaxPool > Conv > BatchNorm', 'ResizableMaxPool', 'ResizableMaxPool'),
