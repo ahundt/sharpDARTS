@@ -15,7 +15,7 @@ import colorlog
 import autoaugment
 
 
-def tqdm_stats(progbar):
+def tqdm_stats(progbar, prefix=''):
   """ Very brittle function to extract timing stats from tqdm.
   Replace when https://github.com/tqdm/tqdm/issues/562 is resolved.
   Example of key string component that will be read:
@@ -25,13 +25,14 @@ def tqdm_stats(progbar):
   # get the stats part of the string
   s = s[s.find("| ")+1:]
   stats = {
-    'percent_complete': s[:s.find('%')].strip(' '),
-    'current_step': s[:s.find('/')].strip(' '),
-    'total_steps': s[s.find('/')+1:s.find('[')].strip(' '),
-    'time_elapsed': s[s.find('[')+1:s.find('<')].strip(' '),
-    'time_remaining': s[s.find('<')+1:s.find(',')].strip(' '),
-    'step_time': s[s.find(', ')+1:s.find(']')].strip(' '),
+    prefix + 'current_step': s[:s.find('/')].strip(' '),
+    prefix + 'total_steps': s[s.find('/')+1:s.find('[')].strip(' '),
+    prefix + 'time_elapsed': s[s.find('[')+1:s.find('<')].strip(' '),
+    prefix + 'time_remaining': s[s.find('<')+1:s.find(',')].strip(' '),
+    prefix + 'step_time': s[s.find(', ')+1:s.find(']')].strip(' '),
   }
+  if '%' in s:
+    stats[prefix + 'percent_complete'] = s[:s.find('%')].strip(' ')
   return stats
 
 def dict_to_log_string(log={}, separator=', ', key_prepend=''):

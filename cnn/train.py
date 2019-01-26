@@ -148,7 +148,7 @@ def main():
     # else:
     #   # not best epoch, load best weights
     #   utils.load(cnn_model, weights_file)
-    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
+    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats, key_prepend='valid_'),
                 epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
 
   if args.dataset == 'cifar10':
@@ -159,8 +159,8 @@ def main():
         valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
     # load the best model weights
     utils.load(cnn_model, weights_file)
-    cifar10_1_stats = infer(valid_queue, cnn_model, criterion)
-    cifar10_1_str = utils.dict_to_log_string(cifar10_1_stats, key_prepend='cifar10_1')
+    cifar10_1_stats = infer(valid_queue, cnn_model, criterion, prefix='cifar10_1_')
+    cifar10_1_str = utils.dict_to_log_string(cifar10_1_stats)
     best_epoch_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
     logger.info(best_epoch_str + ', ' + cifar10_1_str)
     # printout all stats from best epoch including cifar10.1
@@ -209,7 +209,7 @@ def train(train_queue, cnn_model, criterion, optimizer):
   return top1.avg, objs.avg
 
 
-def infer(valid_queue, cnn_model, criterion):
+def infer(valid_queue, cnn_model, criterion, prefix='valid_'):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
@@ -233,11 +233,11 @@ def infer(valid_queue, cnn_model, criterion):
         # description on each validation step is disabled for performance reasons
         # progbar.set_description('Validation step: {0}, loss: {1:9.5f}, top 1: {2:5.2f} top 5: {3:5.2f} progress'.format(step, objs.avg, top1.avg, top5.avg))
       # extract progbar timing stats from tqdm https://github.com/tqdm/tqdm/issues/660
-      stats = utils.tqdm_stats(progbar)
-      stats['valid_acc'] = top1.avg
-      stats['valid_loss'] = objs.avg
-      stats['valid_top1'] = top1.avg
-      stats['valid_top5'] = top5.avg
+      stats = utils.tqdm_stats(progbar, prefix=prefix)
+      stats[prefix + 'acc'] = top1.avg
+      stats[prefix + 'valid_loss'] = objs.avg
+      stats[prefix + 'valid_top1'] = top1.avg
+      stats[prefix + 'valid_top5'] = top5.avg
   # return top1, avg loss, and timing stats string
   return stats
 
