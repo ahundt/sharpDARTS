@@ -22,7 +22,7 @@ from utils import drop_path
 class Cell(nn.Module):
 
   def __init__(self, genotype_sequence, concat_sequence, C_prev_prev, C_prev, C, reduction, reduction_prev,
-               op_dict=None, separate_reduce_cell=True):
+               op_dict=None, separate_reduce_cell=True, C_mid=None):
     """Create a final cell with a single architecture.
 
     The Cell class in model_search.py is the equivalent for searching multiple architectures.
@@ -50,9 +50,9 @@ class Cell(nn.Module):
     self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0)
 
     op_names, indices = zip(*genotype_sequence)
-    self._compile(C, op_names, indices, concat_sequence, reduction)
+    self._compile(C, op_names, indices, concat_sequence, reduction, C_mid)
 
-  def _compile(self, C, op_names, indices, concat, reduction):
+  def _compile(self, C, op_names, indices, concat, reduction, C_mid):
     assert len(op_names) == len(indices)
     self._steps = len(op_names) // 2
     self._concat = concat
@@ -61,7 +61,7 @@ class Cell(nn.Module):
     self._ops = nn.ModuleList()
     for name, index in zip(op_names, indices):
       stride = 2 if reduction and index < 2 else 1
-      op = self._op_dict[name](C, C, stride, True)
+      op = self._op_dict[name](C, C, stride, True, C_mid)
       # op = self._op_dict[name](C, stride, True)
       self._ops += [op]
     self._indices = indices
@@ -139,7 +139,7 @@ class AuxiliaryHeadImageNet(nn.Module):
 class NetworkCIFAR(nn.Module):
 
   def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3, reduce_spacing=None,
-               mixed_aux=False, op_dict=None):
+               mixed_aux=False, op_dict=None, C_mid=None, stem_multiplier=3):
     """
     # Arguments
 
@@ -158,7 +158,6 @@ class NetworkCIFAR(nn.Module):
     self._auxiliary = auxiliary
     self._in_channels = in_channels
 
-    stem_multiplier = 3
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
       nn.Conv2d(in_channels, C_curr, 3, padding=1, bias=False),
@@ -178,7 +177,7 @@ class NetworkCIFAR(nn.Module):
           (reduce_spacing is not None and ((i + 1) % reduce_spacing == 0))):
         C_curr *= 2
         reduction = True
-        cell = Cell(genotype.reduce, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict)
+        cell = Cell(genotype.reduce, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict, C_mid=C_mid)
       else:
         reduction = False
         # TODO(ahundt) re-enable extended genotype
@@ -198,7 +197,7 @@ class NetworkCIFAR(nn.Module):
         # TODO(ahundt) comment two lines below when re-enabling extended genotype
         sequence = genotype.normal
         concat = genotype.normal_concat
-        cell = Cell(sequence, concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict)
+        cell = Cell(sequence, concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict, C_mid=C_mid)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, cell.multiplier*C_curr
@@ -241,7 +240,8 @@ class NetworkCIFAR(nn.Module):
 
 class NetworkImageNet(nn.Module):
 
-  def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3):
+  def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=3, reduce_spacing=None,
+               mixed_aux=False, op_dict=None, C_mid=None, stem_multiplier=3):
     super(NetworkImageNet, self).__init__()
     self._layers = layers
     self._auxiliary = auxiliary
@@ -271,7 +271,7 @@ class NetworkImageNet(nn.Module):
         reduction = True
       else:
         reduction = False
-      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict, C_mid=C_mid)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, cell.multiplier * C_curr
@@ -283,9 +283,9 @@ class NetworkImageNet(nn.Module):
     self.global_pooling = nn.AvgPool2d(7)
     self.classifier = nn.Linear(C_prev, num_classes)
 
-  def forward(self, input):
+  def forward(self, batch_input):
     logits_aux = None
-    s0 = self.stem0(input)
+    s0 = self.stem0(batch_input)
     s1 = self.stem1(s0)
     for i, cell in enumerate(self.cells):
       s0, s1 = s1, cell(s0, s1, self.drop_path_prob)

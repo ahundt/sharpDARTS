@@ -98,7 +98,7 @@ class Cell(nn.Module):
 class Network(nn.Module):
 
   def __init__(self, C=16, num_classes=10, layers=8, criterion=None, steps=4, multiplier=4, stem_multiplier=3,
-               in_channels=3, primitives=None, op_dict=None, weights_are_parameters=False):
+               in_channels=3, primitives=None, op_dict=None, C_mid=None, weights_are_parameters=False):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
