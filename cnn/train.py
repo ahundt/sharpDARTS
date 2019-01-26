@@ -236,6 +236,8 @@ def infer(valid_queue, cnn_model, criterion):
       stats = utils.tqdm_stats(progbar)
       stats['valid_acc'] = top1.avg
       stats['valid_loss'] = objs.avg
+      stats['valid_top1'] = top1.avg
+      stats['valid_top5'] = top5.avg
   # return top1, avg loss, and timing stats string
   return stats
 

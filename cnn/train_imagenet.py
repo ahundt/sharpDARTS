@@ -17,10 +17,13 @@ import torch.backends.cudnn as cudnn
 
 from torch.autograd import Variable
 from model import NetworkImageNet as Network
-
+import train
+import autoaugment
+import operations
 
 parser = argparse.ArgumentParser("imagenet")
 parser.add_argument('--data', type=str, default='../data/imagenet/', help='location of the data corpus')
+parser.add_argument('--dataset', type=str, default='imagenet', help='which dataset, only option is imagenet')
 parser.add_argument('--batch_size', type=int, default=128, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.1, help='init learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
@@ -43,15 +46,14 @@ parser.add_argument('--decay_period', type=int, default=1, help='epochs between 
 parser.add_argument('--parallel', action='store_true', default=False, help='data parallelism')
 args = parser.parse_args()
 
-args.save = 'eval-{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
+args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
-log_format = '%(asctime)s %(message)s'
-logging.basicConfig(stream=sys.stdout, level=logging.INFO,
-    format=log_format, datefmt='%m/%d %I:%M:%S %p')
-fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
-fh.setFormatter(logging.Formatter(log_format))
-logging.getLogger().addHandler(fh)
+log_file_path = os.path.join(args.save, 'log.txt')
+logger = utils.logging_setup(log_file_path)
+params_path = os.path.join(args.save, 'commandline_args.json')
+with open(params_path, 'w') as f:
+    json.dump(vars(args), f)
 
 CLASSES = 1000
 
@@ -74,7 +76,7 @@ class CrossEntropyLabelSmooth(nn.Module):
 
 def main():
   if not torch.cuda.is_available():
-    logging.info('no gpu device available')
+    logger.info('no gpu device available')
     sys.exit(1)
 
   np.random.seed(args.seed)
@@ -83,17 +85,28 @@ def main():
   torch.manual_seed(args.seed)
   cudnn.enabled=True
   torch.cuda.manual_seed(args.seed)
-  logging.info('gpu device = %d' % args.gpu)
-  logging.info("args = %s", args)
+  logger.info('gpu device = %d' % args.gpu)
+  logger.info("args = %s", args)
+
+  # # load the correct ops dictionary
+  op_dict_to_load = "operations.%s" % args.ops
+  logger.info('loading op dict: ' + str(op_dict_to_load))
+  op_dict = eval(op_dict_to_load)
+
+  # load the correct primitives list
+  primitives_to_load = "genotypes.%s" % args.primitives
+  logger.info('loading primitives:' + primitives_to_load)
+  primitives = eval(primitives_to_load)
+  logger.info('primitives: ' + str(primitives))
 
   genotype = eval("genotypes.%s" % args.arch)
-  model = Network(args.init_channels, CLASSES, args.layers, args.auxiliary, genotype)
+  cnn_model = Network(args.init_channels, CLASSES, args.layers, args.auxiliary, genotype)
   if args.parallel:
-    model = nn.DataParallel(model).cuda()
+    cnn_model = nn.DataParallel(cnn_model).cuda()
   else:
-    model = model.cuda()
+    cnn_model = cnn_model.cuda()
 
-  logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
+  logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
@@ -101,7 +114,7 @@ def main():
   criterion_smooth = criterion_smooth.cuda()
 
   optimizer = torch.optim.SGD(
-    model.parameters(),
+    cnn_model.parameters(),
     args.learning_rate,
     momentum=args.momentum,
     weight_decay=args.weight_decay
@@ -115,11 +128,12 @@ def main():
     transforms.Compose([
       transforms.RandomResizedCrop(224),
       transforms.RandomHorizontalFlip(),
-      transforms.ColorJitter(
-        brightness=0.4,
-        contrast=0.4,
-        saturation=0.4,
-        hue=0.2),
+      autoaugment.ImageNetPolicy(),
+      # transforms.ColorJitter(
+      #   brightness=0.4,
+      #   contrast=0.4,
+      #   saturation=0.4,
+      #   hue=0.2),
       transforms.ToTensor(),
       normalize,
     ]))
@@ -140,91 +154,46 @@ def main():
 
   scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.decay_period, gamma=args.gamma)
 
+  prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
+  best_valid_acc = 0.0
+  best_epoch = 0
+  best_stats = {}
   best_acc_top1 = 0
-  for epoch in range(args.epochs):
+  for epoch in prog_epoch:
     scheduler.step()
-    logging.info('epoch %d lr %e', epoch, scheduler.get_lr()[0])
-    model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
+    cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
-    train_acc, train_obj = train(train_queue, model, criterion_smooth, optimizer)
-    logging.info('train_acc %f', train_acc)
-
-    valid_acc_top1, valid_acc_top5, valid_obj = infer(valid_queue, model, criterion)
-    logging.info('valid_acc_top1 %f', valid_acc_top1)
-    logging.info('valid_acc_top5 %f', valid_acc_top5)
+    train_acc, train_obj = train.train(train_queue, cnn_model, criterion, optimizer)
+    stats = train.infer(valid_queue, cnn_model, criterion)
 
     is_best = False
-    if valid_acc_top1 > best_acc_top1:
-      best_acc_top1 = valid_acc_top1
+    if stats['valid_acc'] > best_valid_acc:
+      # new best epoch, save weights
+      utils.save(cnn_model, weights_file)
+      best_epoch = epoch
+      best_valid_acc = stats['valid_acc']
+
+      best_stats = stats
+      best_stats['lr'] = scheduler.get_lr()[0]
+      best_stats['epoch'] = best_epoch
+      best_train_loss = train_obj
+      best_train_acc = train_acc
       is_best = True
 
-    utils.save_checkpoint({
-      'epoch': epoch + 1,
-      'state_dict': model.state_dict(),
-      'best_acc_top1': best_acc_top1,
-      'optimizer' : optimizer.state_dict(),
-      }, is_best, args.save)
+    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
+                epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
+    checkpoint = {
+          'epoch': epoch,
+          'state_dict': cnn_model.state_dict(),
+          'best_acc_top1': best_valid_acc,
+          'optimizer' : optimizer.state_dict(),
+    }
+    checkpoint.update(stats)
+    utils.save_checkpoint(stats, is_best, args.save)
 
-
-def train(train_queue, model, criterion, optimizer):
-  objs = utils.AvgrageMeter()
-  top1 = utils.AvgrageMeter()
-  top5 = utils.AvgrageMeter()
-  model.train()
-
-  for step, (input, target) in enumerate(train_queue):
-    target = target.cuda(async=True)
-    input = input.cuda()
-    input = Variable(input)
-    target = Variable(target)
-
-    optimizer.zero_grad()
-    logits, logits_aux = model(input)
-    loss = criterion(logits, target)
-    if args.auxiliary:
-      loss_aux = criterion(logits_aux, target)
-      loss += args.auxiliary_weight*loss_aux
-
-    loss.backward()
-    nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
-    optimizer.step()
-
-    prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-    n = input.size(0)
-    objs.update(loss.data[0], n)
-    top1.update(prec1.data[0], n)
-    top5.update(prec5.data[0], n)
-
-    if step % args.report_freq == 0:
-      logging.info('train %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
-
-  return top1.avg, objs.avg
-
-
-def infer(valid_queue, model, criterion):
-  objs = utils.AvgrageMeter()
-  top1 = utils.AvgrageMeter()
-  top5 = utils.AvgrageMeter()
-  model.eval()
-
-  for step, (input, target) in enumerate(valid_queue):
-    input = Variable(input, volatile=True).cuda()
-    target = Variable(target, volatile=True).cuda(async=True)
-
-    logits, _ = model(input)
-    loss = criterion(logits, target)
-
-    prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-    n = input.size(0)
-    objs.update(loss.data[0], n)
-    top1.update(prec1.data[0], n)
-    top5.update(prec5.data[0], n)
-
-    if step % args.report_freq == 0:
-      logging.info('valid %03d %e %f %f', step, objs.avg, top1.avg, top5.avg)
-
-  return top1.avg, top5.avg, objs.avg
-
+  best_epoch_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
+  logger.info(best_epoch_str)
+  logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 if __name__ == '__main__':
-  main() 
+  main()
