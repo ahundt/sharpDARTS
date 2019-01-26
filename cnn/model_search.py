@@ -164,13 +164,14 @@ class Network(nn.Module):
 
     self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
     self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+    if self._weights_are_parameters:
+      # in simpler training modes the weights are just regular parameters
+      self.alphas_normal = torch.nn.Parameter(self.alphas_normal)
+      self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
     self._arch_parameters = [
       self.alphas_normal,
       self.alphas_reduce,
     ]
-    if self._weights_are_parameters:
-          # in simpler training modes the weights are just regular parameters
-          self._arch_parameters = torch.nn.Parameter(self._arch_parameters)
 
   def arch_parameters(self):
     return self._arch_parameters
