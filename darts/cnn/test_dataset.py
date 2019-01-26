@@ -2,7 +2,7 @@ from dataset import *
 
 dataset_name = 'stacking'
 train_transform = None
-dataset_location = '~/Documents/costar_block_stacking_dataset_v0.4'
+dataset_location = '~/.keras/datasets/costar_block_stacking_dataset_v0.4'
 batch_size = 3
 train_proportion = 0.5
 search_architecture = False
@@ -28,6 +28,17 @@ train_queue, valid_queue = get_training_queues(
                                 costar_output_shape=costar_output_shape,
                                 costar_random_augmentation=costar_random_augmentation,
                                 costar_one_hot_encoding=costar_one_hot_encoding)
+test_queue = get_costar_test_queue(
+        dataset_location=dataset_location,
+        batch_size=batch_size,
+        costar_version=costar_version,
+        costar_set_name=costar_set_name,
+        costar_subset_name=costar_subset_name,
+        costar_feature_mode=costar_feature_mode,
+        costar_output_shape=costar_output_shape,
+        costar_random_augmentation=costar_random_augmentation,
+        costar_one_hot_encoding=costar_one_hot_encoding,
+        verbose=1)
 
 print("TRAIN: ")
 for output in train_queue:
@@ -41,6 +52,16 @@ for output in train_queue:
 
 print("VALID: ")
 for output in valid_queue:
+    print("-------------------op")
+    x, y = output
+
+    print(x.shape)
+    print(y.shape)
+
+    print("-------------------")
+
+print("TEST: ")
+for output in test_queue:
     print("-------------------op")
     x, y = output
 
