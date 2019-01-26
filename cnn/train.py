@@ -36,6 +36,7 @@ parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=1000, help='num of training epochs')
 parser.add_argument('--warm_restarts', type=int, default=20, help='warm restarts of cosine annealing')
 parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
+parser.add_argument('--mid_channels', type=int, default=32, help='C_mid channels in choke SharpSepConv')
 parser.add_argument('--layers', type=int, default=20, help='total number of layers')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
@@ -95,7 +96,7 @@ def main():
   CIFAR_CLASSES = 10
 
   genotype = eval("genotypes.%s" % args.arch)
-  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict)
+  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
   cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))

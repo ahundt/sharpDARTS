@@ -32,6 +32,7 @@ parser.add_argument('--report_freq', type=float, default=100, help='report frequ
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=250, help='num of training epochs')
 parser.add_argument('--init_channels', type=int, default=48, help='num of init channels')
+parser.add_argument('--mid_channels', type=int, default=96, help='C_mid channels in choke SharpSepConv')
 parser.add_argument('--layers', type=int, default=14, help='total number of layers')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
@@ -100,7 +101,7 @@ def main():
   logger.info('primitives: ' + str(primitives))
 
   genotype = eval("genotypes.%s" % args.arch)
-  cnn_model = Network(args.init_channels, CLASSES, args.layers, args.auxiliary, genotype)
+  cnn_model = Network(args.init_channels, CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
   if args.parallel:
     cnn_model = nn.DataParallel(cnn_model).cuda()
   else:

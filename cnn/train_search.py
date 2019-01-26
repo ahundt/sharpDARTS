@@ -40,6 +40,7 @@ parser.add_argument('--report_freq', type=float, default=50, help='report freque
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=50, help='num of training epochs')
 parser.add_argument('--init_channels', type=int, default=16, help='num of init channels')
+parser.add_argument('--mid_channels', type=int, default=32, help='C_mid channels in choke SharpSepConv')
 parser.add_argument('--layers_of_cells', type=int, default=8, help='total number of cells in the whole network, default is 8 cells')
 parser.add_argument('--layers_in_cells', type=int, default=4,
                     help='Total number of nodes in each cell, aka number of steps,'
@@ -113,7 +114,7 @@ def main():
   else:
     cnn_model = model_search.Network(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      primitives=primitives, op_dict=op_dict, weights_are_parameters=args.no_architect)
+      primitives=primitives, op_dict=op_dict, weights_are_parameters=args.no_architect, C_mid=args.mid_channels)
   cnn_model = cnn_model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
