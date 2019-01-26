@@ -7,6 +7,7 @@ import shutil
 import torchvision.transforms as transforms
 from torch.autograd import Variable
 import torch.nn.functional as F
+from six import iteritems
 
 from tqdm import tqdm
 import colorlog
@@ -35,8 +36,8 @@ def tqdm_stats(progbar):
 
 def dict_to_log_string(log={}, separator=', ', key_prepend=''):
   log_strings = []
-  for k, v in log:
-    log_strings += [key_prepend + k, v]
+  for (k, v) in iteritems(log):
+    log_strings += [key_prepend + str(k), str(v)]
   return separator.join(log_strings)
 
 
