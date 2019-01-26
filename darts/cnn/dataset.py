@@ -273,8 +273,6 @@ def get_costar_test_queue(dataset_location, costar_set_name, costar_subset_name,
       data_features_to_extract=data_features, output_shape=costar_output_shape,
       random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding)
 
-  # shuffle does not need to be set to True because
-  # that is taken care of by the subset random sampler
   test_queue = torch.utils.data.DataLoader(
       test_data, batch_size=batch_size,
       pin_memory=False, num_workers=4)
