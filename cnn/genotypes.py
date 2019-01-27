@@ -134,6 +134,15 @@ AmoebaNet = Genotype(
 100%|| 60/60 [45:54:58<00:00, 2783.23s/it]
 2019_01_15_21_19_12 genotype = Genotype(normal=[('choke_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('skip_connect', 1), ('skip_connect', 0), ('skip_connect', 1)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('max_pool_3x3', 0), ('skip_connect', 2), ('max_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 2), ('flood_conv_3x3', 0)], reduce_concat=range(2, 6))
 2019_01_15_21_19_12 Search for Model Complete! Save dir: search-choke_flood_45b2033_branch_merge_mixed_aux-20190113-232409
+
+2019_01_21_23_21_59 gpu device = 0
+2019_01_21_23_21_59 args = Namespace(arch='DARTS', autoaugment=True, auxiliary=True, auxiliary_weight=0.4, batch_size=64, cutout=True, cutout_length=16, data='../data', dataset='cifar10', drop_path
+_prob=0.2, epochs=1000, gpu=0, grad_clip=5, init_channels=36, layers=20, learning_rate=0.025, learning_rate_min=1e-07, mixed_auxiliary=False, model_path='saved_models', momentum=0.9, ops='OPS', opt
+imizer='sgd', partial=0.125, primitives='PRIMITIVES', random_eraser=False, report_freq=50, save='eval-20190121-232159-AUTOAUGMENT_V2_KEY_PADDING_d5dda02_BUGFIX-cifar10-DARTS', seed=4, warm_restarts
+=20, weight_decay=0.0003)
+2019_01_21_23_22_02 param size = 3.529270MB
+2019_01_25_20_26_22 best_epoch, 988, best_train_acc, 95.852000, best_valid_acc, 97.890000, best_train_loss, 0.196667, best_valid_loss, 0.076396, lr, 8.881592e-06, best_epoch, 988, best_valid_acc, 97.890000 cifar10.1_valid_acc, 93.750000, cifar10.1_valid_loss, 0.218554
+2019_01_25_20_26_22 Training of Final Model Complete! Save dir: eval-20190121-232159-AUTOAUGMENT_V2_KEY_PADDING_d5dda02_BUGFIX-cifar10-DARTS
 '''
 CHOKE_FLOOD_DIL_IS_SEP_CONV = Genotype(normal=[('choke_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('skip_connect', 1), ('skip_connect', 0), ('skip_connect', 1)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('max_pool_3x3', 0), ('skip_connect', 2), ('max_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 2), ('flood_conv_3x3', 0)], reduce_concat=range(2, 6))
 SHARP_DARTS = CHOKE_FLOOD_DIL_IS_SEP_CONV
@@ -213,5 +222,21 @@ p_conv_3x3', 1)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip
 100%|| 60/60 [32:06:09<00:00, 1929.41s/it]
 2019_01_15_07_25_08 genotype = Genotype(normal=[('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('sep_conv_3x3', 2), ('skip_connect', 0), ('sep_conv_3x3', 1), ('skip_connect', 0), ('sep_conv_3x3', 1)], normal_concat=range(2, 6), reduce=[('avg_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 3), ('skip_connect', 2), ('skip_connect', 3)], reduce_concat=range(2, 6))
 2019_01_15_07_25_08 Search for Model Complete! Save dir: search-SEARCH_REPRODUCTION_ATTEMPT_KEY_PADDING_56b8fe9_BUGFIX_Dil_is_SepConv-20190113-231854
+
+± export CUDA_VISIBLE_DEVICES="1" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 48 --epochs 1000 --save REPRODUCTION_ATTEMPT_KEY_PADDING_`git rev-parse --short HEAD`_AUTOAUGME
+NT --arch DARTS_PRIMITIVES_DIL_IS_SEPCONV
+Experiment dir : eval-20190121-225901-REPRODUCTION_ATTEMPT_KEY_PADDING_2a88102_AUTOAUGMENT-cifar10-DARTS_PRIMITIVES_DIL_IS_SEPCONV
+2019_01_21_22_59_01 gpu device = 0
+2019_01_21_22_59_01 args = Namespace(arch='DARTS_PRIMITIVES_DIL_IS_SEPCONV', autoaugment=True, auxiliary=True, auxiliary_weight=0.4, batch_size=48, cutout=True, cutout_length=16, data='../data', da
+taset='cifar10', drop_path_prob=0.2, epochs=1000, gpu=0, grad_clip=5, init_channels=36, layers=20, learning_rate=0.025, learning_rate_min=1e-07, mixed_auxiliary=False, model_path='saved_models', mo
+mentum=0.9, ops='OPS', optimizer='sgd', partial=0.125, primitives='PRIMITIVES', random_eraser=False, report_freq=50, save='eval-20190121-225901-REPRODUCTION_ATTEMPT_KEY_PADDING_2a88102_AUTOAUGMENT-
+cifar10-DARTS_PRIMITIVES_DIL_IS_SEPCONV', seed=0, warm_restarts=20, weight_decay=0.0003)
+loading op dict: operations.OPS
+loading primitives: genotypes.PRIMITIVES
+Validation step: 41, loss:   0.24891, top 1: 93.40 top 5: 99.85 progress: 100%|| 42/42 [00:03<00:00, 12.56it/s]
+2019_01_27_09_14_32 best_epoch, 940, best_train_acc, 94.665997, best_valid_acc, 97.519998, best_train_loss, 0.235156, best_valid_loss, 0.087909, lr, 2.214094e-04, best_epoch, 940, best_valid_acc, 97.519998 cifar10.1_valid_acc, 93.399997, cifar10.1_valid_loss, 0.248915
+2019_01_27_09_14_32 Training of Final Model Complete! Save dir: eval-20190121-225901-REPRODUCTION_ATTEMPT_KEY_PADDING_2a88102_AUTOAUGMENT-cifar10-DARTS_PRIMITIVES_DIL_IS_SEPCONV
+
+
 """
 DARTS_PRIMITIVES_DIL_IS_SEPCONV = Genotype(normal=[('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('sep_conv_3x3', 2), ('skip_connect', 0), ('sep_conv_3x3', 1), ('skip_connect', 0), ('sep_conv_3x3', 1)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 3)], reduce_concat=range(2, 6))
