@@ -131,9 +131,9 @@ def main():
     scheduler.step()
     cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
-    train_acc, train_obj = train(train_queue, cnn_model, criterion, optimizer)
+    train_acc, train_obj = train(args, train_queue, cnn_model, criterion, optimizer)
 
-    stats = infer(valid_queue, cnn_model, criterion)
+    stats = infer(args, valid_queue, cnn_model, criterion)
 
     if stats['valid_acc'] > best_valid_acc:
       # new best epoch, save weights
@@ -172,7 +172,7 @@ def main():
   logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 
-def train(train_queue, cnn_model, criterion, optimizer):
+def train(args, train_queue, cnn_model, criterion, optimizer):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
@@ -210,7 +210,7 @@ def train(train_queue, cnn_model, criterion, optimizer):
   return top1.avg, objs.avg
 
 
-def infer(valid_queue, cnn_model, criterion, prefix='valid_'):
+def infer(args, valid_queue, cnn_model, criterion, prefix='valid_'):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()

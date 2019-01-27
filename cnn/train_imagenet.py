@@ -170,8 +170,8 @@ def main():
     scheduler.step()
     cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
-    train_acc, train_obj = train.train(train_queue, cnn_model, criterion, optimizer)
-    stats = train.infer(valid_queue, cnn_model, criterion)
+    train_acc, train_obj = train.train(args, train_queue, cnn_model, criterion, optimizer)
+    stats = train.infer(args, valid_queue, cnn_model, criterion)
 
     is_best = False
     if stats['valid_acc'] > best_valid_acc:
