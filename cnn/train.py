@@ -21,54 +21,54 @@ import genotypes
 import operations
 import cifar10_1
 
-parser = argparse.ArgumentParser("Common Argument Parser")
-parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
-parser.add_argument('--dataset', type=str, default='cifar10', help='which dataset:\
-                    cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
-parser.add_argument('--batch_size', type=int, default=64, help='batch size')
-parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
-parser.add_argument('--learning_rate_min', type=float, default=0.0000001, help='min learning rate')
-parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
-parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
-parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
-parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
-parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
-parser.add_argument('--epochs', type=int, default=1000, help='num of training epochs')
-parser.add_argument('--warm_restarts', type=int, default=20, help='warm restarts of cosine annealing')
-parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
-parser.add_argument('--mid_channels', type=int, default=32, help='C_mid channels in choke SharpSepConv')
-parser.add_argument('--layers', type=int, default=20, help='total number of layers')
-parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
-parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
-parser.add_argument('--mixed_auxiliary', action='store_true', default=False, help='Learn weights for auxiliary networks during training. Overrides auxiliary flag')
-parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
-parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
-parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
-parser.add_argument('--autoaugment', action='store_true', default=False, help='use cifar10 autoaugment https://arxiv.org/abs/1805.09501')
-parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
-parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
-parser.add_argument('--save', type=str, default='EXP', help='experiment name')
-parser.add_argument('--seed', type=int, default=0, help='random seed')
-parser.add_argument('--arch', type=str, default='DARTS', help='which architecture to use')
-parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
-parser.add_argument('--primitives', type=str, default='PRIMITIVES',
-                    help='which primitive layers to use inside a cell search space,'
-                         ' options are PRIMITIVES and DARTS_PRIMITIVES')
-parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
-parser.add_argument('--load', type=str, default='sgd', help='load weights at specified location')
-parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
-args = parser.parse_args()
-
-args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
-utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
-
-log_file_path = os.path.join(args.save, 'log.txt')
-logger = utils.logging_setup(log_file_path)
-params_path = os.path.join(args.save, 'commandline_args.json')
-with open(params_path, 'w') as f:
-    json.dump(vars(args), f)
-
 def main():
+  parser = argparse.ArgumentParser("Common Argument Parser")
+  parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
+  parser.add_argument('--dataset', type=str, default='cifar10', help='which dataset:\
+                      cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
+  parser.add_argument('--batch_size', type=int, default=64, help='batch size')
+  parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
+  parser.add_argument('--learning_rate_min', type=float, default=0.0000001, help='min learning rate')
+  parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
+  parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
+  parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
+  parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
+  parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
+  parser.add_argument('--epochs', type=int, default=1000, help='num of training epochs')
+  parser.add_argument('--warm_restarts', type=int, default=20, help='warm restarts of cosine annealing')
+  parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
+  parser.add_argument('--mid_channels', type=int, default=32, help='C_mid channels in choke SharpSepConv')
+  parser.add_argument('--layers', type=int, default=20, help='total number of layers')
+  parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
+  parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
+  parser.add_argument('--mixed_auxiliary', action='store_true', default=False, help='Learn weights for auxiliary networks during training. Overrides auxiliary flag')
+  parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
+  parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
+  parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
+  parser.add_argument('--autoaugment', action='store_true', default=False, help='use cifar10 autoaugment https://arxiv.org/abs/1805.09501')
+  parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
+  parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
+  parser.add_argument('--save', type=str, default='EXP', help='experiment name')
+  parser.add_argument('--seed', type=int, default=0, help='random seed')
+  parser.add_argument('--arch', type=str, default='DARTS', help='which architecture to use')
+  parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
+  parser.add_argument('--primitives', type=str, default='PRIMITIVES',
+                      help='which primitive layers to use inside a cell search space,'
+                           ' options are PRIMITIVES and DARTS_PRIMITIVES')
+  parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
+  parser.add_argument('--load', type=str, default='sgd', help='load weights at specified location')
+  parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
+  args = parser.parse_args()
+
+  args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
+  utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
+
+  log_file_path = os.path.join(args.save, 'log.txt')
+  logger = utils.logging_setup(log_file_path)
+  params_path = os.path.join(args.save, 'commandline_args.json')
+  with open(params_path, 'w') as f:
+      json.dump(vars(args), f)
+
   if not torch.cuda.is_available():
     logger.info('no gpu device available')
     sys.exit(1)
