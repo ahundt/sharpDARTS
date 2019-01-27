@@ -180,27 +180,10 @@ class NetworkCIFAR(nn.Module):
         cell = Cell(genotype.reduce, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict, C_mid=C_mid)
       else:
         reduction = False
-        # TODO(ahundt) re-enable extended genotype
-        # if i == 0 and genotype.start:
-        #   # start cell is nonempty
-        #   sequence = genotype.start
-        #   concat = genotype.start_concat
-        # elif i == layers - 1 and genotype.end:
-        #   # end cell is nonempty
-        #   sequence = genotype.end
-        #   concat = genotype.end_concat
-        # else:
-        #   # we are on a normal cell
-        #   sequence = genotype.normal
-        #   concat = genotype.normal_concat
-        # we are on a normal cell
-        # TODO(ahundt) comment two lines below when re-enabling extended genotype
-        sequence = genotype.normal
-        concat = genotype.normal_concat
-        cell = Cell(sequence, concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict, C_mid=C_mid)
+        cell = Cell(genotype.normal, genotype.normal_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict, C_mid=C_mid)
       reduction_prev = reduction
       self.cells += [cell]
-      C_prev_prev, C_prev = C_prev, cell.multiplier*C_curr
+      C_prev_prev, C_prev = C_prev, cell.multiplier * C_curr
       if self.auxs is not None:
         self.auxs.add_aux(C_prev)
       elif i == 2*layers//3:
@@ -269,9 +252,10 @@ class NetworkImageNet(nn.Module):
       if i in [layers // 3, 2 * layers // 3]:
         C_curr *= 2
         reduction = True
+        cell = Cell(genotype.reduce, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict, C_mid=C_mid)
       else:
         reduction = False
-      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict, C_mid=C_mid)
+        cell = Cell(genotype.normal, genotype.reduce_concat, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, op_dict=op_dict, C_mid=C_mid)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, cell.multiplier * C_curr
