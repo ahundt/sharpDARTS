@@ -17,6 +17,7 @@ import torchvision.transforms as transforms
 import torch.backends.cudnn as cudnn
 
 from torch.autograd import Variable
+from tqdm import tqdm
 from model import NetworkImageNet as Network
 import train
 import autoaugment
