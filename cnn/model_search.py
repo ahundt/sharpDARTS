@@ -98,7 +98,7 @@ class Cell(nn.Module):
 class Network(nn.Module):
 
   def __init__(self, C=16, num_classes=10, layers=8, criterion=None, steps=4, multiplier=4, stem_multiplier=3,
-               in_channels=3, primitives=None, op_dict=None, C_mid=None, weights_are_parameters=False):
+               in_channels=3, primitives=None, op_dict=None, weights_are_parameters=False):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -164,14 +164,13 @@ class Network(nn.Module):
 
     self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
     self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
-    if self._weights_are_parameters:
-      # in simpler training modes the weights are just regular parameters
-      self.alphas_normal = torch.nn.Parameter(self.alphas_normal)
-      self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
     self._arch_parameters = [
       self.alphas_normal,
       self.alphas_reduce,
     ]
+    if self._weights_are_parameters:
+          # in simpler training modes the weights are just regular parameters
+          self._arch_parameters = torch.nn.Parameter(self._arch_parameters)
 
   def arch_parameters(self):
     return self._arch_parameters

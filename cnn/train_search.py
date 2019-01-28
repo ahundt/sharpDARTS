@@ -152,6 +152,11 @@ def main():
   prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
   best_valid_acc = 0.0
   best_epoch = 0
+  state_dict = {}
+
+  #saving state_dict for debugging weights by comparison
+  for key in cnn_model.state_dict():
+    state_dict[key] = cnn_model.state_dict()[key].clone()
   for epoch in prog_epoch:
     scheduler.step()
     lr = scheduler.get_lr()[0]
@@ -167,6 +172,13 @@ def main():
 
     # training
     train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr)
+    updated_state_dict = {}
+    for key in cnn_model.state_dict():
+      updated_state_dict[key] = cnn_model.state_dict()[key].clone()
+
+    for key in state_dict:
+    if not (state_dict[key] == updated_state_dict[key]).all():
+        logger.info('Update in {}'.format(key))
 
     # validation
     valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
