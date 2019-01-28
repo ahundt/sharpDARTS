@@ -366,7 +366,7 @@ class MultiChannelNetwork(nn.Module):
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
                   if not self._visualization:
-                    x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                    x = (w/max_w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                   else:
                     # doing visualization, skip the weights
                     x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
