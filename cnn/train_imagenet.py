@@ -17,6 +17,7 @@ import torchvision.transforms as transforms
 import torch.backends.cudnn as cudnn
 
 from torch.autograd import Variable
+from tqdm import tqdm
 from model import NetworkImageNet as Network
 import train
 import autoaugment
@@ -153,10 +154,10 @@ def main():
     ]))
 
   train_queue = torch.utils.data.DataLoader(
-    train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=8)
 
   valid_queue = torch.utils.data.DataLoader(
-    valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
+    valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
 
   scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.decay_period, gamma=args.gamma)
 
@@ -165,12 +166,13 @@ def main():
   best_epoch = 0
   best_stats = {}
   best_acc_top1 = 0
+  weights_file = os.path.join(args.save, 'weights.pt')
   for epoch in prog_epoch:
     scheduler.step()
     cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
-    train_acc, train_obj = train.train(train_queue, cnn_model, criterion, optimizer)
-    stats = train.infer(valid_queue, cnn_model, criterion)
+    train_acc, train_obj = train.train(args, train_queue, cnn_model, criterion, optimizer)
+    stats = train.infer(args, valid_queue, cnn_model, criterion)
 
     is_best = False
     if stats['valid_acc'] > best_valid_acc:
