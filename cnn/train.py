@@ -115,10 +115,10 @@ def main():
   valid_data = dset.CIFAR10(root=args.data, train=False, download=True, transform=valid_transform)
 
   train_queue = torch.utils.data.DataLoader(
-      train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=4)
+      train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=8)
 
   valid_queue = torch.utils.data.DataLoader(
-      valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
+      valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
@@ -157,7 +157,7 @@ def main():
     # https://github.com/modestyachts/CIFAR-10.1
     valid_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
     valid_queue = torch.utils.data.DataLoader(
-        valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
+        valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
     # load the best model weights
     utils.load(cnn_model, weights_file)
     cifar10_1_stats = infer(valid_queue, cnn_model, criterion, prefix='cifar10_1_')
