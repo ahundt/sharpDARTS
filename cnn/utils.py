@@ -368,7 +368,7 @@ def count_parameters_in_MB(model):
 
 
 def count_model_flops(cnn_model, data_shape=[1, 3, 32, 32]):
-  cnn_model_flops = cnn_model.clone()
+  cnn_model_flops = cnn_model
   cnn_model_flops = flops_counter.add_flops_counting_methods(cnn_model)
   batch = torch.zeros(data_shape)
   cnn_model_flops.eval.start_flops_count()
