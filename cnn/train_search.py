@@ -187,6 +187,7 @@ def main():
       if parameter.requires_grad:
         logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
 
+    updated_state_keys = set()
     for key in state_dict:
       if not (state_dict[key] == updated_state_dict[key]).all():
         logger.info('Update in {}'.format(key))
