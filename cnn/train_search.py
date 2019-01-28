@@ -182,6 +182,11 @@ def main():
     for key in cnn_model.state_dict():
       updated_state_dict[key] = cnn_model.state_dict()[key].clone()
 
+    logger.info("gradients computed")
+    for name, parameter in cnn_model.named_parameters():
+      if parameter.requires_grad:
+        logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
+
     for key in state_dict:
       if not (state_dict[key] == updated_state_dict[key]).all():
         logger.info('Update in {}'.format(key))
@@ -235,9 +240,6 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
     loss.backward()
     nn.utils.clip_grad_norm(cnn_model.parameters(), args.grad_clip)
     optimizer.step()
-    for name, parameter in cnn_model.named_parameters():
-      if parameter.requires_grad:
-        logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
     objs.update(loss.data.item(), n)
