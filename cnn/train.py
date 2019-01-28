@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 import genotypes
 import operations
-import cifar10_1
+import dataset
 
 def main():
   parser = argparse.ArgumentParser("Common Argument Parser")
@@ -110,15 +110,12 @@ def main():
       weight_decay=args.weight_decay
       )
 
-  train_transform, valid_transform = utils._data_transforms_cifar10(args)
-  train_data = dset.CIFAR10(root=args.data, train=True, download=True, transform=train_transform)
-  valid_data = dset.CIFAR10(root=args.data, train=False, download=True, transform=valid_transform)
+  # Get preprocessing functions (i.e. transforms) to apply on data
+  train_transform, valid_transform = utils.get_data_transforms(args)
 
-  train_queue = torch.utils.data.DataLoader(
-      train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=8)
-
-  valid_queue = torch.utils.data.DataLoader(
-      valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
+  # Get the training queue, use full training and test set
+  train_queue, valid_queue = dataset.get_training_queues(
+    args.dataset, train_transform, args.data, args.batch_size, train_proportion=1.0, search_architecture=False)
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
