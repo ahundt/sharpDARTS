@@ -305,6 +305,7 @@ class MultiChannelNetwork(nn.Module):
     self.min_score = float(1 / (self.softmax_weight_count * self.softmax_weight_count))
 
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
+    self.batch_norm = nn.BatchNorm1d(final_linear_filters)
     self.classifier = nn.Linear(final_linear_filters, num_classes)
 
     if not self._visualization:
