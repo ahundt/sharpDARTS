@@ -397,7 +397,7 @@ class MultiChannelNetwork(nn.Module):
     #     outs += [op()]
     # out = sum(outs)
     # out = self.global_pooling(out)
-    logits = self.classifier(nn.BatchNorm1d(out.view(out.size(0),-1)))
+    logits = self.classifier(self.batch_norm(out.view(out.size(0),-1)))
     # print('logits')
     return logits
 
