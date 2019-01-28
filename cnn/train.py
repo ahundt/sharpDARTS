@@ -102,7 +102,7 @@ def main():
   cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
-  logger.info("flops = " + count_model_flops(cnn_model))
+  logger.info("flops = " + utils.count_model_flops(cnn_model))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
