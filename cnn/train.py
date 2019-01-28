@@ -19,6 +19,7 @@ from tqdm import tqdm
 
 import genotypes
 import operations
+import cifar10_1
 import dataset
 
 def main():
