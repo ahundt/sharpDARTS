@@ -157,6 +157,8 @@ def main():
   #saving state_dict for debugging weights by comparison
   for key in cnn_model.state_dict():
     state_dict[key] = cnn_model.state_dict()[key].clone()
+    logger.info('layer =', key)
+  logger.info('Total keys in state_dict = ', len(cnn_model.state_dict().keys()))
   for epoch in prog_epoch:
     scheduler.step()
     lr = scheduler.get_lr()[0]
