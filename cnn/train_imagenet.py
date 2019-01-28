@@ -166,6 +166,7 @@ def main():
   best_epoch = 0
   best_stats = {}
   best_acc_top1 = 0
+  weights_file = os.path.join(args.save, 'weights.pt')
   for epoch in prog_epoch:
     scheduler.step()
     cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
