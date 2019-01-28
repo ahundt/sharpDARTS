@@ -192,7 +192,7 @@ def main():
         logger.info('Update in {}'.format(key))
         updated_state_keys.add(key)
     logger.info('Total updates = {}'.format(len(updated_state_keys))
-    logger.info("Parameters not updated {}".format(og_state_keys - updated_state_keys)
+    logger.info("Parameters not updated {}".format(og_state_keys - updated_state_keys))
 
     # validation
     valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
