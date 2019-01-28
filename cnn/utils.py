@@ -367,7 +367,7 @@ def count_parameters_in_MB(model):
   return np.sum(np.prod(v.size()) for name, v in model.named_parameters() if "auxiliary" not in name)/1e6
 
 
-def count_model_flops(cnn_model, data_shape=[2, 3, 32, 32]):
+def count_model_flops(cnn_model, data_shape=[1, 3, 32, 32]):
   cnn_model_flops = cnn_model
   batch = torch.zeros(data_shape)
   if torch.cuda.is_available():
