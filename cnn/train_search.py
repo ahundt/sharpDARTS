@@ -177,7 +177,7 @@ def main():
       updated_state_dict[key] = cnn_model.state_dict()[key].clone()
 
     for key in state_dict:
-    if not (state_dict[key] == updated_state_dict[key]).all():
+      if not (state_dict[key] == updated_state_dict[key]).all():
         logger.info('Update in {}'.format(key))
 
     # validation
