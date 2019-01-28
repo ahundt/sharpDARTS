@@ -51,6 +51,7 @@ parser.add_argument('--ops', type=str, default='OPS', help='which operations to 
 parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                     help='which primitive layers to use inside a cell search space,'
                          ' options are PRIMITIVES and DARTS_PRIMITIVES')
+parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
 args = parser.parse_args()
 
 args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
@@ -114,6 +115,10 @@ def main():
     cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
+  if args.flops:
+    cnn_model.drop_path_prob = 0.0
+    logger.info("flops = " + utils.count_model_flops(cnn_model))
+    exit(1)
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
