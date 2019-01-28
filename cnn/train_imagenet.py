@@ -154,10 +154,10 @@ def main():
     ]))
 
   train_queue = torch.utils.data.DataLoader(
-    train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=8)
 
   valid_queue = torch.utils.data.DataLoader(
-    valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=4)
+    valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
 
   scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.decay_period, gamma=args.gamma)
 
