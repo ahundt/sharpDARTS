@@ -117,7 +117,7 @@ def main():
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
   if args.flops:
     cnn_model.drop_path_prob = 0.0
-    logger.info("flops = " + utils.count_model_flops(cnn_model))
+    logger.info("flops = " + utils.count_model_flops(cnn_model), data_shape=[1, 3, 224, 224])
     exit(1)
 
   criterion = nn.CrossEntropyLoss()
