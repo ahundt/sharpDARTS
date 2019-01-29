@@ -492,8 +492,8 @@ def validate(val_loader, model, criterion):
     data_time = AverageMeter()
     speed = AverageMeter()
     losses = AverageMeter()
-    top1 = AverageMeter()
-    top5 = AverageMeter()
+    top1m = AverageMeter()
+    top5m = AverageMeter()
 
     # switch to evaluate mode
     model.eval()
