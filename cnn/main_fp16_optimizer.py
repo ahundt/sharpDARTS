@@ -68,8 +68,7 @@ parser.add_argument('--lr', '--learning-rate', default=1.6, type=float,
                     metavar='LR', help='Initial learning rate based on autoaugment https://arxiv.org/pdf/1805.09501.pdf.  Will be scaled by <global batch size>/256: args.lr = args.lr*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.')
 parser.add_argument('--learning_rate_min', type=float, default=0.0016, help='min learning rate')
 parser.add_argument('--warmup_epochs', default=10, type=int, help='number of epochs for warmup (default: 10)')
-parser.add_argument('--warmup_lr_divisor', default=10, type=int,
-                    metavar='N', help='factor by which to reduce lr at warmup start (default: 10)')
+parser.add_argument('--warmup_lr_divisor', default=10, type=int, help='factor by which to reduce lr at warmup start (default: 10)')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
