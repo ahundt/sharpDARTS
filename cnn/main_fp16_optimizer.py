@@ -5,10 +5,10 @@
 # pip3 install --user --upgrade -e . --global-option="build_ext" --global-option="--cpp_ext" --global-option="--cuda_ext" 
 #
 # ### Multi-process training with FP16_Optimizer, dynamic loss scaling
-# # note that --nproc_per_node is NUM_GPUS
-# $ python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 224 --epochs 300 --dynamic-loss-scale --workers 14 /home/costar/datasets/imagenet/
-# new command being tried:
-# $ python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --sync_bn --b 256 --save `git rev-parse --short HEAD` --epochs 300 --dynamic-loss-scale --workers 14 /home/costar/datasets/imagenet/
+#     $ python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 256 --save `git rev-parse --short HEAD` --epochs 300 --dynamic-loss-scale --workers 14 /home/costar/datasets/imagenet/
+#
+# # note that --nproc_per_node is NUM_GPUS. 
+# # Can add --sync_bn to sync bachnorm values if batch size is "very small" but note this also reduces img/s by ~10%.
 
 import argparse
 import os
