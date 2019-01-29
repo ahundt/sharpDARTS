@@ -112,7 +112,11 @@ parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight 
 
 cudnn.benchmark = True
 
-def fast_collate(batch):
+def fast_collate(batch, normalize_mean=None, normalize_std=None):
+    if normalize_mean is None:
+        normalize_mean = [0.485, 0.456, 0.406]
+    if normalize_std is None:
+        normalize_std=[0.229, 0.224, 0.225]
     imgs = [img[0] for img in batch]
     targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
     w = imgs[0].size[0]
@@ -120,13 +124,13 @@ def fast_collate(batch):
     tensor = torch.zeros( (len(imgs), 3, h, w), dtype=torch.uint8 )
     for i, img in enumerate(imgs):
         nump_array = np.asarray(img, dtype=np.uint8)
-        # tens = torch.from_numpy(nump_array)
+        tens = torch.from_numpy(nump_array)
         if(nump_array.ndim < 3):
             nump_array = np.expand_dims(nump_array, axis=-1)
         nump_array = np.rollaxis(nump_array, 2)
 
         tensor[i] += torch.from_numpy(nump_array)
-        
+    tensor = F.normalize(tensor, normalize_mean, normalize_std)
     return tensor, targets
 
 best_top1 = 0
@@ -265,15 +269,15 @@ def main():
 
     # transforms.ToTensor() and normalize previously commented by nvidia author, saying "Too slow"
     # ahundt found increasing the number of workers resolves the issue
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    # normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     train_dataset = datasets.ImageFolder(
         traindir,
         transforms.Compose([
             transforms.RandomResizedCrop(crop_size),
             transforms.RandomHorizontalFlip(),
             autoaugment.ImageNetPolicy(),
-            transforms.ToTensor(),
-            normalize,
+            # transforms.ToTensor(),
+            # normalize,
         ]))
     val_dataset = datasets.ImageFolder(valdir, transforms.Compose([
             transforms.Resize(val_size),
