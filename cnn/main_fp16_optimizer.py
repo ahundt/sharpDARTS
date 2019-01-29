@@ -383,8 +383,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     data_time = AverageMeter()
     speed = AverageMeter()
     losses = AverageMeter()
-    top1 = AverageMeter()
-    top5 = AverageMeter()
+    top1m = AverageMeter()
+    top5m = AverageMeter()
 
     # switch to train mode
     model.train()
@@ -430,8 +430,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
-        top1.update(to_python_float(top1), input.size(0))
-        top5.update(to_python_float(top5), input.size(0))
+        top1m.update(to_python_float(top1), input.size(0))
+        top5m.update(to_python_float(top5), input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -465,10 +465,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                    speed.val,
                    speed.avg,
                    batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+                   data_time=data_time, loss=losses, top1=top1m, top5=top5m))
     stats = {}
     prefix = 'train_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, top1, top5, losses, speed)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, top1m, top5m, losses, speed)
     return stats
 
 def get_stats(progbar, prefix, args, batch_time, data_time, top1, top5, losses, speed):
@@ -531,8 +531,8 @@ def validate(val_loader, model, criterion):
             reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
-        top1.update(to_python_float(top1), input.size(0))
-        top5.update(to_python_float(top5), input.size(0))
+        top1m.update(to_python_float(top1), input.size(0))
+        top5m.update(to_python_float(top5), input.size(0))
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -554,14 +554,14 @@ def validate(val_loader, model, criterion):
                    speed.val,
                    speed.avg,
                    batch_time=batch_time, loss=losses,
-                   top1=top1, top5=top5))
+                   top1=top1m, top5=top5m))
 
         input, target = prefetcher.next()
 
     # logger.info(' * top1 {top1.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(top1=top1, top5=top5))
     prefix = 'val_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, top1, top5, losses, speed)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, top1m, top5m, losses, speed)
     return top1.avg, stats
 
 
