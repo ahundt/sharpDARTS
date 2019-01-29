@@ -26,6 +26,7 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+import torchvision
 
 import numpy as np
 import random
@@ -130,7 +131,7 @@ def fast_collate(batch, normalize_mean=None, normalize_std=None):
         nump_array = np.rollaxis(nump_array, 2)
 
         tensor[i] += torch.from_numpy(nump_array)
-    tensor = F.normalize(tensor, normalize_mean, normalize_std)
+    tensor = torchvision.transforms.functional.normalize(tensor, normalize_mean, normalize_std)
     return tensor, targets
 
 best_top1 = 0
