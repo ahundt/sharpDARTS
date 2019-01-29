@@ -399,8 +399,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         progbar = None
     while input is not None:
         i += 1
-
-        adjust_learning_rate(optimizer, epoch, i, len(train_loader))
+        # scheduler in main now adjusts the lr
+        # adjust_learning_rate(optimizer, epoch, i, len(train_loader))
 
         if args.prof:
             if i > 10:
