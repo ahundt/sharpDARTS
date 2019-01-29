@@ -125,13 +125,12 @@ def fast_collate(batch, normalize_mean=None, normalize_std=None):
     tensor = torch.zeros( (len(imgs), 3, h, w), dtype=torch.uint8 )
     for i, img in enumerate(imgs):
         nump_array = np.asarray(img, dtype=np.uint8)
-        tens = torch.from_numpy(nump_array)
+        # tens = torch.from_numpy(nump_array)
         if(nump_array.ndim < 3):
             nump_array = np.expand_dims(nump_array, axis=-1)
         nump_array = np.rollaxis(nump_array, 2)
 
-        tensor[i] += torch.from_numpy(nump_array)
-    tensor = torchvision.transforms.functional.normalize(tensor, normalize_mean, normalize_std)
+        tensor[i] += torchvision.transforms.functional.normalize(torch.from_numpy(nump_array), normalize_mean, normalize_std)
     return tensor, targets
 
 best_top1 = 0
