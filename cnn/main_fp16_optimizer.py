@@ -221,6 +221,13 @@ def main():
     optimizer = torch.optim.SGD(model.parameters(), init_lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
+
+
+    epoch_count = args.epochs - args.start_epoch
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(epoch_count))
+    scheduler = warmup_scheduler.GradualWarmupScheduler(
+        optimizer, args.warmup_lr_divisor, args.warmup_epochs, scheduler)
+
     if args.fp16:
         optimizer = FP16_Optimizer(optimizer,
                                    static_loss_scale=args.static_loss_scale,
@@ -238,6 +245,7 @@ def main():
                 model.load_state_dict(checkpoint['state_dict'])
                 # An FP16_Optimizer instance's state dict internally stashes the master params.
                 optimizer.load_state_dict(checkpoint['optimizer'])
+                scheduler.load_state_dict(checkpoint['lr_scheduler'])
                 logger.info("=> loaded checkpoint '{}' (epoch {})"
                       .format(args.resume, checkpoint['epoch']))
             else:
@@ -293,11 +301,6 @@ def main():
         validate(val_loader, model, criterion)
         return
 
-    epoch_count = args.epochs - args.start_epoch
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(epoch_count))
-    scheduler = warmup_scheduler.GradualWarmupScheduler(
-        optimizer, args.warmup_lr_divisor, args.warmup_epochs, scheduler)
-
     prog_epoch = tqdm(range(args.start_epoch, args.epochs), dynamic_ncols=True)
     best_stats = {}
     stats = {}
@@ -336,6 +339,7 @@ def main():
                 'state_dict': model.state_dict(),
                 'best_top1': best_top1,
                 'optimizer' : optimizer.state_dict(),
+                'lr_scheduler': scheduler.state_dict()
             }, is_best, path=args.save)
     stats_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
     logger.info(stats_str)
