@@ -21,6 +21,7 @@ import genotypes
 import operations
 import cifar10_1
 import dataset
+import flops_counter
 
 def main():
   parser = argparse.ArgumentParser("Common Argument Parser")
@@ -59,6 +60,7 @@ def main():
   parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
   parser.add_argument('--load', type=str, default='sgd', help='load weights at specified location')
   parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
+  parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
   args = parser.parse_args()
 
   args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
@@ -101,6 +103,10 @@ def main():
   cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
+  if args.flops:
+    cnn_model.drop_path_prob = 0.0
+    logger.info("flops = " + utils.count_model_flops(cnn_model))
+    exit(1)
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
