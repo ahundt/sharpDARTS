@@ -222,6 +222,38 @@ def finalize_transform(train_transform, valid_transform, args, normalize_as_tens
   return train_transform, valid_transform
 
 
+# Transform defined for imagenet
+def _data_transforms_imagenet(args, normalize_as_tensor=True):
+  IMAGENET_MEAN = [0.485, 0.456, 0.406]
+  IMAGENET_STD = [0.229, 0.224, 0.225]
+  args.mean = IMAGENET_MEAN
+  args.std = IMAGENET_MEAN
+
+  if(args.arch == "inception_v3"):
+      crop_size = 299
+      val_size = 320 # nvidia author chose this value arbitrarily, we can adjust.
+  else:
+      crop_size = 224
+      val_size = 256
+  if args.autoaugment:
+    train_transform = transforms.Compose([
+      transforms.RandomResizedCrop(crop_size),
+      transforms.RandomHorizontalFlip(),
+      autoaugment.ImageNetPolicy(),
+    ])
+  else:
+    train_transform = transforms.Compose([
+      transforms.RandomResizedCrop(crop_size),
+      transforms.RandomHorizontalFlip(),
+    ])
+
+  valid_transform = transforms.Compose([
+    transforms.Resize(val_size),
+    transforms.CenterCrop(crop_size)
+  ])
+  return finalize_transform(train_transform, valid_transform, args, normalize_as_tensor)
+
+
 # Transform defined for cifar-10
 def _data_transforms_cifar10(args, normalize_as_tensor=True):
   CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
