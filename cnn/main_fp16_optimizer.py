@@ -53,8 +53,8 @@ model_names = sorted(name for name in models.__dict__
                      and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('data', metavar='DIR',
-                    help='path to dataset')
+# parser.add_argument('data', metavar='DIR', help='path to dataset')
+parser.add_argument('--data', type=str, default='../data', help='path to dataset', metavar='DIR')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='SHARP_DARTS',
                     # choices=model_names,
                     help='model architecture: ' +
