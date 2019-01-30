@@ -317,7 +317,7 @@ def main():
         top1, val_stats = validate(val_loader, model, criterion)
         stats.update(train_stats)
         stats.update(val_stats)
-        stats['lr'] = scheduler.get_lr()[0]
+        stats['lr'] = '{0:.5f}'.format(scheduler.get_lr()[0])
 
         # remember best top1 and save checkpoint
         if args.local_rank == 0:
