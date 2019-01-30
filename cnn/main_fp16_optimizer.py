@@ -568,7 +568,7 @@ def validate(val_loader, model, criterion):
     #       .format(top1=top1, top5=top5))
     prefix = 'val_'
     stats = get_stats(progbar, prefix, args, batch_time, data_time, top1m, top5m, losses, speed)
-    return top1.avg, stats
+    return top1m.avg, stats
 
 
 def save_checkpoint(state, is_best, path='', filename='checkpoint.pth.tar', best_filename='model_best.pth.tar'):
