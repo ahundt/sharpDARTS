@@ -13,6 +13,7 @@ from tqdm import tqdm
 import colorlog
 
 import autoaugment
+import flops_counter
 
 
 def tqdm_stats(progbar, prefix=''):
@@ -364,6 +365,21 @@ def _data_transforms_devanagari(args):
 
 def count_parameters_in_MB(model):
   return np.sum(np.prod(v.size()) for name, v in model.named_parameters() if "auxiliary" not in name)/1e6
+
+
+def count_model_flops(cnn_model, data_shape=[1, 3, 32, 32]):
+  cnn_model_flops = cnn_model
+  batch = torch.zeros(data_shape)
+  if torch.cuda.is_available():
+    batch = batch.cuda()
+  cnn_model_flops = flops_counter.add_flops_counting_methods(cnn_model)
+  cnn_model_flops.eval().start_flops_count()
+  out = cnn_model_flops(batch)
+  cnn_model_flops.stop_flops_count()
+  flops_str = flops_counter.flops_to_string(cnn_model.compute_average_flops_cost())
+  del cnn_model_flops
+  del batch
+  return flops_str
 
 
 def save_checkpoint(state, is_best, save):
