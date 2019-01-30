@@ -321,10 +321,10 @@ def main():
 
         # remember best top1 and save checkpoint
         if args.local_rank == 0:
+            is_best = top1 > best_top1
             best_top1 = max(top1, best_top1)
             stats['epoch'] = epoch + 1
             stats['best_top_1'] = '{0:.3f}'.format(best_top1)
-            is_best = top1 > best_top1
             if is_best:
                 best_epoch = epoch + 1
                 best_stats = stats
@@ -336,7 +336,7 @@ def main():
                 'epoch': epoch + 1,
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
-                'best_top1': best_top1,
+                'best_top_1': best_top1,
                 'optimizer' : optimizer.state_dict(),
                 'lr_scheduler': scheduler.state_dict()
             }, is_best, path=args.save)
