@@ -460,7 +460,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                   'load_t: {data_time.val:.3f}/{data_time.avg:.3f}, '
                   'loss: {loss.val:.4f}/{loss.avg:.4f}, '
                   'top1: {top1.val:.3f}/{top1.avg:.3f}, '
-                  'top5: {top5.val:.3f}/{top5.avg:.3f}'.format(
+                  'top5: {top5.val:.3f}/{top5.avg:.3f}, progress'.format(
                 #    epoch, i, len(train_loader),
                    speed.val,
                    speed.avg,
@@ -549,7 +549,7 @@ def validate(val_loader, model, criterion):
                   'img/s: {0:.3f}/{1:.3f}, '
                   'loss: {loss.val:.4f}/{loss.avg:.4f}, '
                   'top1: {top1.val:.3f}/{top1.avg:.3f}, '
-                  'top5: {top5.val:.3f}/{top5.avg:.3f}'.format(
+                  'top5: {top5.val:.3f}/{top5.avg:.3f}, progress'.format(
                 #    i, len(val_loader),
                    speed.val,
                    speed.avg,
