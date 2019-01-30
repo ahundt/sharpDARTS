@@ -427,7 +427,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
     end = time.time()
-prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std)
+    prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std)
     # if args.dataset == 'imagenet':
     #     # TODO(ahundt) debug why this special case is needed
     #     prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std)
