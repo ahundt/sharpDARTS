@@ -56,7 +56,7 @@ parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='SHARP_DARTS',
-                    choices=model_names,
+                    # choices=model_names,
                     help='model architecture: ' +
                     ' | '.join(model_names) +
                     ' (default: SHARP_DARTS)')
