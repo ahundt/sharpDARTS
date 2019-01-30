@@ -426,7 +426,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        top1, top5 = accuracy(output.data, target, topk=(1, 5))
+        top1f, top5f = accuracy(output.data, target, topk=(1, 5))
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
