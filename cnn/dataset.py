@@ -46,10 +46,14 @@ inp_channel_dict = {'cifar10': 3,
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
 
-def get_training_queues(dataset_name, train_transform, dataset_location=None, batch_size=32, train_proportion=0.9, search_architecture=True, 
+def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=0.9, search_architecture=True, 
                         costar_version='v0.4', costar_set_name=None, costar_subset_name=None, costar_feature_mode=None, costar_output_shape=(224, 224, 3),
-                        costar_random_augmentation=None, costar_one_hot_encoding=True):
+                        costar_random_augmentation=None, costar_one_hot_encoding=True, distributed=False, num_workers=12, 
+                        collate_fn=torch.utils.data.dataloader.default_collate):
   print("Getting " + dataset_name + " data")
+  if dataset_name == 'imagenet':
+    print("Using IMAGENET")
+    train_data = os.path.join(dataset_location, 'train')
   if dataset_name == 'cifar10':
     print("Using CIFAR10")
     train_data = dset.CIFAR10(root=dataset_location, train=True, download=True, transform=train_transform)
@@ -135,24 +139,27 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
   else:
     split = num_train
     # get the actual train/test set
+    if dataset_name == 'imagenet':
+        print("Using IMAGENET")
+        valid_data = os.path.join(dataset_location, 'val')
     if dataset_name == 'cifar10':
         print("Using CIFAR10")
-        valid_data = dset.CIFAR10(root=dataset_location, train=search_architecture, download=True, transform=train_transform)
+        valid_data = dset.CIFAR10(root=dataset_location, train=search_architecture, download=True, transform=valid_transform)
     elif dataset_name == 'mnist':
         print("Using MNIST")
-        valid_data = dset.MNIST(root=dataset_location, train=search_architecture, download=True, transform=train_transform)
+        valid_data = dset.MNIST(root=dataset_location, train=search_architecture, download=True, transform=valid_transform)
     elif dataset_name == 'emnist':
         print("Using EMNIST")
-        valid_data = dset.EMNIST(root=dataset_location, split='balanced', train=search_architecture, download=True, transform=train_transform)
+        valid_data = dset.EMNIST(root=dataset_location, split='balanced', train=search_architecture, download=True, transform=valid_transform)
     elif dataset_name == 'fashion':
         print("Using Fashion")
-        valid_data = dset.FashionMNIST(root=dataset_location, train=search_architecture, download=True, transform=train_transform)
+        valid_data = dset.FashionMNIST(root=dataset_location, train=search_architecture, download=True, transform=valid_transform)
     elif dataset_name == 'svhn':
         print("Using SVHN")
-        valid_data = dset.SVHN(root=dataset_location, split='test', download=True, transform=train_transform)
+        valid_data = dset.SVHN(root=dataset_location, split='test', download=True, transform=valid_transform)
     elif dataset_name == 'stl10':
         print("Using STL10")
-        valid_data = dset.STL10(root=dataset_location, split='test', download=True, transform=train_transform)
+        valid_data = dset.STL10(root=dataset_location, split='test', download=True, transform=valid_transform)
     elif dataset_name == 'devanagari':
         print("Using DEVANAGARI")
         def grey_pil_loader(path):
@@ -162,7 +169,7 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
             img = img.convert('L')
             return img
         # Ensure dataset is present in the directory args.data. Does not support auto download
-        valid_data = dset.ImageFolder(root=dataset_location, transform=train_transform, loader = grey_pil_loader)
+        valid_data = dset.ImageFolder(root=dataset_location, transform=valid_transform, loader = grey_pil_loader)
     elif dataset_name == 'stacking':
         txt_filename = 'costar_block_stacking_dataset_{0}_{1}_{2}_val_files.txt'.format(costar_version, costar_set_name, costar_subset_name)
         txt_filename = os.path.expanduser(os.path.join(dataset_location, costar_set_name, txt_filename))
@@ -200,24 +207,38 @@ def get_training_queues(dataset_name, train_transform, dataset_location=None, ba
     np.random.shuffle(indices)
     print("After Shuffle", indices[-10:num_train])
 
+  train_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[:split])
+
+  if distributed:
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_sampler)
   # shuffle does not need to be set to True because
   # that is taken care of by the subset random sampler
   train_queue = torch.utils.data.DataLoader(
       train_data, batch_size=batch_size,
-      sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[:split]),
-      pin_memory=True, num_workers=4)
+      sampler=train_sampler,
+      pin_memory=True, num_workers=num_workers,
+      collate_fn=collate_fn)
 
   if search_architecture:
     # validation sampled from training set
+    valid_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train])
+    if distributed:
+      valid_sampler = torch.utils.data.distributed.DistributedSampler(valid_sampler)
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=batch_size,
-        sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train]),
-        pin_memory=False, num_workers=4)
+        sampler=valid_sampler,
+        pin_memory=True, num_workers=num_workers,
+        collate_fn=collate_fn)
   else:
     # test set
+    valid_sampler = None
+    if distributed:
+      valid_sampler = torch.utils.data.distributed.DistributedSampler(valid_data)
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=batch_size,
-        pin_memory=False, num_workers=4)
+        sampler=valid_sampler,
+        pin_memory=True, num_workers=num_workers,
+        collate_fn=collate_fn)
 
   return train_queue, valid_queue
 

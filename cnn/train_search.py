@@ -129,7 +129,7 @@ def main():
   train_transform, valid_transform = utils.get_data_transforms(args)
 
   # Get the training queue, select training and validation from training set
-  train_queue, valid_queue = dataset.get_training_queues(args.dataset, train_transform, args.data, args.batch_size, args.train_portion)
+  train_queue, valid_queue = dataset.get_training_queues(args.dataset, train_transform, valid_transform, args.data, args.batch_size, args.train_portion)
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, float(args.epochs), eta_min=args.learning_rate_min)
