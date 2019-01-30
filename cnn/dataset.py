@@ -26,6 +26,7 @@ EMNIST_CLASSES = 47
 SVHN_CLASSES = 10
 STL10_CLASSES = 10
 DEVANAGARI_CLASSES = 46
+IMAGENET_CLASSES = 1000
 
 class_dict = {'cifar10': CIFAR_CLASSES,
               'mnist' : MNIST_CLASSES,
@@ -33,7 +34,8 @@ class_dict = {'cifar10': CIFAR_CLASSES,
               'fashion': FASHION_CLASSES,
               'svhn': SVHN_CLASSES,
               'stl10': STL10_CLASSES,
-              'devanagari' : DEVANAGARI_CLASSES}
+              'devanagari' : DEVANAGARI_CLASSES,
+              'imagenet' : IMAGENET_CLASSES}
 
 inp_channel_dict = {'cifar10': 3,
                     'mnist' : 1,
@@ -41,7 +43,8 @@ inp_channel_dict = {'cifar10': 3,
                     'fashion': 1,
                     'svhn': 3,
                     'stl10': 3,
-                    'devanagari' : 1}
+                    'devanagari' : 1,
+                    'imagenet': 3,}
 
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
@@ -53,8 +56,9 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
   print("Getting " + dataset_name + " data")
   if dataset_name == 'imagenet':
     print("Using IMAGENET")
-    train_data = os.path.join(dataset_location, 'train')
-  if dataset_name == 'cifar10':
+    train_dir = os.path.join(dataset_location, 'train')
+    train_data = dset.ImageFolder(train_dir, train_transform)
+  elif dataset_name == 'cifar10':
     print("Using CIFAR10")
     train_data = dset.CIFAR10(root=dataset_location, train=True, download=True, transform=train_transform)
   elif dataset_name == 'mnist':
@@ -132,36 +136,38 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
   if search_architecture:
     # select the 'validation' set from the training data
     split = int(np.floor(train_proportion * num_train))
+    print("search_architecture enabled, splitting training set into train and val.")
     print("Total Training size", num_train)
     print("Training set size", split)
-    print("Validation set size", num_train-split)
+    print("Training subset for validation size", num_train-split)
     valid_data = train_data
   else:
     split = num_train
     # get the actual train/test set
     if dataset_name == 'imagenet':
-        print("Using IMAGENET")
+        print("Using IMAGENET validation data")
         valid_data = os.path.join(dataset_location, 'val')
+        valid_data = dset.ImageFolder(valid_dir, valid_transform)
     if dataset_name == 'cifar10':
-        print("Using CIFAR10")
+        print("Using CIFAR10 validation data")
         valid_data = dset.CIFAR10(root=dataset_location, train=search_architecture, download=True, transform=valid_transform)
     elif dataset_name == 'mnist':
-        print("Using MNIST")
+        print("Using MNIST validation data")
         valid_data = dset.MNIST(root=dataset_location, train=search_architecture, download=True, transform=valid_transform)
     elif dataset_name == 'emnist':
-        print("Using EMNIST")
+        print("Using EMNIST validation data")
         valid_data = dset.EMNIST(root=dataset_location, split='balanced', train=search_architecture, download=True, transform=valid_transform)
     elif dataset_name == 'fashion':
-        print("Using Fashion")
+        print("Using Fashion validation data")
         valid_data = dset.FashionMNIST(root=dataset_location, train=search_architecture, download=True, transform=valid_transform)
     elif dataset_name == 'svhn':
-        print("Using SVHN")
+        print("Using SVHN validation data")
         valid_data = dset.SVHN(root=dataset_location, split='test', download=True, transform=valid_transform)
     elif dataset_name == 'stl10':
-        print("Using STL10")
+        print("Using STL10 validation data")
         valid_data = dset.STL10(root=dataset_location, split='test', download=True, transform=valid_transform)
     elif dataset_name == 'devanagari':
-        print("Using DEVANAGARI")
+        print("Using DEVANAGARI validation data")
         def grey_pil_loader(path):
         # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
           with open(path, 'rb') as f:
@@ -221,9 +227,11 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
 
   if search_architecture:
     # validation sampled from training set
-    valid_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train])
+    val_from_train_indices = indices[split:num_train]
     if distributed:
-      valid_sampler = torch.utils.data.distributed.DistributedSampler(valid_sampler)
+      valid_sampler = torch.utils.data.distributed.DistributedSampler(val_from_train_indices)
+    else:
+      valid_sampler = torch.utils.data.sampler.SubsetRandomSampler(val_from_train_indices)
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=batch_size,
         sampler=valid_sampler,

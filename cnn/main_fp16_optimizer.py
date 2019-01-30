@@ -41,6 +41,7 @@ except ImportError:
 
 from model import NetworkImageNet as Network
 from tqdm import tqdm
+import dataset
 import genotypes
 import autoaugment
 import operations
@@ -112,16 +113,24 @@ parser.add_argument('--dataset', type=str, default='imagenet', help='which datas
 parser.add_argument('--init_channels', type=int, default=48, help='num of init channels')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
+parser.add_argument('--autoaugment', action='store_true', default=False, help='use cifar10 autoaugment https://arxiv.org/abs/1805.09501')
+parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
+parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
+parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 
 cudnn.benchmark = True
+
+best_top1 = 0
+args = parser.parse_args()
+logger = None
+DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
 
 def fast_collate(batch):
     imgs = [img[0] for img in batch]
     targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
     w = imgs[0].size[0]
     h = imgs[0].size[1]
-    c = imgs[0].size[2]
-    tensor = torch.zeros( (len(imgs), c, h, w), dtype=torch.uint8 )
+    tensor = torch.zeros( (len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8 )
     for i, img in enumerate(imgs):
         nump_array = np.asarray(img, dtype=np.uint8)
         # tens = torch.from_numpy(nump_array)
@@ -132,11 +141,7 @@ def fast_collate(batch):
         tensor[i] += torch.from_numpy(nump_array)
     return tensor, targets
 
-best_top1 = 0
-args = parser.parse_args()
-logger = None
-
-CLASSES = 1000
+# CLASSES = 1000
 
 if args.deterministic:
     cudnn.benchmark = False
@@ -191,7 +196,10 @@ def main():
     logger.info('primitives: ' + str(primitives))
     # create model
     genotype = eval("genotypes.%s" % args.arch)
-    model = Network(args.init_channels, CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+    # get the number of output channels
+    classes = dataset.class_dict[args.dataset]
+    # create the neural network
+    model = Network(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -297,14 +305,14 @@ def main():
     #     sampler=val_sampler,
     #     collate_fn=fast_collate)
 
-  # Get preprocessing functions (i.e. transforms) to apply on data
-  train_transform, valid_transform = utils.get_data_transforms(args)
-
-  # Get the training queue, select training and validation from training set
-  train_loader, val_loader = dataset.get_training_queues(
-      args.dataset, train_transform, valid_transform, args.data, 
-      args.batch_size, train_portion=1.0,
-      collate_fn=fast_collate)
+    # Get preprocessing functions (i.e. transforms) to apply on data
+    train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
+  
+    # Get the training queue, select training and validation from training set
+    train_loader, val_loader = dataset.get_training_queues(
+        args.dataset, train_transform, valid_transform, args.data, 
+        args.batch_size, train_proportion=1.0,
+        collate_fn=fast_collate, distributed=args.distributed)
 
     if args.evaluate:
         validate(val_loader, model, criterion)
@@ -315,8 +323,11 @@ def main():
     stats = {}
     best_epoch = 0
     for epoch in prog_epoch:
-        if args.distributed:
-            train_sampler.set_epoch(epoch)
+        if args.distributed and train_loader.sampler is not None:
+            train_loader.sampler.set_epoch(epoch)
+        # if args.distributed:
+            # train_sampler.set_epoch(epoch)
+
         scheduler.step()
         model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
         # train for one epoch

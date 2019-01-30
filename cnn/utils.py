@@ -201,6 +201,8 @@ def get_data_transforms(args, normalize_as_tensor=True):
     return _data_transforms_stl10(args, normalize_as_tensor)
   if args.dataset == 'devanagari':
     return _data_transforms_devanagari(args, normalize_as_tensor)
+  if args.dataset == 'imagenet':
+    return _data_transforms_imagenet(args, normalize_as_tensor)
   assert False, "Cannot get Transform for dataset"
 
 def finalize_transform(train_transform, valid_transform, args, normalize_as_tensor=True):
