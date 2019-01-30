@@ -173,28 +173,61 @@ class Cutout(object):
 
 
 # Function to fetch the transforms based on the dataset
-def get_data_transforms(args):
+def get_data_transforms(args, normalize_as_tensor=True):
+  """Get the transforms for a specific dataset
+  
+  One side side effect args.std and args.mean are set.
+
+  args: parser args. Expected to have random_eraser, cutout, 
+    and autoaugment member variables.
+  normalize_as_tensor: when true the output will be converted
+    to a tensor then normalization will be applied based on the
+    dataset mean and std dev. Otherwise this step will be skipped
+    entirely 
+
+  """
   print("Getting",args.dataset,"Transforms")
   if args.dataset == 'cifar10':
-    return _data_transforms_cifar10(args)
+    return _data_transforms_cifar10(args, normalize_as_tensor)
   if args.dataset == 'mnist':
-    return _data_transforms_mnist(args)
+    return _data_transforms_mnist(args, normalize_as_tensor)
   if args.dataset == 'emnist':
-    return _data_transforms_emnist(args)
+    return _data_transforms_emnist(args, normalize_as_tensor)
   if args.dataset == 'fashion':
-    return _data_transforms_fashion(args)
+    return _data_transforms_fashion(args, normalize_as_tensor)
   if args.dataset == 'svhn':
-    return _data_transforms_svhn(args)
+    return _data_transforms_svhn(args, normalize_as_tensor)
   if args.dataset == 'stl10':
-    return _data_transforms_stl10(args)
+    return _data_transforms_stl10(args, normalize_as_tensor)
   if args.dataset == 'devanagari':
-    return _data_transforms_devanagari(args)
+    return _data_transforms_devanagari(args, normalize_as_tensor)
   assert False, "Cannot get Transform for dataset"
 
+def finalize_transform(train_transform, valid_transform, args, normalize_as_tensor=True):
+  """ Transform steps that apply to most augmentation regimes
+  """
+  if normalize_as_tensor:
+    # train
+    train_transform.transforms.append(transforms.ToTensor())
+    train_transform.transforms.append(
+      transforms.Normalize(args.mean, args.std))
+    # valid
+    valid_transform.transforms.append(transforms.ToTensor())
+    valid_transform.transforms.append(
+      transforms.Normalize(args.mean, args.std))
+  if args.random_eraser:
+    train_transform.transforms.append(random_eraser)
+  if args.cutout:
+    train_transform.transforms.append(Cutout(args.cutout_length))
+  return train_transform, valid_transform
+
+
 # Transform defined for cifar-10
-def _data_transforms_cifar10(args):
+def _data_transforms_cifar10(args, normalize_as_tensor=True):
   CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
   CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
+  args.mean = CIFAR_MEAN
+  args.std = CIFAR_STD
   if args.autoaugment:
     train_transform = transforms.Compose([
       # NOTE(ahundt) pad and fill has been added to support autoaugment. Results may have changed! https://github.com/DeepVoltaire/AutoAugment/issues/8
@@ -202,33 +235,23 @@ def _data_transforms_cifar10(args):
       transforms.RandomCrop(32, padding=0),
       transforms.RandomHorizontalFlip(),
       autoaugment.CIFAR10Policy(),
-      transforms.ToTensor(),
-      transforms.Normalize(CIFAR_MEAN, CIFAR_STD)
     ])
   else:
     train_transform = transforms.Compose([
       transforms.RandomCrop(32, padding=4),
       transforms.RandomHorizontalFlip(),
-      transforms.ToTensor(),
-      transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
     ])
 
-  if args.random_eraser:
-    train_transform.transforms.append(random_eraser)
-  if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
-
-  valid_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
-    ])
-  return train_transform, valid_transform
+  valid_transform = transforms.Compose([])
+  return finalize_transform(train_transform, valid_transform, args, normalize_as_tensor)
 
 
 # Transform defined for mnist
-def _data_transforms_mnist(args):
+def _data_transforms_mnist(args, normalize_as_tensor=True):
   MNIST_MEAN = (0.1307,)
   MNIST_STD = (0.3081,)
+  args.mean = MNIST_MEAN
+  args.std = MNIST_STD
 
   train_transform = transforms.Compose([
     transforms.RandomCrop(28, padding=4),
@@ -236,22 +259,16 @@ def _data_transforms_mnist(args):
     transforms.ToTensor(),
     transforms.Normalize(MNIST_MEAN, MNIST_STD),
   ])
-  if args.random_eraser:
-    train_transform.transforms.append(random_eraser)
-  if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
-
-  valid_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(MNIST_MEAN, MNIST_STD),
-    ])
-  return train_transform, valid_transform
+  valid_transform = transforms.Compose([])
+  return finalize_transform(train_transform, valid_transform, args, normalize_as_tensor)
 
 
 # Transform defined for fashion mnist
-def _data_transforms_fashion(args):
+def _data_transforms_fashion(args, normalize_as_tensor=True):
   FASHION_MEAN = (0.2860405969887955,)
   FASHION_STD = (0.35302424825650003,)
+  args.mean = FASHION_MEAN
+  args.std = FASHION_STD
 
   train_transform = transforms.Compose([
     transforms.RandomCrop(28, padding=4),
@@ -259,22 +276,16 @@ def _data_transforms_fashion(args):
     transforms.ToTensor(),
     transforms.Normalize(FASHION_MEAN, FASHION_STD),
   ])
-  if args.random_eraser:
-    train_transform.transforms.append(random_eraser)
-  if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
-
-  valid_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(FASHION_MEAN, FASHION_STD),
-    ])
-  return train_transform, valid_transform
+  valid_transform = transforms.Compose([])
+  return finalize_transform(train_transform, valid_transform, args, normalize_as_tensor)
 
 
 # Transform defined for emnist
-def _data_transforms_emnist(args):
+def _data_transforms_emnist(args, normalize_as_tensor=True):
   EMNIST_MEAN = (0.17510417052459282,)
   EMNIST_STD = (0.33323714976320795,)
+  args.mean = EMNIST_MEAN
+  args.std = EMNIST_STD
 
   train_transform = transforms.Compose([
     transforms.RandomCrop(28, padding=4),
@@ -282,22 +293,16 @@ def _data_transforms_emnist(args):
     transforms.ToTensor(),
     transforms.Normalize(EMNIST_MEAN, EMNIST_STD),
   ])
-  if args.random_eraser:
-    train_transform.transforms.append(random_eraser)
-  if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
-
-  valid_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(EMNIST_MEAN, EMNIST_STD),
-    ])
-  return train_transform, valid_transform
+  valid_transform = transforms.Compose([])
+  return finalize_transform(train_transform, valid_transform, args, normalize_as_tensor)
 
 
 # Transform defined for svhn
-def _data_transforms_svhn(args):
+def _data_transforms_svhn(args, normalize_as_tensor=True):
   SVHN_MEAN = [ 0.4376821,   0.4437697,   0.47280442]
   SVHN_STD = [ 0.19803012,  0.20101562,  0.19703614]
+  args.mean = SVHN_MEAN
+  args.std = SVHN_STD
 
   train_transform = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
@@ -305,22 +310,16 @@ def _data_transforms_svhn(args):
     transforms.ToTensor(),
     transforms.Normalize(SVHN_MEAN, SVHN_STD),
   ])
-  if args.random_eraser:
-    train_transform.transforms.append(random_eraser)
-  if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
-
-  valid_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(SVHN_MEAN, SVHN_STD),
-    ])
-  return train_transform, valid_transform
+  valid_transform = transforms.Compose([])
+  return finalize_transform(train_transform, valid_transform, args, normalize_as_tensor)
 
 
 # Transform defined for stl10
-def _data_transforms_stl10(args):
+def _data_transforms_stl10(args, normalize_as_tensor=True):
   STL_MEAN = [ 0.44671062,  0.43980984,  0.40664645]
   STL_STD = [ 0.26034098,  0.25657727,  0.27126738]
+  args.mean = STL_MEAN
+  args.std = STL_STD
 
   train_transform = transforms.Compose([
     transforms.RandomCrop(96, padding=4),
@@ -328,22 +327,16 @@ def _data_transforms_stl10(args):
     transforms.ToTensor(),
     transforms.Normalize(STL_MEAN, STL_STD),
   ])
-  if args.random_eraser:
-    train_transform.transforms.append(random_eraser)
-  if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
-
-  valid_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(STL_MEAN, STL_STD),
-    ])
-  return train_transform, valid_transform
+  valid_transform = transforms.Compose([])
+  return finalize_transform(train_transform, valid_transform, args, normalize_as_tensor)
 
 
 # Transform defined for devanagari hand written symbols
-def _data_transforms_devanagari(args):
+def _data_transforms_devanagari(args, normalize_as_tensor=True):
   DEVANAGARI_MEAN = (0.240004663268,)
   DEVANAGARI_STD = (0.386530114768,)
+  args.mean = DEVANAGARI_MEAN
+  args.std = DEVANAGARI_STD
 
   train_transform = transforms.Compose([
     transforms.RandomCrop(32, padding=2), #Already has padding 2 and size is 32x32
@@ -351,16 +344,8 @@ def _data_transforms_devanagari(args):
     transforms.ToTensor(),
     transforms.Normalize(DEVANAGARI_MEAN, DEVANAGARI_STD),
   ])
-  if args.random_eraser:
-    train_transform.transforms.append(random_eraser)
-  if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
-
-  valid_transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(DEVANAGARI_MEAN, DEVANAGARI_STD),
-    ])
-  return train_transform, valid_transform
+  valid_transform = transforms.Compose([])
+  return finalize_transform(train_transform, valid_transform, args, normalize_as_tensor)
 
 
 def count_parameters_in_MB(model):
