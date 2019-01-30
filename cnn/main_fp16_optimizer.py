@@ -304,10 +304,16 @@ def main():
     #     num_workers=args.workers, pin_memory=True,
     #     sampler=val_sampler,
     #     collate_fn=fast_collate)
+  
+    if args.dataset == 'imagenet':
+        collate_fn = fast_collate
+        normalize_as_tensor = False
+    else:
+        collate_fn = torch.utils.data.dataloader.default_collate
+        normalize_as_tensor = True
 
     # Get preprocessing functions (i.e. transforms) to apply on data
     train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
-  
     # Get the training queue, select training and validation from training set
     train_loader, val_loader = dataset.get_training_queues(
         args.dataset, train_transform, valid_transform, args.data, 
