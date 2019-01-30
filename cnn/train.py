@@ -166,7 +166,7 @@ def main():
         valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
     # load the best model weights
     utils.load(cnn_model, weights_file)
-    cifar10_1_stats = infer(valid_queue, cnn_model, criterion, prefix='cifar10_1_')
+    cifar10_1_stats = infer(args, valid_queue, cnn_model, criterion=criterion, prefix='cifar10_1_')
     cifar10_1_str = utils.dict_to_log_string(cifar10_1_stats)
     best_epoch_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
     logger.info(best_epoch_str + ', ' + cifar10_1_str)
