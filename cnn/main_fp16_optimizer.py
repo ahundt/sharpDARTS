@@ -120,7 +120,8 @@ def fast_collate(batch):
     targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
     w = imgs[0].size[0]
     h = imgs[0].size[1]
-    tensor = torch.zeros( (len(imgs), 3, h, w), dtype=torch.uint8 )
+    c = imgs[0].size[2]
+    tensor = torch.zeros( (len(imgs), c, h, w), dtype=torch.uint8 )
     for i, img in enumerate(imgs):
         nump_array = np.asarray(img, dtype=np.uint8)
         # tens = torch.from_numpy(nump_array)
