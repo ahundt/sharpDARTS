@@ -536,8 +536,11 @@ def validate(val_loader, model, criterion):
     prefetcher = data_prefetcher(val_loader)
     input, target = prefetcher.next()
     i = -1
+    loader_len = len(val_loader)
+    if loader_len < 2:
+        raise ValueError('Loader only supports 2 or more batches and loader_len: ' + str(loader_len))
     if args.local_rank == 0:
-        progbar = tqdm(total=len(val_loader))
+        progbar = tqdm(total=loader_len)
     else:
         progbar = None
     while input is not None:
