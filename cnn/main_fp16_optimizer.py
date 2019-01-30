@@ -344,11 +344,17 @@ def main():
     logger.info(stats_str)
 
 class data_prefetcher():
-    def __init__(self, loader):
+    def __init__(self, loader, mean=None, std=None):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
-        self.mean = torch.tensor([0.485 * 255, 0.456 * 255, 0.406 * 255]).cuda().view(1,3,1,1)
-        self.std = torch.tensor([0.229 * 255, 0.224 * 255, 0.225 * 255]).cuda().view(1,3,1,1)
+        if mean is None:
+            mean = [0.485, 0.456, 0.406]
+        if std is None:
+            std = [0.229, 0.224, 0.225]
+        mean = np.array(mean) * 255
+        std = np.array(std) * 255
+        self.mean = torch.tensor(mean).cuda().view(1,3,1,1)
+        self.std = torch.tensor(std).cuda().view(1,3,1,1)
         if args.fp16:
             self.mean = self.mean.half()
             self.std = self.std.half()
@@ -424,14 +430,14 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
-            top1 = reduce_tensor(top1)
-            top5 = reduce_tensor(top5)
+            top1f = reduce_tensor(top1f)
+            top5f = reduce_tensor(top5f)
         else:
             reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
-        top1m.update(to_python_float(top1), input.size(0))
-        top5m.update(to_python_float(top5), input.size(0))
+        top1m.update(to_python_float(top1f), input.size(0))
+        top5m.update(to_python_float(top5f), input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -521,18 +527,18 @@ def validate(val_loader, model, criterion):
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        top1, top5 = accuracy(output.data, target, topk=(1, 5))
+        top1f, top5f = accuracy(output.data, target, topk=(1, 5))
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
-            top1 = reduce_tensor(top1)
-            top5 = reduce_tensor(top5)
+            top1f = reduce_tensor(top1f)
+            top5f = reduce_tensor(top5f)
         else:
             reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
-        top1m.update(to_python_float(top1), input.size(0))
-        top5m.update(to_python_float(top5), input.size(0))
+        top1m.update(to_python_float(top1f), input.size(0))
+        top5m.update(to_python_float(top5f), input.size(0))
 
         # measure elapsed time
         batch_time.update(time.time() - end)
