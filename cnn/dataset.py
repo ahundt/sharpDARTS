@@ -146,7 +146,7 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
     # get the actual train/test set
     if dataset_name == 'imagenet':
         print("Using IMAGENET validation data")
-        valid_data = os.path.join(dataset_location, 'val')
+        valid_dir = os.path.join(dataset_location, 'val')
         valid_data = dset.ImageFolder(valid_dir, valid_transform)
     if dataset_name == 'cifar10':
         print("Using CIFAR10 validation data")
