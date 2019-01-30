@@ -66,7 +66,7 @@ parser.add_argument('--epochs', default=300, type=int, metavar='N',
                     help='number of total epochs to run (default: 300)')
 parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=256, type=int,
+parser.add_argument('-b', '--batch_size', default=256, type=int,
                     metavar='N', help='mini-batch size per process (default: 256)')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
                     metavar='LR', help='Initial learning rate based on autoaugment https://arxiv.org/pdf/1805.09501.pdf.  Will be scaled by <global batch size>/256: args.lr = args.lr*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.')
@@ -124,6 +124,7 @@ best_top1 = 0
 args = parser.parse_args()
 logger = None
 DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
+# print('>>>>>>>DATASET_CHANNELS: ' + str(DATASET_CHANNELS))
 
 def fast_collate(batch):
     imgs = [img[0] for img in batch]
@@ -341,7 +342,7 @@ def main():
         if args.prof:
             break
         # evaluate on validation set
-        top1, val_stats = validate(val_loader, model, criterion)
+        top1, val_stats = validate(val_loader, model, criterion, args)
         stats.update(train_stats)
         stats.update(val_stats)
         stats['lr'] = '{0:.5f}'.format(scheduler.get_lr()[0])
@@ -412,6 +413,10 @@ class data_prefetcher():
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
+    loader_len = len(train_loader)
+    if loader_len < 2:
+        raise ValueError('train_loader only supports 2 or more batches and loader_len: ' + str(loader_len))
+
     batch_time = AverageMeter()
     data_time = AverageMeter()
     speed = AverageMeter()
@@ -422,9 +427,16 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
     end = time.time()
+prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std)
+    # if args.dataset == 'imagenet':
+    #     # TODO(ahundt) debug why this special case is needed
+    #     prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std)
+    # else:
+    #     prefetcher = iter(train_loader)
 
-    prefetcher = data_prefetcher(train_loader)
+    # logger.info('\n\n>>>>>>>>>>>>>>>>>>>prefetcher.len: ' + str(loader_len))
     input, target = prefetcher.next()
+    # logger.info('\n\n>>>>>>>>>>>>>>>>>>>target.shape: ' + str(target.shape))
     i = -1
     if args.local_rank == 0:
         progbar = tqdm(total=len(train_loader))
@@ -520,7 +532,10 @@ def get_stats(progbar, prefix, args, batch_time, data_time, top1, top5, losses, 
     return stats
 
 
-def validate(val_loader, model, criterion):
+def validate(val_loader, model, criterion, args):
+    loader_len = len(val_loader)
+    if loader_len < 2:
+        raise ValueError('val_loader only supports 2 or more batches and loader_len: ' + str(loader_len))
     batch_time = AverageMeter()
     data_time = AverageMeter()
     speed = AverageMeter()
@@ -533,12 +548,9 @@ def validate(val_loader, model, criterion):
 
     end = time.time()
 
-    prefetcher = data_prefetcher(val_loader)
+    prefetcher = data_prefetcher(val_loader, mean=args.mean, std=args.std)
     input, target = prefetcher.next()
     i = -1
-    loader_len = len(val_loader)
-    if loader_len < 2:
-        raise ValueError('Loader only supports 2 or more batches and loader_len: ' + str(loader_len))
     if args.local_rank == 0:
         progbar = tqdm(total=loader_len)
     else:

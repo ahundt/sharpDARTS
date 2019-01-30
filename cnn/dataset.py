@@ -49,35 +49,40 @@ inp_channel_dict = {'cifar10': 3,
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
 
-def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=0.9, search_architecture=True, 
+def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=0.9, search_architecture=False,
                         costar_version='v0.4', costar_set_name=None, costar_subset_name=None, costar_feature_mode=None, costar_output_shape=(224, 224, 3),
                         costar_random_augmentation=None, costar_one_hot_encoding=True, distributed=False, num_workers=12, 
                         collate_fn=torch.utils.data.dataloader.default_collate):
   print("Getting " + dataset_name + " data")
   if dataset_name == 'imagenet':
-    print("Using IMAGENET")
+    print("Using IMAGENET training set")
+    # first check if we are just one directory above the imagenet dir
+    # imagenet_dir = os.path.join(dataset_location, 'imagenet')
+    # if os.path.exists(imagenet_dir):
+    #   dataset_location = imagenet_dir
+    # set the train directory
     train_dir = os.path.join(dataset_location, 'train')
     train_data = dset.ImageFolder(train_dir, train_transform)
   elif dataset_name == 'cifar10':
-    print("Using CIFAR10")
+    print("Using CIFAR10 training set")
     train_data = dset.CIFAR10(root=dataset_location, train=True, download=True, transform=train_transform)
   elif dataset_name == 'mnist':
-    print("Using MNIST")
+    print("Using MNIST training set")
     train_data = dset.MNIST(root=dataset_location, train=True, download=True, transform=train_transform)
   elif dataset_name == 'emnist':
-    print("Using EMNIST")
+    print("Using EMNIST training set")
     train_data = dset.EMNIST(root=dataset_location, split='balanced', train=True, download=True, transform=train_transform)
   elif dataset_name == 'fashion':
-    print("Using Fashion")
+    print("Using Fashion training set")
     train_data = dset.FashionMNIST(root=dataset_location, train=True, download=True, transform=train_transform)
   elif dataset_name == 'svhn':
-    print("Using SVHN")
+    print("Using SVHN training set")
     train_data = dset.SVHN(root=dataset_location, split='train', download=True, transform=train_transform)
   elif dataset_name == 'stl10':
-    print("Using STL10")
+    print("Using STL10 training set")
     train_data = dset.STL10(root=dataset_location, split='train', download=True, transform=train_transform)
   elif dataset_name == 'devanagari':
-    print("Using DEVANAGARI")
+    print("Using DEVANAGARI training set")
     def grey_pil_loader(path):
       # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
       with open(path, 'rb') as f:
@@ -148,7 +153,7 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
         print("Using IMAGENET validation data")
         valid_dir = os.path.join(dataset_location, 'val')
         valid_data = dset.ImageFolder(valid_dir, valid_transform)
-    if dataset_name == 'cifar10':
+    elif dataset_name == 'cifar10':
         print("Using CIFAR10 validation data")
         valid_data = dset.CIFAR10(root=dataset_location, train=search_architecture, download=True, transform=valid_transform)
     elif dataset_name == 'mnist':
