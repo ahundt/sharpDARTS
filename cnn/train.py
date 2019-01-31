@@ -77,7 +77,7 @@ def main():
     log_file_path = os.path.join(args.save, log_file_name)
     params_path = os.path.join(args.save, 'commandline_args.json')
     print('Warning: evaluate mode enabled so commandline args are coming from ' + params_path)
-    with open(params_path, 'w') as f:
+    with open(params_path, 'r') as f:
       loaded_args = json.load(f)
     args = argparse.Namespace(**loaded_args)
     args.evaluate = True
