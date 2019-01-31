@@ -118,9 +118,8 @@ def main():
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
   if args.flops:
-    cnn_model.drop_path_prob = 0.0
     logger.info("flops = " + utils.count_model_flops(cnn_model))
-    exit(1)
+    return
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
@@ -151,7 +150,9 @@ def main():
 
   if args.evaluate:
     # evaluate the loaded model, print the result, and return
+    logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
     eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
+    logger.info("flops = " + utils.count_model_flops(cnn_model))
     logger.info(utils.dict_to_log_string(eval_stats))
     return
 
@@ -202,7 +203,7 @@ def evaluate(args, cnn_model, criterion, weights_file, train_queue=None, valid_q
   prefixes = ['train_', 'valid_', test_prefix]
   queues = [train_queue, valid_queue, test_queue]
   stats = {}
-  for dataset_prefix, queue in zip(tqdm(prefixes, desc='Final Evaluation'), queues):
+  for dataset_prefix, queue in zip(tqdm(prefixes, desc='Final Evaluation', dynamic_ncols=True), queues):
     if queue is not None:
       stats.update(infer(args, train_queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix))
   return stats
