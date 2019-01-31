@@ -66,16 +66,13 @@ def main():
   args = parser.parse_args()
 
   log_file_name = 'log.txt'
-  if args.load:
-    # we will put the logs in the same directory as the weights
-    dir_path = os.path.dirname(os.path.realpath(args.load))
-    weights_file = args.load
 
   if args.evaluate:
     # evaluate results go in the same directory as the weights but with a new timestamp
     if not args.load:
       raise ValueError('You specified --evaluate, please run again and include --load PATH_TO_WEIGHTS as well.')
-    args.save = dir_path
+    # we will put the logs in the same directory as the weights
+    args.save = os.path.dirname(os.path.realpath(args.load))
     log_file_name = 'eval-log-' + time.strftime("%Y%m%d-%H%M%S") + '.txt'
   else:
     args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
@@ -151,9 +148,10 @@ def main():
 
   if args.evaluate:
     # evaluate the loaded model, print the result, and return
-    logger.info("Evaluating inference with weights file: " + load_weights)
-    eval_stats = evaluate(args, cnn_model, criterion, weights_file,
-                          train_queue=train_queue, valid_queue=valid_queue, test_queue=test_queue)
+    logger.info("Evaluating inference with weights file: " + args.load)
+    eval_stats = evaluate(
+      args, cnn_model, criterion, args.load,
+      train_queue=train_queue, valid_queue=valid_queue, test_queue=test_queue)
     logger.info("flops = " + utils.count_model_flops(cnn_model))
     logger.info(utils.dict_to_log_string(eval_stats))
     logger.info('Evaluation of Loaded Model Complete! Save dir: ' + str(args.save))
