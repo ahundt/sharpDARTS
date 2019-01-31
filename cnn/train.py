@@ -61,8 +61,8 @@ def main():
   parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
   parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
   parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
-  parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
-                      help='evaluate model on training, test, and validation datasets')
+  parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
+                      help='evaluate model at specified path on training, test, and validation datasets')
   parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                       help='load command line args from a json file, this will override '
                            'all currently set args except for --evaluate, and arguments '
@@ -84,7 +84,8 @@ def main():
   if args.evaluate:
     # evaluate results go in the same directory as the weights but with a new timestamp
     if not args.load:
-      raise ValueError('You specified --evaluate, please run again and include --load PATH_TO_WEIGHTS as well.')
+      # evaluate replaces load
+      args.load = args.evaluate
     # we will put the logs in the same directory as the weights
     args.save = os.path.dirname(os.path.realpath(args.load))
     log_file_name = 'eval-log-' + time.strftime("%Y%m%d-%H%M%S") + '.txt'
