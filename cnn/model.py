@@ -157,6 +157,7 @@ class NetworkCIFAR(nn.Module):
     self._layers = layers
     self._auxiliary = auxiliary
     self._in_channels = in_channels
+    self.drop_path_prob = 0.
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
@@ -229,6 +230,7 @@ class NetworkImageNet(nn.Module):
     self._layers = layers
     self._auxiliary = auxiliary
     self._in_channels = in_channels
+    self.drop_path_prob = 0.
 
     self.stem0 = nn.Sequential(
       nn.Conv2d(in_channels, C // 2, kernel_size=3, stride=2, padding=1, bias=False),
