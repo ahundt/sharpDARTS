@@ -83,9 +83,6 @@ def main():
 
   if args.evaluate:
     # evaluate results go in the same directory as the weights but with a new timestamp
-    if not args.load:
-      # evaluate replaces load
-      args.load = args.evaluate
     # we will put the logs in the same directory as the weights
     args.save = os.path.dirname(os.path.realpath(args.load))
     log_file_name = 'eval-log-' + time.strftime("%Y%m%d-%H%M%S") + '.txt'
@@ -97,7 +94,8 @@ def main():
         args_dict = vars(args)
         args_dict.update(json.load(f))
         args = argparse.Namespace(**args_dict)
-    args.evaluate = True
+    args.evaluate = evaluate
+    args.load = evaluate
 
   else:
     args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
