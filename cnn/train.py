@@ -64,7 +64,9 @@ def main():
   parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                       help='evaluate model on training, test, and validation datasets')
   parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
-                      help='load command line args from a json file, this will override all currently set args except for --evaluate')
+                      help='load command line args from a json file, this will override '
+                           'all currently set args except for --evaluate, and arguments '
+                           'that did not exist when the json file was originally saved out.')
   args = parser.parse_args()
 
   log_file_name = 'log.txt'
@@ -73,7 +75,7 @@ def main():
   loaded_args = False
   if args.load_args:
     with open(args.load_args, 'r') as f:
-      args = argparse.Namespace(**json.load(f))
+      args = argparse.Namespace(**vars(args).update(json.load(f)))
     args.evaluate = evaluate
     loaded_args = True
 
@@ -89,7 +91,7 @@ def main():
     if not loaded_args:
       print('Warning: --evaluate specified, loading commandline args from:\n' + params_path)
       with open(params_path, 'r') as f:
-        args = argparse.Namespace(**json.load(f))
+        args = argparse.Namespace(**vars(args).update(json.load(f)))
     args.evaluate = True
 
   else:
