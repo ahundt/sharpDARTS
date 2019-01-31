@@ -74,15 +74,22 @@ def main():
     # we will put the logs in the same directory as the weights
     args.save = os.path.dirname(os.path.realpath(args.load))
     log_file_name = 'eval-log-' + time.strftime("%Y%m%d-%H%M%S") + '.txt'
+    log_file_path = os.path.join(args.save, log_file_name)
+    params_path = os.path.join(args.save, 'commandline_args.json')
+    print('Warning: evaluate mode enabled so commandline args are coming from ' + params_path)
+    with open(params_path, 'w') as f:
+      loaded_args = json.load(f)
+    args = argparse.Namespace(**loaded_args)
+    args.evaluate = True
+
   else:
     args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
     utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
+    log_file_path = os.path.join(args.save, log_file_name)
+    with open(params_path, 'w') as f:
+        json.dump(vars(args), f)
 
-  log_file_path = os.path.join(args.save, log_file_name)
   logger = utils.logging_setup(log_file_path)
-  params_path = os.path.join(args.save, 'commandline_args.json')
-  with open(params_path, 'w') as f:
-      json.dump(vars(args), f)
 
   if not torch.cuda.is_available():
     logger.info('no gpu device available')
@@ -204,8 +211,9 @@ def evaluate(args, cnn_model, criterion, weights_file, train_queue=None, valid_q
   stats = {}
   with tqdm(['train_', 'valid_', test_prefix], desc='Final Evaluation', dynamic_ncols=True) as prefix_progbar:
     for dataset_prefix, queue in zip(prefix_progbar, queues):
+      prefix_progbar.set_description('Final evaluation of ' + dataset_prefix + 'set')
       if queue is not None:
-        stats.update(infer(args, train_queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix))
+        stats.update(infer(args, queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix))
   return stats
 
 
@@ -217,11 +225,8 @@ def train(args, train_queue, cnn_model, criterion, optimizer):
 
   with tqdm(train_queue, dynamic_ncols=True) as progbar:
     for step, (input_batch, target) in enumerate(progbar):
-      input_batch = Variable(input_batch)
-      target = Variable(target)
-      if torch.cuda.is_available():
-        input_batch = input_batch.cuda(async=True)
-        target = target.cuda(async=True)
+      input_batch = Variable(input_batch).cuda(async=True)
+      target = Variable(target).cuda(async=True)
 
       optimizer.zero_grad()
       logits, logits_aux = cnn_model(input_batch)
