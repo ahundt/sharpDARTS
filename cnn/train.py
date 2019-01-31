@@ -67,6 +67,7 @@ def main():
 
   log_file_name = 'log.txt'
   if args.load:
+    # we will put the logs in the same directory as the weights
     dir_path = os.path.dirname(os.path.realpath(args.load))
     weights_file = args.load
 
@@ -150,10 +151,12 @@ def main():
 
   if args.evaluate:
     # evaluate the loaded model, print the result, and return
-    logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
-    eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
+    logger.info("Evaluating inference with weights file: " + load_weights)
+    eval_stats = evaluate(args, cnn_model, criterion, weights_file,
+                          train_queue=train_queue, valid_queue=valid_queue, test_queue=test_queue)
     logger.info("flops = " + utils.count_model_flops(cnn_model))
     logger.info(utils.dict_to_log_string(eval_stats))
+    logger.info('Evaluation of Loaded Model Complete! Save dir: ' + str(args.save))
     return
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
