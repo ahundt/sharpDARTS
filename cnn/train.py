@@ -70,10 +70,12 @@ def main():
   log_file_name = 'log.txt'
 
   evaluate = args.evaluate
-  if args.load_args_from_json:
+  loaded_args = False
+  if args.load_args:
     with open(args.load_args, 'r') as f:
       args = argparse.Namespace(**json.load(f))
     args.evaluate = evaluate
+    loaded_args = True
 
   if args.evaluate:
     # evaluate results go in the same directory as the weights but with a new timestamp
@@ -84,9 +86,10 @@ def main():
     log_file_name = 'eval-log-' + time.strftime("%Y%m%d-%H%M%S") + '.txt'
     log_file_path = os.path.join(args.save, log_file_name)
     params_path = os.path.join(args.save, 'commandline_args.json')
-    print('Warning: --evaluate specified, loading commandline args from:\n' + params_path)
-    with open(params_path, 'r') as f:
-      args = argparse.Namespace(**json.load(f))
+    if not loaded_args:
+      print('Warning: --evaluate specified, loading commandline args from:\n' + params_path)
+      with open(params_path, 'r') as f:
+        args = argparse.Namespace(**json.load(f))
     args.evaluate = True
 
   else:
