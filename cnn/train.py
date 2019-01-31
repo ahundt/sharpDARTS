@@ -227,9 +227,8 @@ def evaluate(args, cnn_model, criterion, weights_file, train_queue=None, valid_q
   stats = {}
   with tqdm(['train_', 'valid_', test_prefix], desc='Final Evaluation', dynamic_ncols=True) as prefix_progbar:
     for dataset_prefix, queue in zip(prefix_progbar, queues):
-      prefix_progbar.set_description('Final evaluation of ' + dataset_prefix + 'set')
       if queue is not None:
-        stats.update(infer(args, queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix))
+        stats.update(infer(args, queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix), desc='Running ' + dataset_prefix + 'data')
   return stats
 
 
@@ -268,7 +267,7 @@ def train(args, train_queue, cnn_model, criterion, optimizer):
   return top1.avg, objs.avg
 
 
-def infer(args, valid_queue, cnn_model, criterion, prefix='valid_'):
+def infer(args, valid_queue, cnn_model, criterion, prefix='valid_', desc='Running Validation'):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
@@ -276,7 +275,7 @@ def infer(args, valid_queue, cnn_model, criterion, prefix='valid_'):
 
   with torch.no_grad():
     # dynamic_ncols = false in this case because we want accurate timing stats
-    with tqdm(valid_queue, dynamic_ncols=False, desc='Running Validation') as progbar:
+    with tqdm(valid_queue, dynamic_ncols=False, desc=desc) as progbar:
       for step, (input_batch, target) in enumerate(progbar):
         input_batch = Variable(input_batch).cuda(async=True)
         target = Variable(target).cuda(async=True)
