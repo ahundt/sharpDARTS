@@ -228,7 +228,7 @@ def evaluate(args, cnn_model, criterion, weights_file, train_queue=None, valid_q
   with tqdm(['train_', 'valid_', test_prefix], desc='Final Evaluation', dynamic_ncols=True) as prefix_progbar:
     for dataset_prefix, queue in zip(prefix_progbar, queues):
       if queue is not None:
-        stats.update(infer(args, queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix), desc='Running ' + dataset_prefix + 'data')
+        stats.update(infer(args, queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix, desc='Running ' + dataset_prefix + 'data'))
   return stats
 
 
