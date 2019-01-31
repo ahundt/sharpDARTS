@@ -58,15 +58,29 @@ def main():
                       help='which primitive layers to use inside a cell search space,'
                            ' options are PRIMITIVES and DARTS_PRIMITIVES')
   parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
-  parser.add_argument('--load', type=str, default='sgd', help='load weights at specified location')
+  parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
   parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
   parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
+  parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
+                      help='evaluate model on validation set')
   args = parser.parse_args()
 
-  args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
-  utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
+  log_file_name = 'log.txt'
+  if args.load:
+    dir_path = os.path.dirname(os.path.realpath(args.load))
+    weights_file = args.load
 
-  log_file_path = os.path.join(args.save, 'log.txt')
+  if args.evaluate:
+    # evaluate results go in the same directory as the weights but with a new timestamp
+    if not args.load:
+      raise ValueError('You specified --evaluate, please run again and include --load PATH_TO_WEIGHTS as well.')
+    args.save = dir_path
+    log_file_name = 'eval-log-' + time.strftime("%Y%m%d-%H%M%S") + '.txt'
+  else:
+    args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
+    utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
+
+  log_file_path = os.path.join(args.save, log_file_name)
   logger = utils.logging_setup(log_file_path)
   params_path = os.path.join(args.save, 'commandline_args.json')
   with open(params_path, 'w') as f:
@@ -119,10 +133,27 @@ def main():
 
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
+  if args.evaluate:
+    # evaluate the train dataset without augmentation
+    train_transform = valid_transform
 
   # Get the training queue, use full training and test set
   train_queue, valid_queue = dataset.get_training_queues(
     args.dataset, train_transform, valid_transform, args.data, args.batch_size, train_proportion=1.0, search_architecture=False)
+
+  test_queue = None
+  if args.dataset == 'cifar10':
+    # evaluate best model weights on cifar 10.1
+    # https://github.com/modestyachts/CIFAR-10.1
+    test_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
+    test_queue = torch.utils.data.DataLoader(
+      test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
+
+  if args.evaluate:
+    # evaluate the loaded model, print the result, and return
+    eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
+    logger.info(utils.dict_to_log_string(eval_stats))
+    return
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
@@ -156,24 +187,24 @@ def main():
     logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
                 epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
 
-  if args.dataset == 'cifar10':
-    # evaluate best model weights on cifar 10.1
-    # https://github.com/modestyachts/CIFAR-10.1
-    valid_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
-    valid_queue = torch.utils.data.DataLoader(
-        valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
+  # get stats from best epoch including cifar10.1
+  eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
+  logger.info(utils.dict_to_log_string(eval_stats))
+  logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
+
+def evaluate(args, cnn_model, criterion, weights_file, train_queue, valid_queue, test_queue=None, prefix='best_'):
+  valid_stats = infer(args, valid_queue, cnn_model, criterion)
+  if test_queue is not None:
     # load the best model weights
     utils.load(cnn_model, weights_file)
-    cifar10_1_stats = infer(args, valid_queue, cnn_model, criterion=criterion, prefix='cifar10_1_')
-    cifar10_1_str = utils.dict_to_log_string(cifar10_1_stats)
-    best_epoch_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
-    logger.info(best_epoch_str + ', ' + cifar10_1_str)
-    # printout all stats from best epoch including cifar10.1
-    # TODO(ahundt) add best eval timing string and cifar10.1 eval timing string
-    # logger.info('best_epoch, %d, best_train_acc, %f, best_valid_acc, %f, best_train_loss, %f, best_valid_loss, %f, lr, %e, '
-    #             'best_epoch, %d, best_valid_acc, %f cifar10.1_valid_acc, %f, cifar10.1_valid_loss, %f, cifar10.1_eval_timing, ' + eval_timing_str,
-    #             best_epoch, best_train_acc, best_valid_acc, train_obj, valid_obj, best_stats['lr'], best_epoch, best_valid_acc, cifar10_1_valid_acc, cifar10_1_valid_loss)
-  logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
+    test_prefix = 'test_'
+    if args.dataset == 'cifar10':
+      test_prefix = 'cifar10_1_'
+    stats = {}
+    stats.update(infer(args, train_queue, cnn_model, criterion=criterion, prefix=prefix + 'train_'))
+    stats.update(infer(args, valid_queue, cnn_model, criterion=criterion, prefix=prefix + 'valid_'))
+    if test_queue is not None:
+      stats.update(infer(args, test_queue, cnn_model, criterion=criterion, prefix=prefix + test_prefix))
 
 
 def train(args, train_queue, cnn_model, criterion, optimizer):
