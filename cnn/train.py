@@ -100,6 +100,7 @@ def main():
 
   else:
     args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
+    params_path = os.path.join(args.save, 'commandline_args.json')
     utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
     log_file_path = os.path.join(args.save, log_file_name)
     with open(params_path, 'w') as f:
