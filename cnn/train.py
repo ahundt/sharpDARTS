@@ -86,7 +86,7 @@ def main():
     # we will put the logs in the same directory as the weights
     save_dir = os.path.dirname(os.path.realpath(evaluate))
     log_file_name = 'eval-log-' + time.strftime("%Y%m%d-%H%M%S") + '.txt'
-    log_file_path = os.path.join(args.save, log_file_name)
+    log_file_path = os.path.join(save_dir, log_file_name)
     params_path = os.path.join(save_dir, 'commandline_args.json')
     if not loaded_args:
       print('Warning: --evaluate specified, loading commandline args from:\n' + params_path)
