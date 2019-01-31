@@ -192,19 +192,20 @@ def main():
   logger.info(utils.dict_to_log_string(eval_stats))
   logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
-def evaluate(args, cnn_model, criterion, weights_file, train_queue, valid_queue, test_queue=None, prefix='best_'):
+def evaluate(args, cnn_model, criterion, weights_file, train_queue=None, valid_queue=None, test_queue=None, prefix='best_'):
   valid_stats = infer(args, valid_queue, cnn_model, criterion)
-  if test_queue is not None:
-    # load the best model weights
-    utils.load(cnn_model, weights_file)
-    test_prefix = 'test_'
-    if args.dataset == 'cifar10':
-      test_prefix = 'cifar10_1_'
-    stats = {}
-    stats.update(infer(args, train_queue, cnn_model, criterion=criterion, prefix=prefix + 'train_'))
-    stats.update(infer(args, valid_queue, cnn_model, criterion=criterion, prefix=prefix + 'valid_'))
-    if test_queue is not None:
-      stats.update(infer(args, test_queue, cnn_model, criterion=criterion, prefix=prefix + test_prefix))
+  # load the best model weights
+  utils.load(cnn_model, weights_file)
+  test_prefix = 'test_'
+  if args.dataset == 'cifar10':
+    test_prefix = 'cifar10_1_'
+  prefixes = ['train_', 'valid_', test_prefix]
+  queues = [train_queue, valid_queue, test_queue]
+  stats = {}
+  for dataset_prefix, queue in zip(tqdm(prefixes, desc='Final Evaluation'), queues):
+    if queue is not None:
+      stats.update(infer(args, train_queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix))
+  return stats
 
 
 def train(args, train_queue, cnn_model, criterion, optimizer):
