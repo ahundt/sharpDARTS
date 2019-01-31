@@ -177,7 +177,7 @@ def main():
       train_queue=train_queue, valid_queue=valid_queue, test_queue=test_queue)
     logger.info("flops = " + utils.count_model_flops(cnn_model))
     logger.info(utils.dict_to_log_string(eval_stats))
-    logger.info('Evaluation of Loaded Model Complete! Save dir: ' + str(args.save))
+    logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
     return
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
