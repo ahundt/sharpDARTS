@@ -75,7 +75,9 @@ def main():
   loaded_args = False
   if args.load_args:
     with open(args.load_args, 'r') as f:
-      args = argparse.Namespace(**(vars(args).update(json.load(f))))
+      args_dict = vars(args)
+      args_dict.update(json.load(f))
+      args = argparse.Namespace(**args_dict)
     args.evaluate = evaluate
     loaded_args = True
 
@@ -91,7 +93,9 @@ def main():
     if not loaded_args:
       print('Warning: --evaluate specified, loading commandline args from:\n' + params_path)
       with open(params_path, 'r') as f:
-        args = argparse.Namespace(**(vars(args).update(json.load(f))))
+        args_dict = vars(args)
+        args_dict.update(json.load(f))
+        args = argparse.Namespace(**args_dict)
     args.evaluate = True
 
   else:
