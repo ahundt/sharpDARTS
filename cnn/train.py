@@ -159,54 +159,53 @@ def main():
 
   scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
 
-  prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
-  best_valid_acc = 0.0
-  best_epoch = 0
-  best_stats = {}
-  weights_file = os.path.join(args.save, 'weights.pt')
-  for epoch in prog_epoch:
-    scheduler.step()
-    cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
+  with tqdm(range(args.epochs), dynamic_ncols=True) as prog_epoch:
+    best_valid_acc = 0.0
+    best_epoch = 0
+    best_stats = {}
+    weights_file = os.path.join(args.save, 'weights.pt')
+    for epoch in prog_epoch:
+      scheduler.step()
+      cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
 
-    train_acc, train_obj = train(args, train_queue, cnn_model, criterion, optimizer)
+      train_acc, train_obj = train(args, train_queue, cnn_model, criterion, optimizer)
 
-    stats = infer(args, valid_queue, cnn_model, criterion)
+      stats = infer(args, valid_queue, cnn_model, criterion)
 
-    if stats['valid_acc'] > best_valid_acc:
-      # new best epoch, save weights
-      utils.save(cnn_model, weights_file)
-      best_epoch = epoch
-      best_valid_acc = stats['valid_acc']
+      if stats['valid_acc'] > best_valid_acc:
+        # new best epoch, save weights
+        utils.save(cnn_model, weights_file)
+        best_epoch = epoch
+        best_valid_acc = stats['valid_acc']
 
-      best_stats = stats
-      best_stats['lr'] = scheduler.get_lr()[0]
-      best_stats['epoch'] = best_epoch
-      best_train_loss = train_obj
-      best_train_acc = train_acc
-    # else:
-    #   # not best epoch, load best weights
-    #   utils.load(cnn_model, weights_file)
-    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
-                epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
+        best_stats = stats
+        best_stats['lr'] = scheduler.get_lr()[0]
+        best_stats['epoch'] = best_epoch
+        best_train_loss = train_obj
+        best_train_acc = train_acc
+      # else:
+      #   # not best epoch, load best weights
+      #   utils.load(cnn_model, weights_file)
+      logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
+                  epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
 
-  # get stats from best epoch including cifar10.1
-  eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
-  logger.info(utils.dict_to_log_string(eval_stats))
-  logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
+    # get stats from best epoch including cifar10.1
+    eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
+    logger.info(utils.dict_to_log_string(eval_stats))
+    logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 def evaluate(args, cnn_model, criterion, weights_file, train_queue=None, valid_queue=None, test_queue=None, prefix='best_'):
-  valid_stats = infer(args, valid_queue, cnn_model, criterion)
   # load the best model weights
   utils.load(cnn_model, weights_file)
   test_prefix = 'test_'
   if args.dataset == 'cifar10':
-    test_prefix = 'cifar10_1_'
-  prefixes = ['train_', 'valid_', test_prefix]
+    test_prefix = 'cifar10_1_test_'
   queues = [train_queue, valid_queue, test_queue]
   stats = {}
-  for dataset_prefix, queue in zip(tqdm(prefixes, desc='Final Evaluation', dynamic_ncols=True), queues):
-    if queue is not None:
-      stats.update(infer(args, train_queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix))
+  with tqdm(['train_', 'valid_', test_prefix], desc='Final Evaluation', dynamic_ncols=True) as prefix_progbar:
+    for dataset_prefix, queue in zip(prefix_progbar, queues):
+      if queue is not None:
+        stats.update(infer(args, train_queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix))
   return stats
 
 
@@ -216,34 +215,34 @@ def train(args, train_queue, cnn_model, criterion, optimizer):
   top5 = utils.AvgrageMeter()
   cnn_model.train()
 
-  progbar = tqdm(train_queue, dynamic_ncols=True)
-  for step, (input_batch, target) in enumerate(progbar):
-    input_batch = Variable(input_batch)
-    target = Variable(target)
-    if torch.cuda.is_available():
-      input_batch = input_batch.cuda(async=True)
-      target = target.cuda(async=True)
+  with tqdm(train_queue, dynamic_ncols=True) as progbar:
+    for step, (input_batch, target) in enumerate(progbar):
+      input_batch = Variable(input_batch)
+      target = Variable(target)
+      if torch.cuda.is_available():
+        input_batch = input_batch.cuda(async=True)
+        target = target.cuda(async=True)
 
-    optimizer.zero_grad()
-    logits, logits_aux = cnn_model(input_batch)
-    loss = criterion(logits, target)
-    if logits_aux is not None and args.auxiliary:
-      loss_aux = criterion(logits_aux, target)
-      loss += args.auxiliary_weight * loss_aux
-    loss.backward()
-    nn.utils.clip_grad_norm_(cnn_model.parameters(), args.grad_clip)
-    # if cnn_model.auxs is not None:
-    #   # clip the aux weights even more so they don't jump too quickly
-    #   nn.utils.clip_grad_norm_(cnn_model.auxs.alphas, args.grad_clip/10)
-    optimizer.step()
+      optimizer.zero_grad()
+      logits, logits_aux = cnn_model(input_batch)
+      loss = criterion(logits, target)
+      if logits_aux is not None and args.auxiliary:
+        loss_aux = criterion(logits_aux, target)
+        loss += args.auxiliary_weight * loss_aux
+      loss.backward()
+      nn.utils.clip_grad_norm_(cnn_model.parameters(), args.grad_clip)
+      # if cnn_model.auxs is not None:
+      #   # clip the aux weights even more so they don't jump too quickly
+      #   nn.utils.clip_grad_norm_(cnn_model.auxs.alphas, args.grad_clip/10)
+      optimizer.step()
 
-    prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-    n = input_batch.size(0)
-    objs.update(loss.data.item(), n)
-    top1.update(prec1.data.item(), n)
-    top5.update(prec5.data.item(), n)
+      prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
+      n = input_batch.size(0)
+      objs.update(loss.data.item(), n)
+      top1.update(prec1.data.item(), n)
+      top5.update(prec5.data.item(), n)
 
-    progbar.set_description('Training loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f} progress'.format(objs.avg, top1.avg, top5.avg))
+      progbar.set_description('Training loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f} progress'.format(objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
