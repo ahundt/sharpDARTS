@@ -159,7 +159,7 @@ def main():
   #saving state_dict for debugging weights by comparison
   for key in cnn_model.state_dict():
     state_dict[key] = cnn_model.state_dict()[key].clone()
-    logger.info('layer = {}'.format(key))
+    # logger.info('layer = {}'.format(key))
   logger.info('Total keys in state_dict = {}'.format(len(cnn_model.state_dict().keys())))
   og_state_keys.update(cnn_model.state_dict().keys())
 
@@ -190,7 +190,7 @@ def main():
     updated_state_keys = set()
     for key in state_dict:
       if not (state_dict[key] == updated_state_dict[key]).all():
-        logger.info('Update in {}'.format(key))
+        # logger.info('Update in {}'.format(key))
         updated_state_keys.add(key)
     logger.info('Total updates = {}'.format(len(updated_state_keys)))
     logger.info('Parameters not updated {}'.format(og_state_keys - updated_state_keys))
@@ -240,7 +240,7 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
     loss = criterion(logits, target)
 
     loss.backward()
-    nn.utils.clip_grad_norm(cnn_model.parameters(), args.grad_clip)
+    # nn.utils.clip_grad_norm(cnn_model.parameters(), args.grad_clip)
     optimizer.step()
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
