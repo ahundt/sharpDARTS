@@ -62,10 +62,18 @@ def main():
   parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
   parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
   parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
-                      help='evaluate model on validation set')
+                      help='evaluate model on training, test, and validation datasets')
+  parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
+                      help='load command line args from a json file, this will override all currently set args except for --evaluate')
   args = parser.parse_args()
 
   log_file_name = 'log.txt'
+
+  evaluate = args.evaluate
+  if args.load_args_from_json:
+    with open(args.load_args, 'r') as f:
+      args = argparse.Namespace(**json.load(f))
+    args.evaluate = evaluate
 
   if args.evaluate:
     # evaluate results go in the same directory as the weights but with a new timestamp
@@ -76,10 +84,9 @@ def main():
     log_file_name = 'eval-log-' + time.strftime("%Y%m%d-%H%M%S") + '.txt'
     log_file_path = os.path.join(args.save, log_file_name)
     params_path = os.path.join(args.save, 'commandline_args.json')
-    print('Warning: evaluate mode enabled so commandline args are coming from ' + params_path)
+    print('Warning: --evaluate specified, loading commandline args from:\n' + params_path)
     with open(params_path, 'r') as f:
-      loaded_args = json.load(f)
-    args = argparse.Namespace(**loaded_args)
+      args = argparse.Namespace(**json.load(f))
     args.evaluate = True
 
   else:
