@@ -6,7 +6,7 @@ OPS = {
   'none': lambda C_in, C_out, stride, affine, C_mid=None: Zero(stride),
   'avg_pool_3x3': lambda C_in, C_out, stride, affine, C_mid=None: ResizablePool(C_in, C_out, 3, stride, padding=1, affine=affine, pool_type=nn.AvgPool2d),
   'max_pool_3x3': lambda C_in, C_out, stride, affine, C_mid=None: ResizablePool(C_in, C_out, 3, stride, padding=1, affine=affine),
-  'skip_connect': lambda C_in, C_out, stride, affine, C_mid=None: Identity() if stride == 1 else FactorizedReduce(C_in, C_out, 1, stride, 0, affine=affine),
+  'skip_connect': lambda C_in, C_out, stride, affine, C_mid=None: Identity() if stride == 1 else SepConv(C_in, C_out, 1, stride, 0, affine=affine),
   'sep_conv_3x3': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 3, stride, padding=1, affine=affine),
   'sep_conv_5x5': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 5, stride, padding=2, affine=affine),
   'sep_conv_7x7': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 7, stride, padding=3, affine=affine),
@@ -104,9 +104,26 @@ class DilConv(nn.Module):
   def forward(self, x):
     return self.op(x)
 
+class SepConv(nn.Module):
+
+  def __init__(self, C_in, C_out, kernel_size=1, stride=1, padding=None, dilation=1, affine=True):
+    super(SharpSepConv, self).__init__()
+    if padding is None:
+      padding = (kernel_size-1)//2
+
+    self.op = nn.Sequential(
+      nn.ReLU(inplace=False),
+      nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=C_in, bias=False),
+      nn.Conv2d(C_in, C_out, kernel_size=1, padding=0, bias=False),
+      nn.BatchNorm2d(C_out, affine=affine),
+      )
+
+  def forward(self, x):
+    return self.op(x)
+
 class SharpSepConv(nn.Module):
 
-  def __init__(self, C_in, C_out, kernel_size, stride=1, padding=1, dilation=1, affine=True, C_mid_mult=1, C_mid=None):
+  def __init__(self, C_in, C_out, kernel_size=3, stride=1, padding=1, dilation=1, affine=True, C_mid_mult=1, C_mid=None):
     super(SharpSepConv, self).__init__()
     if C_mid is not None:
       c_mid = C_mid

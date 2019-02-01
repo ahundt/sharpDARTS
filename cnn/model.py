@@ -16,6 +16,7 @@ import genotypes
 from operations import FactorizedReduce
 from operations import Identity
 from operations import ReLUConvBN
+from operations import SepConv
 from utils import drop_path
 
 
@@ -43,8 +44,8 @@ class Cell(nn.Module):
 
     if reduction_prev is None:
       self.preprocess0 = operations.Identity()
-    if reduction_prev:
-      self.preprocess0 = FactorizedReduce(C_prev_prev, C)
+    elif reduction_prev:
+      self.preprocess0 = SepConv(C_prev_prev, C, stride=2)
     else:
       self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0)
     self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0)
