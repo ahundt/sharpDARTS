@@ -69,44 +69,9 @@ def main():
                            'that did not exist when the json file was originally saved out.')
   args = parser.parse_args()
 
-  log_file_name = 'log.txt'
+  args = utils.initialize_files_and_args(args)
 
-  evaluate_arg = args.evaluate
-  loaded_args = False
-  if args.load_args:
-    with open(args.load_args, 'r') as f:
-      args_dict = vars(args)
-      args_dict.update(json.load(f))
-      args = argparse.Namespace(**args_dict)
-    args.evaluate = evaluate_arg
-    loaded_args = True
-
-  if evaluate_arg:
-    # evaluate results go in the same directory as the weights but with a new timestamp
-    # we will put the logs in the same directory as the weights
-    save_dir = os.path.dirname(os.path.realpath(evaluate_arg))
-    log_file_name = 'eval-log-' + time.strftime("%Y%m%d-%H%M%S") + '.txt'
-    log_file_path = os.path.join(save_dir, log_file_name)
-    params_path = os.path.join(save_dir, 'commandline_args.json')
-    if not loaded_args:
-      print('Warning: --evaluate specified, loading commandline args from:\n' + params_path)
-      with open(params_path, 'r') as f:
-        args_dict = vars(args)
-        args_dict.update(json.load(f))
-        args = argparse.Namespace(**args_dict)
-    args.evaluate = evaluate_arg
-    args.load = evaluate_arg
-    args.save = save_dir
-
-  else:
-    args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
-    params_path = os.path.join(args.save, 'commandline_args.json')
-    utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
-    log_file_path = os.path.join(args.save, log_file_name)
-    with open(params_path, 'w') as f:
-        json.dump(vars(args), f)
-
-  logger = utils.logging_setup(log_file_path)
+  logger = utils.logging_setup(args.log_file_path)
 
   if not torch.cuda.is_available():
     logger.info('no gpu device available')
@@ -176,6 +141,10 @@ def main():
     eval_stats = evaluate(
       args, cnn_model, criterion, args.load,
       train_queue=train_queue, valid_queue=valid_queue, test_queue=test_queue)
+    with open(args.stats_file, 'w') as f:
+      arg_dict = vars(args)
+      arg_dict.update(eval_stats)
+      json.dump(arg_dict, f)
     logger.info("flops = " + utils.count_model_flops(cnn_model))
     logger.info(utils.dict_to_log_string(eval_stats))
     logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
@@ -215,6 +184,10 @@ def main():
 
     # get stats from best epoch including cifar10.1
     eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
+    with open(args.stats_file, 'w') as f:
+      arg_dict = vars(args)
+      arg_dict.update(eval_stats)
+      json.dump(arg_dict, f)
     logger.info(utils.dict_to_log_string(eval_stats))
     logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
