@@ -2,12 +2,12 @@
 # license: BSD 3-Clause
 #
 # to install apex:
-# pip3 install --user --upgrade -e . --global-option="build_ext" --global-option="--cpp_ext" --global-option="--cuda_ext" 
+# pip3 install --user --upgrade -e . --global-option="build_ext" --global-option="--cpp_ext" --global-option="--cuda_ext"
 #
 # ### Multi-process training with FP16_Optimizer, dynamic loss scaling
 #     $ python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 256 --save `git rev-parse --short HEAD` --epochs 300 --dynamic-loss-scale --workers 14 --data /home/costar/datasets/imagenet/
 #
-# # note that --nproc_per_node is NUM_GPUS. 
+# # note that --nproc_per_node is NUM_GPUS.
 # # Can add --sync_bn to sync bachnorm values if batch size is "very small" but note this also reduces img/s by ~10%.
 
 import argparse
@@ -165,7 +165,7 @@ def main():
         torch.distributed.init_process_group(backend='nccl',
                                              init_method='env://')
         args.world_size = torch.distributed.get_world_size()
-    
+
 
     # workaround for directory creation and log files when run as multiple processes
     # args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
@@ -218,7 +218,7 @@ def main():
     if args.fp16:
         model = network_to_half(model)
     if args.distributed:
-        # By default, apex.parallel.DistributedDataParallel overlaps communication with 
+        # By default, apex.parallel.DistributedDataParallel overlaps communication with
         # computation in the backward pass.
         # model = DDP(model)
         # delay_allreduce delays all communication to the end of the backward pass.
@@ -305,7 +305,7 @@ def main():
     #     num_workers=args.workers, pin_memory=True,
     #     sampler=val_sampler,
     #     collate_fn=fast_collate)
-  
+
     if args.dataset == 'imagenet':
         collate_fn = fast_collate
         normalize_as_tensor = False
@@ -317,7 +317,7 @@ def main():
     train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
     # Get the training queue, select training and validation from training set
     train_loader, val_loader = dataset.get_training_queues(
-        args.dataset, train_transform, valid_transform, args.data, 
+        args.dataset, train_transform, valid_transform, args.data,
         args.batch_size, train_proportion=1.0,
         collate_fn=fast_collate, distributed=args.distributed)
 
@@ -403,7 +403,7 @@ class data_prefetcher():
             else:
                 self.next_input = self.next_input.float()
             self.next_input = self.next_input.sub_(self.mean).div_(self.std)
-            
+
     def next(self):
         torch.cuda.current_stream().wait_stream(self.stream)
         input = self.next_input
