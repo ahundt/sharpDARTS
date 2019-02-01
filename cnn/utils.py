@@ -436,3 +436,73 @@ def create_exp_dir(path, scripts_to_save=None):
     for script in scripts_to_save:
       dst_file = os.path.join(path, 'scripts', os.path.basename(script))
       shutil.copyfile(script, dst_file)
+
+
+def initialize_files_and_args(args):
+  """Adds parameters to args and creates the folder for the log and weights with a code backup as needed.
+
+  This function is pretty data loader and argument specific, 
+  and thus a bit brittle and not intended for general use.
+  Loads args from a file if specified by the user, args may change substantially!
+  This happens particularly when args.load_args or args.evaluate is set.
+  Creates the log folder if it does not exist.
+
+  Input:
+  args.evaluate: empty string or path to a weights file to evaluate
+  args.load_args: json file containing saved command line arguments which will be loaded.
+  args.save: custom name to give the log folder so you know what this run is about.
+
+  Output:
+  args.stats_file: full path to file for final json statistics
+  args.save: new save directory, or existing directory if evaluating.
+  args.evaluate: are we doing an evaluation-only run
+  args.load: updated if a weights file was specified via args.evaluate
+  args.log_file_path: set with the path to the file where logs will be written.
+     This variable is designed to be passed to utils.logging_setup(log_file_path).
+
+  Returns:
+
+  updated args object
+  """
+  log_file_name = 'log.txt'
+
+  evaluate_arg = args.evaluate
+  loaded_args = False
+  if args.load_args:
+    with open(args.load_args, 'r') as f:
+      args_dict = vars(args)
+      args_dict.update(json.load(f))
+      args = argparse.Namespace(**args_dict)
+    args.evaluate = evaluate_arg
+    loaded_args = True
+
+  stats_time = time.strftime("%Y%m%d-%H%M%S")
+  if evaluate_arg:
+    # evaluate results go in the same directory as the weights but with a new timestamp
+    # we will put the logs in the same directory as the weights
+    save_dir = os.path.dirname(os.path.realpath(evaluate_arg))
+    log_file_name = 'eval-log-' + stats_time + '.txt'
+    log_file_path = os.path.join(save_dir, log_file_name)
+    params_path = os.path.join(save_dir, 'commandline_args.json')
+    if not loaded_args:
+      print('Warning: --evaluate specified, loading commandline args from:\n' + params_path)
+      with open(params_path, 'r') as f:
+        args_dict = vars(args)
+        args_dict.update(json.load(f))
+        args = argparse.Namespace(**args_dict)
+    args.evaluate = evaluate_arg
+    args.load = evaluate_arg
+    args.save = save_dir
+
+  else:
+    args.save = 'eval-{}-{}-{}-{}'.format(stats_time, args.save, args.dataset, args.arch)
+    params_path = os.path.join(args.save, 'commandline_args.json')
+    utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
+    log_file_path = os.path.join(args.save, log_file_name)
+    with open(params_path, 'w') as f:
+        json.dump(vars(args), f)
+
+  stats_file_name = 'eval-stats-' + stats_time + '.json'
+  args.stats_file = os.path.join(args.save, stats_file_name)
+  args.log_file_path = log_file_path
+  return args
