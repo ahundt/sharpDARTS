@@ -68,6 +68,11 @@ parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                          ' options are PRIMITIVES and DARTS_PRIMITIVES')
 parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
                     help='evaluate model at specified path on training, test, and validation datasets')
+parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
+parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
+                    help='load command line args from a json file, this will override '
+                         'all currently set args except for --evaluate, and arguments '
+                         'that did not exist when the json file was originally saved out.')
 args = parser.parse_args()
 
 # TODO(ahundt) enable --dataset flag, merge code from mixed_aux branch
