@@ -252,7 +252,10 @@ def _data_transforms_imagenet(args, normalize_as_tensor=True):
     train_transform = transforms.Compose([
       transforms.RandomResizedCrop(crop_size),
       transforms.RandomHorizontalFlip(),
+      # cutout and autoaugment are used in the autoaugment paper
       autoaugment.ImageNetPolicy(),
+      # note that this defaults to dual cutout
+      Cutout(length=crop_size/2),
     ])
   else:
     train_transform = transforms.Compose([
