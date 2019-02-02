@@ -175,15 +175,15 @@ class Cutout(object):
 # Function to fetch the transforms based on the dataset
 def get_data_transforms(args, normalize_as_tensor=True):
   """Get the transforms for a specific dataset
-  
+
   One side side effect args.std and args.mean are set.
 
-  args: parser args. Expected to have random_eraser, cutout, 
+  args: parser args. Expected to have random_eraser, cutout,
     and autoaugment member variables.
   normalize_as_tensor: when true the output will be converted
     to a tensor then normalization will be applied based on the
     dataset mean and std dev. Otherwise this step will be skipped
-    entirely 
+    entirely
 
   """
   print("Getting",args.dataset,"Transforms")
@@ -441,7 +441,7 @@ def create_exp_dir(path, scripts_to_save=None):
 def initialize_files_and_args(args):
   """Adds parameters to args and creates the folder for the log and weights with a code backup as needed.
 
-  This function is pretty data loader and argument specific, 
+  This function is pretty data loader and argument specific,
   and thus a bit brittle and not intended for general use.
   Loads args from a file if specified by the user, args may change substantially!
   This happens particularly when args.load_args or args.evaluate is set.
@@ -451,6 +451,9 @@ def initialize_files_and_args(args):
   args.evaluate: empty string or path to a weights file to evaluate
   args.load_args: json file containing saved command line arguments which will be loaded.
   args.save: custom name to give the log folder so you know what this run is about.
+  args.gpu: the integer id of the gpu on which to run.
+  args.dataset: a string with the name of the dataset.
+  args.arch: a string with the name of the neural network architecture being used.
 
   Output:
   args.stats_file: full path to file for final json statistics
@@ -495,7 +498,7 @@ def initialize_files_and_args(args):
     args.save = save_dir
 
   else:
-    args.save = 'eval-{}-{}-{}-{}'.format(stats_time, args.save, args.dataset, args.arch)
+    args.save = 'eval-{}-{}-{}-{}-{}'.format(stats_time, args.save, args.dataset, args.arch, args.gpu)
     params_path = os.path.join(args.save, 'commandline_args.json')
     utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
     log_file_path = os.path.join(args.save, log_file_name)

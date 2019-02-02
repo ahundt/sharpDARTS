@@ -117,6 +117,7 @@ parser.add_argument('--autoaugment', action='store_true', default=False, help='u
 parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
+parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 
 cudnn.benchmark = True
 
@@ -131,7 +132,7 @@ def fast_collate(batch):
     targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
     w = imgs[0].size[0]
     h = imgs[0].size[1]
-    tensor = torch.zeros( (len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8 )
+    tensor = torch.zeros( (len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
     for i, img in enumerate(imgs):
         nump_array = np.asarray(img, dtype=np.uint8)
         # tens = torch.from_numpy(nump_array)
@@ -156,7 +157,8 @@ def main():
     if 'WORLD_SIZE' in os.environ:
         args.distributed = int(os.environ['WORLD_SIZE']) > 1
 
-    args.gpu = 0
+    # commented because it is now set as an argparse param.
+    # args.gpu = 0
     args.world_size = 1
 
     if args.distributed:
@@ -166,17 +168,10 @@ def main():
                                              init_method='env://')
         args.world_size = torch.distributed.get_world_size()
 
-
-    # workaround for directory creation and log files when run as multiple processes
-    # args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
-    args.save = 'eval-{}-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, 'imagenet', args.arch, args.gpu)
-    utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
-
-    log_file_path = os.path.join(args.save, 'log.txt')
-    logger = utils.logging_setup(log_file_path)
-    params_path = os.path.join(args.save, 'commandline_args.json')
-    with open(params_path, 'w') as f:
-        json.dump(vars(args), f)
+    # note the gpu is used for directory creation and log files
+    # which is needed when run as multiple processes
+    args = utils.initialize_files_and_args(args)
+    logger = utils.logging_setup(args.log_file_path)
 
     if args.fp16:
         assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
@@ -251,7 +246,7 @@ def main():
         def resume():
             if os.path.isfile(args.resume):
                 logger.info("=> loading checkpoint '{}'".format(args.resume))
-                checkpoint = torch.load(args.resume, map_location = lambda storage, loc: storage.cuda(args.gpu))
+                checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu))
                 args.start_epoch = checkpoint['epoch']
                 best_top1 = checkpoint['best_top1']
                 model.load_state_dict(checkpoint['state_dict'])
