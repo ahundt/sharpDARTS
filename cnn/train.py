@@ -164,7 +164,7 @@ def main():
     best_epoch = 0
     best_stats = {}
     weights_file = os.path.join(args.save, 'weights.pt')
-    for epoch, learning_rate in zip(epochs, lr_schedule):
+    for epoch, learning_rate in zip(prog_epoch, lr_schedule):
       # update the drop_path_prob augmentation
       cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
       # update the learning rate
