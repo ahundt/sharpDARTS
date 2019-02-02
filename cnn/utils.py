@@ -456,7 +456,7 @@ def create_exp_dir(path, scripts_to_save=None):
       shutil.copyfile(script, dst_file)
 
 
-def initialize_files_and_args(args):
+def initialize_files_and_args(args, run_type='eval'):
   """Adds parameters to args and creates the folder for the log and weights with a code backup as needed.
 
   This function is pretty data loader and argument specific,
@@ -517,7 +517,7 @@ def initialize_files_and_args(args):
     args.save = save_dir
 
   else:
-    args.save = 'eval-{}-{}-{}-{}-{}'.format(stats_time, args.save, args.dataset, args.arch, args.gpu)
+    args.save = '{}-{}-{}-{}-{}-{}'.format(run_type, stats_time, args.save, args.dataset, args.arch, args.gpu)
     params_path = os.path.join(args.save, 'commandline_args.json')
     create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
     log_file_path = os.path.join(args.save, log_file_name)
