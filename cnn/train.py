@@ -22,6 +22,7 @@ import operations
 import cifar10_1
 import dataset
 import flops_counter
+from cosine_power_annealing import cosine_power_annealing
 
 def main():
   parser = argparse.ArgumentParser("Common Argument Parser")
@@ -150,16 +151,22 @@ def main():
     logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
     return
 
-  scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
+  epochs = np.arange(1, args.epochs + 1)
+  lr_schedule = cosine_power_annealing(epochs.clone())
+  # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
+  epoch_stats = []
 
-  with tqdm(range(args.epochs), dynamic_ncols=True) as prog_epoch:
+  with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
     best_valid_acc = 0.0
     best_epoch = 0
     best_stats = {}
     weights_file = os.path.join(args.save, 'weights.pt')
-    for epoch in prog_epoch:
-      scheduler.step()
+    for epoch, learning_rate in zip(epochs, lr_schedule):
+      # update the drop_path_prob augmentation
       cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
+      # update the learning rate
+      for param_group in optimizer.param_groups:
+        param_group['lr'] = learning_rate
 
       train_acc, train_obj = train(args, train_queue, cnn_model, criterion, optimizer)
 
@@ -172,7 +179,7 @@ def main():
         best_valid_acc = stats['valid_acc']
 
         best_stats = stats
-        best_stats['lr'] = scheduler.get_lr()[0]
+        best_stats['lr'] = learning_rate
         best_stats['epoch'] = best_epoch
         best_train_loss = train_obj
         best_train_acc = train_acc
@@ -181,6 +188,9 @@ def main():
       #   utils.load(cnn_model, weights_file)
       logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
                   epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
+      stats['train_acc'] = train_acc
+      stats['train_loss'] = train_obj
+      epoch_stats += [stats]
 
     # get stats from best epoch including cifar10.1
     eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
@@ -188,6 +198,8 @@ def main():
       arg_dict = vars(args)
       arg_dict.update(eval_stats)
       json.dump(arg_dict, f)
+    with open(args.epoch_stats_file, 'w') as f:
+      json.dump(epoch_stats, f)
     logger.info(utils.dict_to_log_string(eval_stats))
     logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 

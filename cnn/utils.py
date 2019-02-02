@@ -457,6 +457,7 @@ def initialize_files_and_args(args):
 
   Output:
   args.stats_file: full path to file for final json statistics
+  args.epoch_stats_file: full path to file for json with per-epoch statistics
   args.save: new save directory, or existing directory if evaluating.
   args.evaluate: are we doing an evaluation-only run
   args.load: updated if a weights file was specified via args.evaluate
@@ -506,6 +507,7 @@ def initialize_files_and_args(args):
         json.dump(vars(args), f)
 
   stats_file_name = 'eval-stats-' + stats_time + '.json'
+  args.epoch_stats_file = os.path.join(args.save, 'eval-epoch-stats-' + stats_time + '.json')
   args.stats_file = os.path.join(args.save, stats_file_name)
   args.log_file_path = log_file_path
   return args
