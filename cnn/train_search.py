@@ -66,6 +66,8 @@ parser.add_argument('--ops', type=str, default='OPS', help='which operations to 
 parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                     help='which primitive layers to use inside a cell search space,'
                          ' options are PRIMITIVES and DARTS_PRIMITIVES')
+  parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
+                      help='evaluate model at specified path on training, test, and validation datasets')
 args = parser.parse_args()
 
 # TODO(ahundt) enable --dataset flag, merge code from mixed_aux branch
