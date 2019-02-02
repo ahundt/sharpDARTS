@@ -81,12 +81,12 @@ def cosine_power_annealing(
 
 
 def main():
-    # example of how to set up cosine power annealing
-    max_lr = 0.8
+    # example of how to set up cosine power annealing with a configuration designed for imagenet
+    max_lr = 0.2
     exponent_order = 10
-    max_epoch = 100
+    max_epoch = 300
     epochs = np.arange(max_epoch) + 1
-    min_lr = 0.02
+    min_lr = 1e-4
 
     # standard cosine power annealing
     schedules = cosine_power_annealing(
@@ -95,6 +95,9 @@ def main():
 
     [range_limited_cos_power_proportions, cos_power_proportions,
      cos_proportions] = schedules
+
+    # calculate the pure cosine annealing range limited values
+    range_limited_cos_annealing_proportions = ((cos_proportions * (max_lr - min_lr)) + min_lr)
 
     # power cosine annealing with warmup
     warmup_schedules = cosine_power_annealing(
@@ -120,14 +123,16 @@ def main():
 
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
-    plot_cos_proportions = ax.plot(cos_proportions, label='cos annealing proportions')
-    plot_cos_power_proportions = ax.plot(cos_power_proportions, label='cos power annealing proportions')
+    plot_cos_proportions = ax.plot(cos_proportions, label='cos annealing 1 to 0')
+    plot_range_limited_cos_annealing_proportions = ax.plot(
+        range_limited_cos_annealing_proportions, label='cos ann range ' + str(max_lr) + ' to ' + str(min_lr))
+    plot_cos_power_proportions = ax.plot(cos_power_proportions, label='cos power annealing 1 to 0')
     warmup_plot_cos_power_proportions = ax.plot(warmup_cos_power_proportions, label='warmup + cos power annealing proportions')
     # plt.plot(log_limited)
     plot_range_limited_cos_power_proportions = ax.plot(
-        range_limited_cos_power_proportions, label='range limited ' + str(max_lr) + ' to ' + str(min_lr))
+        range_limited_cos_power_proportions, label='cos power range ' + str(max_lr) + ' to ' + str(min_lr))
     warmup_plot_range_limited_cos_power_proportions = ax.plot(
-        warmup_range_limited_cos_power_proportions, label='warmup + range limited ' + str(max_lr) + ' to ' + str(min_lr))
+        warmup_range_limited_cos_power_proportions, label='warmup + cos power range ' + str(max_lr) + ' to ' + str(min_lr))
     # ax.legend(schedules, labels[1:])
     legend = ax.legend(loc='upper right', shadow=True, fontsize='large')
     # plt.plot(result)
