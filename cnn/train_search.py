@@ -75,6 +75,7 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                          'that did not exist when the json file was originally saved out.')
 args = parser.parse_args()
 
+args.arch = args.primitives + '-' + args.ops
 # TODO(ahundt) enable --dataset flag, merge code from mixed_aux branch
 args = utils.initialize_files_and_args(args, run_type='search')
 
