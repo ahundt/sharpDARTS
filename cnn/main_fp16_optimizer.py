@@ -334,7 +334,7 @@ def main():
         stats = {}
         epoch_stats = []
         best_epoch = 0
-        for epoch, learning_rate in zip(epochs, lr_schedule):
+        for epoch, learning_rate in zip(prog_epoch, lr_schedule):
             if args.distributed and train_loader.sampler is not None:
                 train_loader.sampler.set_epoch(epoch)
             # if args.distributed:
