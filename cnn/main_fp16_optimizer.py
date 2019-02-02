@@ -2,12 +2,12 @@
 # license: BSD 3-Clause
 #
 # to install apex:
-# pip3 install --user --upgrade -e . --global-option="build_ext" --global-option="--cpp_ext" --global-option="--cuda_ext" 
+# pip3 install --user --upgrade -e . --global-option="build_ext" --global-option="--cpp_ext" --global-option="--cuda_ext"
 #
 # ### Multi-process training with FP16_Optimizer, dynamic loss scaling
 #     $ python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 256 --save `git rev-parse --short HEAD` --epochs 300 --dynamic-loss-scale --workers 14 --data /home/costar/datasets/imagenet/
 #
-# # note that --nproc_per_node is NUM_GPUS. 
+# # note that --nproc_per_node is NUM_GPUS.
 # # Can add --sync_bn to sync bachnorm values if batch size is "very small" but note this also reduces img/s by ~10%.
 
 import argparse
@@ -117,6 +117,7 @@ parser.add_argument('--autoaugment', action='store_true', default=False, help='u
 parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
+parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 
 cudnn.benchmark = True
 
@@ -131,7 +132,7 @@ def fast_collate(batch):
     targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
     w = imgs[0].size[0]
     h = imgs[0].size[1]
-    tensor = torch.zeros( (len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8 )
+    tensor = torch.zeros( (len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
     for i, img in enumerate(imgs):
         nump_array = np.asarray(img, dtype=np.uint8)
         # tens = torch.from_numpy(nump_array)
@@ -156,7 +157,8 @@ def main():
     if 'WORLD_SIZE' in os.environ:
         args.distributed = int(os.environ['WORLD_SIZE']) > 1
 
-    args.gpu = 0
+    # commented because it is now set as an argparse param.
+    # args.gpu = 0
     args.world_size = 1
 
     if args.distributed:
@@ -165,18 +167,11 @@ def main():
         torch.distributed.init_process_group(backend='nccl',
                                              init_method='env://')
         args.world_size = torch.distributed.get_world_size()
-    
 
-    # workaround for directory creation and log files when run as multiple processes
-    # args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
-    args.save = 'eval-{}-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, 'imagenet', args.arch, args.gpu)
-    utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
-
-    log_file_path = os.path.join(args.save, 'log.txt')
-    logger = utils.logging_setup(log_file_path)
-    params_path = os.path.join(args.save, 'commandline_args.json')
-    with open(params_path, 'w') as f:
-        json.dump(vars(args), f)
+    # note the gpu is used for directory creation and log files
+    # which is needed when run as multiple processes
+    args = utils.initialize_files_and_args(args)
+    logger = utils.logging_setup(args.log_file_path)
 
     if args.fp16:
         assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
@@ -218,7 +213,7 @@ def main():
     if args.fp16:
         model = network_to_half(model)
     if args.distributed:
-        # By default, apex.parallel.DistributedDataParallel overlaps communication with 
+        # By default, apex.parallel.DistributedDataParallel overlaps communication with
         # computation in the backward pass.
         # model = DDP(model)
         # delay_allreduce delays all communication to the end of the backward pass.
@@ -251,7 +246,7 @@ def main():
         def resume():
             if os.path.isfile(args.resume):
                 logger.info("=> loading checkpoint '{}'".format(args.resume))
-                checkpoint = torch.load(args.resume, map_location = lambda storage, loc: storage.cuda(args.gpu))
+                checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu))
                 args.start_epoch = checkpoint['epoch']
                 best_top1 = checkpoint['best_top1']
                 model.load_state_dict(checkpoint['state_dict'])
@@ -305,7 +300,7 @@ def main():
     #     num_workers=args.workers, pin_memory=True,
     #     sampler=val_sampler,
     #     collate_fn=fast_collate)
-  
+
     if args.dataset == 'imagenet':
         collate_fn = fast_collate
         normalize_as_tensor = False
@@ -317,7 +312,7 @@ def main():
     train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
     # Get the training queue, select training and validation from training set
     train_loader, val_loader = dataset.get_training_queues(
-        args.dataset, train_transform, valid_transform, args.data, 
+        args.dataset, train_transform, valid_transform, args.data,
         args.batch_size, train_proportion=1.0,
         collate_fn=fast_collate, distributed=args.distributed)
 
@@ -403,7 +398,7 @@ class data_prefetcher():
             else:
                 self.next_input = self.next_input.float()
             self.next_input = self.next_input.sub_(self.mean).div_(self.std)
-            
+
     def next(self):
         torch.cuda.current_stream().wait_stream(self.stream)
         input = self.next_input
