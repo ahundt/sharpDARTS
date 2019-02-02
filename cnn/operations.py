@@ -107,7 +107,7 @@ class DilConv(nn.Module):
 class SepConv(nn.Module):
 
   def __init__(self, C_in, C_out, kernel_size=1, stride=1, padding=None, dilation=1, affine=True):
-    super(SharpSepConv, self).__init__()
+    super(SepConv, self).__init__()
     if padding is None:
       padding = (kernel_size-1)//2
 
