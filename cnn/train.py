@@ -154,7 +154,7 @@ def main():
 
   epochs = np.arange(1, args.epochs + 1)
   lr_schedule = cosine_power_annealing(
-    epochs.clone(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+    epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
     warmup_epochs=args.warmup_epochs)
   # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
   epoch_stats = []
