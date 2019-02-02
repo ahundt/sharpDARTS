@@ -81,6 +81,7 @@ def cosine_power_annealing(
 
 
 def main():
+    # example of how to set up cosine power annealing
     max_lr = 0.8
     exponent_order = 10
     max_epoch = 100
