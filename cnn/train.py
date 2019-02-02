@@ -170,6 +170,7 @@ def main():
       # update the learning rate
       for param_group in optimizer.param_groups:
         param_group['lr'] = learning_rate
+      # scheduler.get_lr()[0]
 
       train_acc, train_obj = train(args, train_queue, cnn_model, criterion, optimizer)
 
@@ -182,7 +183,7 @@ def main():
         best_valid_acc = stats['valid_acc']
 
         best_stats = stats
-        best_stats['lr'] = learning_rate
+        best_stats['lr'] = '{0:.5f}'.format(learning_rate)
         best_stats['epoch'] = best_epoch
         best_train_loss = train_obj
         best_train_acc = train_acc
@@ -190,7 +191,7 @@ def main():
       #   # not best epoch, load best weights
       #   utils.load(cnn_model, weights_file)
       logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
-                  epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
+                  epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], learning_rate, best_epoch, best_valid_acc)
       stats['train_acc'] = train_acc
       stats['train_loss'] = train_obj
       epoch_stats += [stats]
