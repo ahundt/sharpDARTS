@@ -517,7 +517,7 @@ def initialize_files_and_args(args):
   else:
     args.save = 'eval-{}-{}-{}-{}-{}'.format(stats_time, args.save, args.dataset, args.arch, args.gpu)
     params_path = os.path.join(args.save, 'commandline_args.json')
-    utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
+    create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
     log_file_path = os.path.join(args.save, log_file_name)
     with open(params_path, 'w') as f:
         json.dump(vars(args), f)
