@@ -323,7 +323,7 @@ def main():
 
     epochs = np.arange(args.start_epoch, args.epochs)
     lr_schedule = cosine_power_annealing(
-        epochs.clone(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+        epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
         warmup_epochs=args.warmup_epochs)
 
     with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
