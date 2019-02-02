@@ -22,6 +22,7 @@ import operations
 import cifar10_1
 import dataset
 import flops_counter
+from cosine_power_annealing import cosine_power_annealing
 
 def main():
   parser = argparse.ArgumentParser("Common Argument Parser")
@@ -30,13 +31,14 @@ def main():
                       cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
   parser.add_argument('--batch_size', type=int, default=64, help='batch size')
   parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
-  parser.add_argument('--learning_rate_min', type=float, default=0.0000001, help='min learning rate')
+  parser.add_argument('--learning_rate_min', type=float, default=1e-5, help='min learning rate')
   parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
   parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
   parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
   parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
   parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
   parser.add_argument('--epochs', type=int, default=1000, help='num of training epochs')
+  parser.add_argument('--warmup_epochs', type=int, default=5, help='num of warmup training epochs')
   parser.add_argument('--warm_restarts', type=int, default=20, help='warm restarts of cosine annealing')
   parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
   parser.add_argument('--mid_channels', type=int, default=32, help='C_mid channels in choke SharpSepConv')
@@ -150,16 +152,24 @@ def main():
     logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
     return
 
-  scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
+  epochs = np.arange(1, args.epochs + 1)
+  lr_schedule = cosine_power_annealing(
+    epochs.clone(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+    warmup_epochs=args.warmup_epochs)
+  # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
+  epoch_stats = []
 
-  with tqdm(range(args.epochs), dynamic_ncols=True) as prog_epoch:
+  with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
     best_valid_acc = 0.0
     best_epoch = 0
     best_stats = {}
     weights_file = os.path.join(args.save, 'weights.pt')
-    for epoch in prog_epoch:
-      scheduler.step()
+    for epoch, learning_rate in zip(epochs, lr_schedule):
+      # update the drop_path_prob augmentation
       cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
+      # update the learning rate
+      for param_group in optimizer.param_groups:
+        param_group['lr'] = learning_rate
 
       train_acc, train_obj = train(args, train_queue, cnn_model, criterion, optimizer)
 
@@ -172,7 +182,7 @@ def main():
         best_valid_acc = stats['valid_acc']
 
         best_stats = stats
-        best_stats['lr'] = scheduler.get_lr()[0]
+        best_stats['lr'] = learning_rate
         best_stats['epoch'] = best_epoch
         best_train_loss = train_obj
         best_train_acc = train_acc
@@ -181,6 +191,9 @@ def main():
       #   utils.load(cnn_model, weights_file)
       logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
                   epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
+      stats['train_acc'] = train_acc
+      stats['train_loss'] = train_obj
+      epoch_stats += [stats]
 
     # get stats from best epoch including cifar10.1
     eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
@@ -188,6 +201,8 @@ def main():
       arg_dict = vars(args)
       arg_dict.update(eval_stats)
       json.dump(arg_dict, f)
+    with open(args.epoch_stats_file, 'w') as f:
+      json.dump(epoch_stats, f)
     logger.info(utils.dict_to_log_string(eval_stats))
     logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 

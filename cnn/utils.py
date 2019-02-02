@@ -151,21 +151,32 @@ def random_eraser(input_img, p=0.66, s_l=0.02, s_h=0.4, r_1=0.3, r_2=1/0.3, v_l=
 
 
 class Cutout(object):
-    def __init__(self, length):
+    """Cutout and dual cutout
+
+    Defaults to Dual Cutout.
+
+    Cutout: https://arxiv.org/abs/1708.04552
+    Dual Cutout: https://arxiv.org/pdf/1802.07426
+
+    """
+    def __init__(self, length=16, cuts=2):
         self.length = length
+        self.cuts = cuts
 
     def __call__(self, img):
         h, w = img.size(1), img.size(2)
         mask = np.ones((h, w), np.float32)
-        y = np.random.randint(h)
-        x = np.random.randint(w)
 
-        y1 = np.clip(y - self.length // 2, 0, h)
-        y2 = np.clip(y + self.length // 2, 0, h)
-        x1 = np.clip(x - self.length // 2, 0, w)
-        x2 = np.clip(x + self.length // 2, 0, w)
+        for _ in range(self.cuts):
+          y = np.random.randint(h)
+          x = np.random.randint(w)
 
-        mask[y1: y2, x1: x2] = 0.
+          y1 = np.clip(y - self.length // 2, 0, h)
+          y2 = np.clip(y + self.length // 2, 0, h)
+          x1 = np.clip(x - self.length // 2, 0, w)
+          x2 = np.clip(x + self.length // 2, 0, w)
+
+          mask[y1: y2, x1: x2] = 0.
         mask = torch.from_numpy(mask)
         mask = mask.expand_as(img)
         img *= mask
@@ -241,7 +252,10 @@ def _data_transforms_imagenet(args, normalize_as_tensor=True):
     train_transform = transforms.Compose([
       transforms.RandomResizedCrop(crop_size),
       transforms.RandomHorizontalFlip(),
+      # cutout and autoaugment are used in the autoaugment paper
       autoaugment.ImageNetPolicy(),
+      # note that this defaults to dual cutout
+      Cutout(length=crop_size/2),
     ])
   else:
     train_transform = transforms.Compose([
@@ -457,6 +471,7 @@ def initialize_files_and_args(args):
 
   Output:
   args.stats_file: full path to file for final json statistics
+  args.epoch_stats_file: full path to file for json with per-epoch statistics
   args.save: new save directory, or existing directory if evaluating.
   args.evaluate: are we doing an evaluation-only run
   args.load: updated if a weights file was specified via args.evaluate
@@ -506,6 +521,7 @@ def initialize_files_and_args(args):
         json.dump(vars(args), f)
 
   stats_file_name = 'eval-stats-' + stats_time + '.json'
+  args.epoch_stats_file = os.path.join(args.save, 'eval-epoch-stats-' + stats_time + '.json')
   args.stats_file = os.path.join(args.save, stats_file_name)
   args.log_file_path = log_file_path
   return args
