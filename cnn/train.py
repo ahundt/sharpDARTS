@@ -195,6 +195,8 @@ def main():
       stats['train_acc'] = train_acc
       stats['train_loss'] = train_obj
       epoch_stats += [stats]
+      with open(args.epoch_stats_file, 'w') as f:
+        json.dump(epoch_stats, f)
 
     # get stats from best epoch including cifar10.1
     eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
