@@ -196,7 +196,7 @@ def main():
         'arch_weights': str(cnn_model.arch_weights)}
       epoch_stats += [stats]
       with open(args.epoch_stats_file, 'w') as f:
-        json.dump(epoch_stats, f)
+        json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
 
   # print the final model
   genotype = cnn_model.genotype()

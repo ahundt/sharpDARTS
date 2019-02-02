@@ -196,16 +196,16 @@ def main():
       stats['train_loss'] = train_obj
       epoch_stats += [stats]
       with open(args.epoch_stats_file, 'w') as f:
-        json.dump(epoch_stats, f)
+        json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
 
     # get stats from best epoch including cifar10.1
     eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
     with open(args.stats_file, 'w') as f:
       arg_dict = vars(args)
       arg_dict.update(eval_stats)
-      json.dump(arg_dict, f)
+      json.dump(arg_dict, f, cls=utils.NumpyEncoder)
     with open(args.epoch_stats_file, 'w') as f:
-      json.dump(epoch_stats, f)
+      json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
     logger.info(utils.dict_to_log_string(eval_stats))
     logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
