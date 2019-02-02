@@ -47,6 +47,7 @@ import autoaugment
 import operations
 import utils
 import warmup_scheduler
+from cosine_power_annealing import cosine_power_annealing
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -320,51 +321,67 @@ def main():
         validate(val_loader, model, criterion)
         return
 
-    prog_epoch = tqdm(range(args.start_epoch, args.epochs), dynamic_ncols=True)
-    best_stats = {}
-    stats = {}
-    best_epoch = 0
-    for epoch in prog_epoch:
-        if args.distributed and train_loader.sampler is not None:
-            train_loader.sampler.set_epoch(epoch)
-        # if args.distributed:
-            # train_sampler.set_epoch(epoch)
+    epochs = np.arange(args.start_epoch, args.epochs)
+    lr_schedule = cosine_power_annealing(
+        epochs.clone(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+        warmup_epochs=args.warmup_epochs)
 
-        scheduler.step()
-        model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
-        # train for one epoch
-        train_stats = train(train_loader, model, criterion, optimizer, epoch, args)
-        if args.prof:
-            break
-        # evaluate on validation set
-        top1, val_stats = validate(val_loader, model, criterion, args)
-        stats.update(train_stats)
-        stats.update(val_stats)
-        stats['lr'] = '{0:.5f}'.format(scheduler.get_lr()[0])
+    with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
+        best_stats = {}
+        stats = {}
+        epoch_stats = []
+        best_epoch = 0
+        for epoch, learning_rate in zip(epochs, lr_schedule):
+            if args.distributed and train_loader.sampler is not None:
+                train_loader.sampler.set_epoch(epoch)
+            # if args.distributed:
+                # train_sampler.set_epoch(epoch)
+            # update the learning rate
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = learning_rate
+            # scheduler.step()
+            model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
+            # train for one epoch
+            train_stats = train(train_loader, model, criterion, optimizer, epoch, args)
+            if args.prof:
+                break
+            # evaluate on validation set
+            top1, val_stats = validate(val_loader, model, criterion, args)
+            stats.update(train_stats)
+            stats.update(val_stats)
+            # stats['lr'] = '{0:.5f}'.format(scheduler.get_lr()[0])
+            stats['lr'] = learning_rate
 
-        # remember best top1 and save checkpoint
-        if args.local_rank == 0:
-            is_best = top1 > best_top1
-            best_top1 = max(top1, best_top1)
-            stats['epoch'] = epoch + 1
-            stats['best_top_1'] = '{0:.3f}'.format(best_top1)
-            if is_best:
-                best_epoch = epoch + 1
-                best_stats = stats
-            stats['best_epoch'] = best_epoch
+            # remember best top1 and save checkpoint
+            if args.local_rank == 0:
+                is_best = top1 > best_top1
+                best_top1 = max(top1, best_top1)
+                stats['epoch'] = epoch + 1
+                stats['best_top_1'] = '{0:.3f}'.format(best_top1)
+                if is_best:
+                    best_epoch = epoch + 1
+                    best_stats = stats
+                stats['best_epoch'] = best_epoch
 
-            stats_str = utils.dict_to_log_string(stats)
-            logger.info(stats_str)
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'arch': args.arch,
-                'state_dict': model.state_dict(),
-                'best_top_1': best_top1,
-                'optimizer' : optimizer.state_dict(),
-                'lr_scheduler': scheduler.state_dict()
-            }, is_best, path=args.save)
-    stats_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
-    logger.info(stats_str)
+                stats_str = utils.dict_to_log_string(stats)
+                logger.info(stats_str)
+                save_checkpoint({
+                    'epoch': epoch + 1,
+                    'arch': args.arch,
+                    'state_dict': model.state_dict(),
+                    'best_top_1': best_top1,
+                    'optimizer': optimizer.state_dict(),
+                    'lr_scheduler': scheduler.state_dict()
+                }, is_best, path=args.save)
+            epoch_stats += [stats]
+        stats_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
+        logger.info(stats_str)
+        with open(args.stats_file, 'w') as f:
+            arg_dict = vars(args)
+            arg_dict.update(best_stats)
+            json.dump(arg_dict, f)
+        with open(args.epoch_stats_file, 'w') as f:
+            json.dump(epoch_stats, f)
 
 class data_prefetcher():
     def __init__(self, loader, mean=None, std=None):
