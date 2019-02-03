@@ -209,7 +209,12 @@ class Cutout(object):
         self.cuts = cuts
 
     def __call__(self, img):
-        h, w = img.shape[1], img.shape[2]
+        if isinstance(img, torch.Tensor) or isinstance(img, np.array):
+          # torch or numpy image
+          h, w = img.shape[1], img.shape[2]
+        else:
+          # PIL image
+          h, w = img.size(1), img.size(2)
         mask = np.ones((h, w), np.float32)
 
         for _ in range(self.cuts):
@@ -228,6 +233,44 @@ class Cutout(object):
           mask = mask.expand_as(img)
         img *= mask
         return img
+
+
+
+class BatchCutout(object):
+  """Cutout and dual cutout
+
+  Defaults to Dual Cutout.
+
+  Cutout: https://arxiv.org/abs/1708.04552
+  Dual Cutout: https://arxiv.org/pdf/1802.07426
+
+  """
+  def __init__(self, length=16, cuts=2, dtype=np.float32):
+      self.length = length
+      self.cuts = cuts
+      self.dtype = dtype
+
+  def __call__(self, img):
+      b, c, h, w = img.shape
+      mask = np.ones((b, c, h, w), np.float32)
+
+      for bi in range(b):
+        for _ in range(self.cuts):
+          y = np.random.randint(h)
+          x = np.random.randint(w)
+
+          y1 = np.clip(y - self.length // 2, 0, h)
+          y2 = np.clip(y + self.length // 2, 0, h)
+          x1 = np.clip(x - self.length // 2, 0, w)
+          x2 = np.clip(x + self.length // 2, 0, w)
+
+          mask[bi, :, y1: y2, x1: x2] = 0.
+
+      if isinstance(img, torch.Tensor):
+        mask = torch.from_numpy(mask)
+        mask = mask.expand_as(img)
+      img *= mask
+      return img
 
 
 # Function to fetch the transforms based on the dataset
@@ -263,14 +306,10 @@ def get_data_transforms(args, normalize_as_tensor=True):
     return _data_transforms_imagenet(args, normalize_as_tensor)
   assert False, "Cannot get Transform for dataset"
 
+
 def finalize_transform(train_transform, valid_transform, args, normalize_as_tensor=True):
   """ Transform steps that apply to most augmentation regimes
   """
-  if args.cutout:
-    # note that this defaults to dual cutout
-    train_transform.transforms.append(Cutout(args.cutout_length))
-  if args.random_eraser:
-    train_transform.transforms.append(random_eraser)
   if normalize_as_tensor:
     # train
     train_transform.transforms.append(transforms.ToTensor())
@@ -280,6 +319,16 @@ def finalize_transform(train_transform, valid_transform, args, normalize_as_tens
     valid_transform.transforms.append(transforms.ToTensor())
     valid_transform.transforms.append(
       transforms.Normalize(args.mean, args.std))
+    # note that the current cutout and random eraser implementations
+    # require tensors as imput, so don't get applied when
+    # normalize_as_tensor is False
+
+    # cutout should be after normalize
+    if args.cutout:
+      # note that this defaults to dual cutout
+      train_transform.transforms.append(Cutout(args.cutout_length))
+    if args.random_eraser:
+      train_transform.transforms.append(random_eraser)
   return train_transform, valid_transform
 
 
