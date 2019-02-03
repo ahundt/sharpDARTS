@@ -209,7 +209,7 @@ class Cutout(object):
         self.cuts = cuts
 
     def __call__(self, img):
-        h, w = img.size(1), img.size(2)
+        h, w = img.shape[1], img.shape[2]
         mask = np.ones((h, w), np.float32)
 
         for _ in range(self.cuts):
@@ -222,8 +222,10 @@ class Cutout(object):
           x2 = np.clip(x + self.length // 2, 0, w)
 
           mask[y1: y2, x1: x2] = 0.
-        mask = torch.from_numpy(mask)
-        mask = mask.expand_as(img)
+
+        if isinstance(img, torch.Tensor):
+          mask = torch.from_numpy(mask)
+          mask = mask.expand_as(img)
         img *= mask
         return img
 
@@ -289,11 +291,11 @@ def _data_transforms_imagenet(args, normalize_as_tensor=True):
   args.std = IMAGENET_MEAN
 
   if(args.arch == "inception_v3"):
-      crop_size = 299
-      val_size = 320 # nvidia author chose this value arbitrarily, we can adjust.
+    crop_size = 299
+    val_size = 320  # nvidia author chose this value arbitrarily, we can adjust.
   else:
-      crop_size = 224
-      val_size = 256
+    crop_size = 224
+    val_size = 256
   if args.autoaugment:
     train_transform = transforms.Compose([
       transforms.RandomResizedCrop(crop_size),
