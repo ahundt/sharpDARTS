@@ -209,7 +209,12 @@ class Cutout(object):
         self.cuts = cuts
 
     def __call__(self, img):
-        h, w = img.shape[1], img.shape[2]
+        if isinstance(img, torch.Tensor) or isinstance(img, np.array):
+          # torch or numpy image
+          h, w = img.shape[1], img.shape[2]
+        else:
+          # PIL image
+          h, w = img.size(1), img.size(2)
         mask = np.ones((h, w), np.float32)
 
         for _ in range(self.cuts):
