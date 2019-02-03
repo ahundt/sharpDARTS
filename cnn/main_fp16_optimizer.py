@@ -82,8 +82,6 @@ parser.add_argument('--print_freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
-                    help='evaluate model on validation set')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
 
@@ -248,7 +246,9 @@ def main():
                                    dynamic_loss_scale=args.dynamic_loss_scale)
 
     # Optionally resume from a checkpoint
-    if args.resume:
+    if args.resume or args.evaluate:
+        if args.evaluate:
+            args.resume = args.evaluate
         # Use a local scope to avoid dangling references
         def resume():
             if os.path.isfile(args.resume):
