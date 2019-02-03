@@ -115,7 +115,7 @@ parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight 
 parser.add_argument('--autoaugment', action='store_true', default=False, help='use cifar10 autoaugment https://arxiv.org/abs/1805.09501')
 parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
-parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
+parser.add_argument('--cutout_length', type=int, default=112, help='cutout length')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
                     help='evaluate model at specified path on training, test, and validation datasets')
