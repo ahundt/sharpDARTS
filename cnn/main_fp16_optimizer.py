@@ -362,22 +362,22 @@ def main():
             stats.update(val_stats)
             # stats['lr'] = '{0:.5f}'.format(scheduler.get_lr()[0])
             stats['lr'] = '{0:.5f}'.format(learning_rate)
+            stats['epoch'] = epoch
 
             # remember best top1 and save checkpoint
             if args.local_rank == 0:
                 is_best = top1 > best_top1
                 best_top1 = max(top1, best_top1)
-                stats['epoch'] = epoch + 1
                 stats['best_top_1'] = '{0:.3f}'.format(best_top1)
                 if is_best:
-                    best_epoch = epoch + 1
+                    best_epoch = epoch
                     best_stats = stats
                 stats['best_epoch'] = best_epoch
 
                 stats_str = utils.dict_to_log_string(stats)
                 logger.info(stats_str)
                 save_checkpoint({
-                    'epoch': epoch + 1,
+                    'epoch': epoch,
                     'arch': args.arch,
                     'state_dict': model.state_dict(),
                     'best_top_1': best_top1,
