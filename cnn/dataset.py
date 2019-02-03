@@ -49,9 +49,9 @@ inp_channel_dict = {'cifar10': 3,
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
 
-def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=0.9, search_architecture=False,
+def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=1.0, search_architecture=False,
                         costar_version='v0.4', costar_set_name=None, costar_subset_name=None, costar_feature_mode=None, costar_output_shape=(224, 224, 3),
-                        costar_random_augmentation=None, costar_one_hot_encoding=True, distributed=False, num_workers=12, 
+                        costar_random_augmentation=None, costar_one_hot_encoding=True, distributed=False, num_workers=12,
                         collate_fn=torch.utils.data.dataloader.default_collate):
   print("Getting " + dataset_name + " data")
   if dataset_name == 'imagenet':
@@ -218,10 +218,10 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
     np.random.shuffle(indices)
     print("After Shuffle", indices[-10:num_train])
 
-  train_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[:split])
-
   if distributed:
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_sampler)
+    train_sampler = torch.utils.data.distributed.DistributedSampler(indices[:split])
+  else:
+    train_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[:split])
   # shuffle does not need to be set to True because
   # that is taken care of by the subset random sampler
   train_queue = torch.utils.data.DataLoader(
@@ -275,7 +275,7 @@ def get_costar_test_queue(dataset_location, costar_set_name, costar_subset_name,
 
   txt_filename = 'costar_block_stacking_dataset_{0}_{1}_{2}_test_files.txt'.format(costar_version, costar_set_name, costar_subset_name)
   txt_filename = os.path.expanduser(os.path.join(dataset_location, costar_set_name, txt_filename))
-  
+
   if verbose > 0:
     print("Loading train filenames from txt files: \n\t{}".format(txt_filename))
   with open(txt_filename, 'r') as f:
@@ -310,5 +310,5 @@ def get_costar_test_queue(dataset_location, costar_set_name, costar_subset_name,
   test_queue = torch.utils.data.DataLoader(
       test_data, batch_size=batch_size,
       pin_memory=False, num_workers=4)
-    
+
   return test_queue

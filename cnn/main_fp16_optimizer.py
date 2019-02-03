@@ -320,12 +320,13 @@ def main():
         normalize_as_tensor = True
 
     # Get preprocessing functions (i.e. transforms) to apply on data
-    train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
+    train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=normalize_as_tensor)
     # Get the training queue, select training and validation from training set
     train_loader, val_loader = dataset.get_training_queues(
         args.dataset, train_transform, valid_transform, args.data,
         args.batch_size, train_proportion=1.0,
-        collate_fn=fast_collate, distributed=args.distributed)
+        collate_fn=fast_collate, distributed=args.distributed,
+        num_workers=args.workers)
 
     if args.evaluate:
         validate(val_loader, model, criterion)
@@ -336,7 +337,7 @@ def main():
         epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
         warmup_epochs=args.warmup_epochs)
 
-    with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
+    with tqdm(epochs, dynamic_ncols=True, disable=args.local_rank != 0) as prog_epoch:
         best_stats = {}
         stats = {}
         epoch_stats = []
