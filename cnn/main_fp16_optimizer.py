@@ -350,9 +350,9 @@ def main():
             for param_group in optimizer.param_groups:
                 param_group['lr'] = learning_rate
             # scheduler.step()
-            model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
+            model.drop_path_prob = args.drop_path_prob * float(epoch) / float(args.epochs)
             # train for one epoch
-            train_stats = train(train_loader, model, criterion, optimizer, epoch, args)
+            train_stats = train(train_loader, model, criterion, optimizer, int(epoch), args)
             if args.prof:
                 break
             # evaluate on validation set
