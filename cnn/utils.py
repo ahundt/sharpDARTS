@@ -245,32 +245,35 @@ class BatchCutout(object):
   Dual Cutout: https://arxiv.org/pdf/1802.07426
 
   """
-  def __init__(self, length=16, cuts=2, dtype=np.float32):
-      self.length = length
-      self.cuts = cuts
-      self.dtype = dtype
+  def __init__(self, length=16, cuts=2, dtype=np.float32, cuda=True):
+    self.length = length
+    self.cuts = cuts
+    self.dtype = dtype
+    self.cuda = cuda
 
   def __call__(self, img):
-      b, c, h, w = img.shape
-      mask = np.ones((b, c, h, w), self.dtype)
+    b, c, h, w = img.shape
+    mask = np.ones((b, c, h, w), self.dtype)
 
-      for bi in range(b):
-        for _ in range(self.cuts):
-          y = np.random.randint(h)
-          x = np.random.randint(w)
+    for bi in range(b):
+      for _ in range(self.cuts):
+        y = np.random.randint(h)
+        x = np.random.randint(w)
 
-          y1 = np.clip(y - self.length // 2, 0, h)
-          y2 = np.clip(y + self.length // 2, 0, h)
-          x1 = np.clip(x - self.length // 2, 0, w)
-          x2 = np.clip(x + self.length // 2, 0, w)
+        y1 = np.clip(y - self.length // 2, 0, h)
+        y2 = np.clip(y + self.length // 2, 0, h)
+        x1 = np.clip(x - self.length // 2, 0, w)
+        x2 = np.clip(x + self.length // 2, 0, w)
 
-          mask[bi, :, y1: y2, x1: x2] = 0.
+        mask[bi, :, y1: y2, x1: x2] = 0.
 
-      if isinstance(img, torch.Tensor):
-        mask = torch.from_numpy(mask)
-        mask = mask.expand_as(img)
-      img *= mask
-      return img
+    if isinstance(img, torch.Tensor):
+      mask = torch.from_numpy(mask)
+      mask = mask.expand_as(img)
+      if self.cuda:
+        mask.cuda()
+    img *= mask
+    return img
 
 
 # Function to fetch the transforms based on the dataset
