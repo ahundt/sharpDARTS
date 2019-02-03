@@ -337,7 +337,7 @@ def main():
         epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
         warmup_epochs=args.warmup_epochs)
 
-    with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
+    with tqdm(epochs, dynamic_ncols=True, disable=args.local_rank != 0) as prog_epoch:
         best_stats = {}
         stats = {}
         epoch_stats = []
