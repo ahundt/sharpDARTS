@@ -400,7 +400,7 @@ def main():
 
 
 class data_prefetcher():
-    def __init__(self, loader, mean=None, std=None):
+    def __init__(self, loader, mean=None, std=None, cutout=True, cutout_length=112, cutout_cuts=2):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
         if mean is None:
@@ -411,9 +411,15 @@ class data_prefetcher():
         std = np.array(std) * 255
         self.mean = torch.tensor(mean).cuda().view(1,3,1,1)
         self.std = torch.tensor(std).cuda().view(1,3,1,1)
+        cutout_dtype = np.float32
         if args.fp16:
             self.mean = self.mean.half()
             self.std = self.std.half()
+            cutout_dtype = np.float16
+
+        self.cutout = None
+        if cutout:
+            self.cutout = utils.BatchCutout(cutout_length, cutout_cuts, dtype=cutout_dtype)
         self.preload()
 
     def preload(self):
@@ -431,6 +437,8 @@ class data_prefetcher():
             else:
                 self.next_input = self.next_input.float()
             self.next_input = self.next_input.sub_(self.mean).div_(self.std)
+            if self.cutout is not None:
+                self.next_input = self.cutout(self.next_input)
 
     def next(self):
         torch.cuda.current_stream().wait_stream(self.stream)
@@ -455,7 +463,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
     end = time.time()
-    prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std)
+    prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std, cutout_length=args.cutout_length)
 
     input, target = prefetcher.next()
     i = -1
