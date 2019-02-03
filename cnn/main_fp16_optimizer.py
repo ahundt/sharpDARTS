@@ -463,7 +463,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
     end = time.time()
-    prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std, cutout_length=args.cutout_length)
+    prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std, cutout=args.cutout, cutout_length=args.cutout_length)
 
     input, target = prefetcher.next()
     i = -1
