@@ -246,7 +246,7 @@ class BatchCutout(object):
 
   """
   def __init__(self, length=16, cuts=2, dtype=np.float32, cuda=True):
-    self.length = length
+        self.length = length
     self.cuts = cuts
     self.dtype = dtype
     self.cuda = cuda
@@ -271,7 +271,7 @@ class BatchCutout(object):
       mask = torch.from_numpy(mask)
       mask = mask.expand_as(img)
       if self.cuda:
-        mask.cuda()
+        mask = mask.cuda()
     img *= mask
     return img
 
