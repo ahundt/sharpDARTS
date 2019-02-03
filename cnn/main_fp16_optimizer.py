@@ -131,6 +131,8 @@ best_top1 = 0
 args = parser.parse_args()
 logger = None
 DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
+DATASET_MEAN = dataset.mean_dict[args.dataset]
+DATASET_STD = dataset.std_dict[args.dataset]
 # print('>>>>>>>DATASET_CHANNELS: ' + str(DATASET_CHANNELS))
 
 def fast_collate(batch):
@@ -312,13 +314,6 @@ def main():
     #     sampler=val_sampler,
     #     collate_fn=fast_collate)
 
-    if args.dataset == 'imagenet':
-        collate_fn = fast_collate
-        normalize_as_tensor = False
-    else:
-        collate_fn = torch.utils.data.dataloader.default_collate
-        normalize_as_tensor = True
-
     # Get preprocessing functions (i.e. transforms) to apply on data
     train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=normalize_as_tensor)
     # Get the training queue, select training and validation from training set
@@ -388,6 +383,7 @@ def main():
             epoch_stats += [stats]
             with open(args.epoch_stats_file, 'w') as f:
                 json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
+            utils.list_of_dicts_to_csv(args.epoch_stats_file.replace('.json', '.csv'), stats)
         stats_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
         logger.info(stats_str)
         with open(args.stats_file, 'w') as f:
@@ -396,7 +392,9 @@ def main():
             json.dump(arg_dict, f, cls=utils.NumpyEncoder)
         with open(args.epoch_stats_file, 'w') as f:
             json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
+        utils.list_of_dicts_to_csv(args.epoch_stats_file.replace('.json', '.csv'), stats)
         logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
+
 
 class data_prefetcher():
     def __init__(self, loader, mean=None, std=None):
@@ -455,15 +453,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     model.train()
     end = time.time()
     prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std)
-    # if args.dataset == 'imagenet':
-    #     # TODO(ahundt) debug why this special case is needed
-    #     prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std)
-    # else:
-    #     prefetcher = iter(train_loader)
 
-    # logger.info('\n\n>>>>>>>>>>>>>>>>>>>prefetcher.len: ' + str(loader_len))
     input, target = prefetcher.next()
-    # logger.info('\n\n>>>>>>>>>>>>>>>>>>>target.shape: ' + str(target.shape))
     i = -1
     if args.local_rank == 0:
         progbar = tqdm(total=len(train_loader))

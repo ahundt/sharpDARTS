@@ -28,6 +28,23 @@ STL10_CLASSES = 10
 DEVANAGARI_CLASSES = 46
 IMAGENET_CLASSES = 1000
 
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
+CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
+CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
+MNIST_MEAN = (0.1307,)
+MNIST_STD = (0.3081,)
+FASHION_MEAN = (0.2860405969887955,)
+FASHION_STD = (0.35302424825650003,)
+EMNIST_MEAN = (0.17510417052459282,)
+EMNIST_STD = (0.33323714976320795,)
+SVHN_MEAN = [ 0.4376821,   0.4437697,   0.47280442]
+SVHN_STD = [ 0.19803012,  0.20101562,  0.19703614]
+STL_MEAN = [ 0.44671062,  0.43980984,  0.40664645]
+STL_STD = [ 0.26034098,  0.25657727,  0.27126738]
+DEVANAGARI_MEAN = (0.240004663268,)
+DEVANAGARI_STD = (0.386530114768,)
+
 class_dict = {'cifar10': CIFAR_CLASSES,
               'mnist' : MNIST_CLASSES,
               'emnist': EMNIST_CLASSES,
@@ -36,6 +53,24 @@ class_dict = {'cifar10': CIFAR_CLASSES,
               'stl10': STL10_CLASSES,
               'devanagari' : DEVANAGARI_CLASSES,
               'imagenet' : IMAGENET_CLASSES}
+
+mean_dict = {'cifar10': CIFAR_MEAN,
+             'mnist' : MNIST_MEAN,
+             'emnist': EMNIST_MEAN,
+             'fashion': FASHION_MEAN,
+             'svhn': SVHN_MEAN,
+             'stl10': STL10_MEAN,
+             'devanagari' : DEVANAGARI_MEAN,
+             'imagenet' : IMAGENET_MEAN}
+
+std_dict = {'cifar10': CIFAR_STD,
+            'mnist' : MNIST_STD,
+            'emnist': EMNIST_STD,
+            'fashion': FASHION_STD,
+            'svhn': SVHN_STD,
+            'stl10': STL10_STD,
+            'devanagari' : DEVANAGARI_STD,
+            'imagenet' : IMAGENET_STD}
 
 inp_channel_dict = {'cifar10': 3,
                     'mnist' : 1,
