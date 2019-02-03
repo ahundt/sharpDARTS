@@ -252,7 +252,7 @@ class BatchCutout(object):
 
   def __call__(self, img):
       b, c, h, w = img.shape
-      mask = np.ones((b, c, h, w), np.float32)
+      mask = np.ones((b, c, h, w), self.dtype)
 
       for bi in range(b):
         for _ in range(self.cuts):
