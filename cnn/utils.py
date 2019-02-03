@@ -271,7 +271,7 @@ class BatchCutout(object):
       mask = torch.from_numpy(mask)
       mask = mask.expand_as(img)
       if self.cuda:
-        mask = mask.cuda()
+        mask = mask.cuda(async=True)
     img *= mask
     return img
 
