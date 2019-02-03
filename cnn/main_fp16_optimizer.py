@@ -343,7 +343,7 @@ def main():
         best_epoch = 0
         for epoch, learning_rate in zip(prog_epoch, lr_schedule):
             if args.distributed and train_loader.sampler is not None:
-                train_loader.sampler.set_epoch(epoch)
+                train_loader.sampler.set_epoch(int(epoch))
             # if args.distributed:
                 # train_sampler.set_epoch(epoch)
             # update the learning rate
