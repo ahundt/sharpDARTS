@@ -75,6 +75,27 @@ class TqdmHandler(logging.StreamHandler):
         msg = self.format(record)
         tqdm.write(msg)
 
+
+def list_of_dicts_to_dict_of_lists(ld):
+    """ list of dictionaries to dictionary of lists when all keys are the same.
+
+    source: https://stackoverflow.com/a/23551944/99379
+    """
+    return {key: [item[key] for item in ld] for key in ld[0].keys()}
+
+
+def list_of_dicts_to_csv(filename, list_of_dicts, separator=', ', key_prepend=''):
+    headers = []
+    values = []
+    dict_of_lists = list_of_dicts_to_dict_of_lists(ld)
+    for (k, v) in iteritems(dict_of_lists):
+        headers += [key_prepend + str(k)]
+        values += v
+
+    header = separator.join(headers)
+    np.savetxt(filename, values, separator=separator)
+
+
 def logging_setup(log_file_path):
     """ setup logging to a file and support for tqdm progress bar
 
