@@ -119,6 +119,13 @@ parser.add_argument('--random_eraser', action='store_true', default=False, help=
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
+parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
+                    help='evaluate model at specified path on training, test, and validation datasets')
+parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
+parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
+                    help='load command line args from a json file, this will override '
+                         'all currently set args except for --evaluate, and arguments '
+                         'that did not exist when the json file was originally saved out.')
 
 cudnn.benchmark = True
 
@@ -378,14 +385,17 @@ def main():
                     'lr_schedule': lr_schedule
                 }, is_best, path=args.save)
             epoch_stats += [stats]
+            with open(args.epoch_stats_file, 'w') as f:
+                json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
         stats_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
         logger.info(stats_str)
         with open(args.stats_file, 'w') as f:
             arg_dict = vars(args)
             arg_dict.update(best_stats)
-            json.dump(arg_dict, f)
+            json.dump(arg_dict, f, cls=utils.NumpyEncoder)
         with open(args.epoch_stats_file, 'w') as f:
-            json.dump(epoch_stats, f)
+            json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
+        logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 class data_prefetcher():
     def __init__(self, loader, mean=None, std=None):
