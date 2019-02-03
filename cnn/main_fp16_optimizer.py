@@ -438,6 +438,7 @@ class data_prefetcher():
                 self.next_input = self.next_input.float()
             self.next_input = self.next_input.sub_(self.mean).div_(self.std)
             if self.cutout is not None:
+                # TODO(ahundt) Fix performance of this cutout call, it makes batch loading time go from 0.001 seconds to 0.05 seconds.
                 self.next_input = self.cutout(self.next_input)
 
     def next(self):
