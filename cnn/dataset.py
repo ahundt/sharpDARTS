@@ -49,7 +49,7 @@ inp_channel_dict = {'cifar10': 3,
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
 
-def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=0.9, search_architecture=False,
+def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=1.0, search_architecture=False,
                         costar_version='v0.4', costar_set_name=None, costar_subset_name=None, costar_feature_mode=None, costar_output_shape=(224, 224, 3),
                         costar_random_augmentation=None, costar_one_hot_encoding=True, distributed=False, num_workers=12,
                         collate_fn=torch.utils.data.dataloader.default_collate):

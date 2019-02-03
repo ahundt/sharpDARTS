@@ -221,7 +221,7 @@ def get_data_transforms(args, normalize_as_tensor=True):
     entirely
 
   """
-  print("Getting",args.dataset,"Transforms")
+  print("get_data_transforms(): Getting ", args.dataset, " Transforms")
   if args.dataset == 'cifar10':
     return _data_transforms_cifar10(args, normalize_as_tensor)
   if args.dataset == 'mnist':
@@ -243,6 +243,11 @@ def get_data_transforms(args, normalize_as_tensor=True):
 def finalize_transform(train_transform, valid_transform, args, normalize_as_tensor=True):
   """ Transform steps that apply to most augmentation regimes
   """
+  if args.cutout:
+    # note that this defaults to dual cutout
+    train_transform.transforms.append(Cutout(args.cutout_length))
+  if args.random_eraser:
+    train_transform.transforms.append(random_eraser)
   if normalize_as_tensor:
     # train
     train_transform.transforms.append(transforms.ToTensor())
@@ -252,10 +257,6 @@ def finalize_transform(train_transform, valid_transform, args, normalize_as_tens
     valid_transform.transforms.append(transforms.ToTensor())
     valid_transform.transforms.append(
       transforms.Normalize(args.mean, args.std))
-  if args.random_eraser:
-    train_transform.transforms.append(random_eraser)
-  if args.cutout:
-    train_transform.transforms.append(Cutout(args.cutout_length))
   return train_transform, valid_transform
 
 
@@ -278,8 +279,6 @@ def _data_transforms_imagenet(args, normalize_as_tensor=True):
       transforms.RandomHorizontalFlip(),
       # cutout and autoaugment are used in the autoaugment paper
       autoaugment.ImageNetPolicy(),
-      # note that this defaults to dual cutout
-      Cutout(length=crop_size/2),
     ])
   else:
     train_transform = transforms.Compose([
