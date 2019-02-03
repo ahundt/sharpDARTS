@@ -65,7 +65,7 @@ parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=300, type=int, metavar='N',
                     help='number of total epochs to run (default: 300)')
-parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
+parser.add_argument('--start_epoch', default=1, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch_size', default=256, type=int,
                     metavar='N', help='mini-batch size per process (default: 256)')
@@ -331,7 +331,7 @@ def main():
         validate(val_loader, model, criterion)
         return
 
-    epochs = np.arange(args.start_epoch, args.epochs)
+    epochs = np.arange(args.start_epoch, args.epochs + 1)
     lr_schedule = cosine_power_annealing(
         epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
         warmup_epochs=args.warmup_epochs)
