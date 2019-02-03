@@ -152,16 +152,16 @@ def main():
   prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
   best_valid_acc = 0.0
   best_epoch = 0
-  state_dict = {}
-  og_state_keys = set()
-  updated_state_keys = set()
+  # state_dict = {}
+  # og_state_keys = set()
+  # updated_state_keys = set()
 
   #saving state_dict for debugging weights by comparison
-  for key in cnn_model.state_dict():
-    state_dict[key] = cnn_model.state_dict()[key].clone()
-    # logger.info('layer = {}'.format(key))
-  logger.info('Total keys in state_dict = {}'.format(len(cnn_model.state_dict().keys())))
-  og_state_keys.update(cnn_model.state_dict().keys())
+  # for key in cnn_model.state_dict():
+  #   state_dict[key] = cnn_model.state_dict()[key].clone()
+  #   # logger.info('layer = {}'.format(key))
+  # logger.info('Total keys in state_dict = {}'.format(len(cnn_model.state_dict().keys())))
+  # og_state_keys.update(cnn_model.state_dict().keys())
 
   for epoch in prog_epoch:
     scheduler.step()
@@ -182,18 +182,18 @@ def main():
     for key in cnn_model.state_dict():
       updated_state_dict[key] = cnn_model.state_dict()[key].clone()
 
-    logger.info("gradients computed")
-    for name, parameter in cnn_model.named_parameters():
-      if parameter.requires_grad:
-        logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
+    # logger.info("gradients computed")
+    # for name, parameter in cnn_model.named_parameters():
+    #   if parameter.requires_grad:
+    #     logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
 
-    updated_state_keys = set()
-    for key in state_dict:
-      if not (state_dict[key] == updated_state_dict[key]).all():
-        # logger.info('Update in {}'.format(key))
-        updated_state_keys.add(key)
-    logger.info('Total updates = {}'.format(len(updated_state_keys)))
-    logger.info('Parameters not updated {}'.format(og_state_keys - updated_state_keys))
+    # updated_state_keys = set()
+    # for key in state_dict:
+    #   if not (state_dict[key] == updated_state_dict[key]).all():
+    #     # logger.info('Update in {}'.format(key))
+    #     updated_state_keys.add(key)
+    # logger.info('Total updates = {}'.format(len(updated_state_keys)))
+    # logger.info('Parameters not updated {}'.format(og_state_keys - updated_state_keys))
 
     # validation
     valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
@@ -240,7 +240,7 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
     loss = criterion(logits, target)
 
     loss.backward()
-    # nn.utils.clip_grad_norm(cnn_model.parameters(), args.grad_clip)
+    nn.utils.clip_grad_norm(cnn_model.parameters(), args.grad_clip)
     optimizer.step()
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))

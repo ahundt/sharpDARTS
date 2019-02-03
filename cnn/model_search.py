@@ -296,7 +296,7 @@ class MultiChannelNetwork(nn.Module):
       self.base.append(operations.SepConv(int(c), int(final_linear_filters), 3))
     # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
     # C_in will be defined by the previous layer's c_out
-    self.arch_weights_shape = [len(self.strides), layers, self.C_size, self.C_size, len(self.op_types)]
+    self.arch_weights_shape = [len(self.strides), self._layers, self.C_size, self.C_size, len(self.op_types)]
     # number of weights total
     self.weight_count = np.prod(self.arch_weights_shape)
     # number of weights in a softmax call
@@ -305,7 +305,6 @@ class MultiChannelNetwork(nn.Module):
     self.min_score = float(1 / (self.softmax_weight_count * self.softmax_weight_count))
 
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
-    self.batch_norm = nn.BatchNorm1d(final_linear_filters)
     self.classifier = nn.Linear(final_linear_filters, num_classes)
 
     if not self._visualization:
@@ -397,7 +396,7 @@ class MultiChannelNetwork(nn.Module):
     #     outs += [op()]
     # out = sum(outs)
     # out = self.global_pooling(out)
-    logits = self.classifier(self.batch_norm(out.view(out.size(0),-1)))
+    logits = self.classifier(out.view(out.size(0),-1))
     # print('logits')
     return logits
 
