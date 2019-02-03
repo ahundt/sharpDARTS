@@ -69,8 +69,8 @@ parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch_size', default=256, type=int,
                     metavar='N', help='mini-batch size per process (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
-                    metavar='LR', help='Initial learning rate based on autoaugment https://arxiv.org/pdf/1805.09501.pdf.  Will be scaled by <global batch size>/256: args.lr = args.lr*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.')
+parser.add_argument('--lr', '--learning_rate', dest='learning_rate', default=0.1, type=float,
+                    metavar='LR', help='Initial learning rate based on autoaugment https://arxiv.org/pdf/1805.09501.pdf.  Will be scaled by <global batch size>/256: args.learning_rate = args.learning_rate*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.')
 parser.add_argument('--learning_rate_min', type=float, default=0.00016, help='min learning rate')
 parser.add_argument('--warmup_epochs', default=10, type=int, help='number of epochs for warmup (default: 10)')
 parser.add_argument('--warmup_lr_divisor', default=10, type=int, help='factor by which to reduce lr at warmup start (default: 10)')
@@ -229,8 +229,8 @@ def main():
     criterion = nn.CrossEntropyLoss().cuda()
 
     # Scale learning rate based on global batch size
-    args.lr = args.lr*float(args.batch_size*args.world_size)/256.
-    init_lr = args.lr / args.warmup_lr_divisor
+    args.learning_rate = args.learning_rate * float(args.batch_size * args.world_size)/256.
+    init_lr = args.learning_rate / args.warmup_lr_divisor
     optimizer = torch.optim.SGD(model.parameters(), init_lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
@@ -671,7 +671,7 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
     if epoch >= 80:
         factor = factor + 1
 
-    lr = args.lr*(0.1**factor)
+    lr = args.learning_rate*(0.1**factor)
 
     """Warmup"""
     if epoch < 5:
