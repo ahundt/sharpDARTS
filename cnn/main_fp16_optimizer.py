@@ -16,6 +16,7 @@ import shutil
 import time
 import glob
 import json
+import copy
 
 import torch
 import torch.nn as nn
@@ -389,7 +390,7 @@ def main():
                     # 'lr_scheduler': scheduler.state_dict()
                     'lr_schedule': lr_schedule
                 }, is_best, path=args.save)
-            epoch_stats += [stats]
+            epoch_stats += [copy.deepcopy(stats)]
             with open(args.epoch_stats_file, 'w') as f:
                 json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
             utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
