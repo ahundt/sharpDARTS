@@ -392,7 +392,7 @@ def main():
                     'stats': best_stats
                 }, is_best, path=args.save)
                 prog_epoch.set_description(
-                    '***** best_epoch: {0} best_top1: {1:.2f} *****'
+                    'Overview ***** best_epoch: {0} best_valid_top1: {1:.2f} ***** Progress'
                     .format(best_epoch, best_top1))
             epoch_stats += [copy.deepcopy(stats)]
             with open(args.epoch_stats_file, 'w') as f:
