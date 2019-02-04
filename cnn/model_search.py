@@ -100,7 +100,7 @@ class Cell(nn.Module):
 class Network(nn.Module):
 
   def __init__(self, C=16, num_classes=10, layers=8, criterion=None, steps=4, multiplier=4, stem_multiplier=3,
-               in_channels=3, primitives=None, op_dict=None, C_mid=None, weights_are_parameters=False):
+               in_channels=3, primitives=None, op_dict=None, weights_are_parameters=False):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -166,14 +166,13 @@ class Network(nn.Module):
 
     self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
     self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
-    if self._weights_are_parameters:
-      # in simpler training modes the weights are just regular parameters
-      self.alphas_normal = torch.nn.Parameter(self.alphas_normal)
-      self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
     self._arch_parameters = [
       self.alphas_normal,
       self.alphas_reduce,
     ]
+    if self._weights_are_parameters:
+          # in simpler training modes the weights are just regular parameters
+          self._arch_parameters = torch.nn.Parameter(self._arch_parameters)
 
   def arch_parameters(self):
     return self._arch_parameters
@@ -299,7 +298,7 @@ class MultiChannelNetwork(nn.Module):
       self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
     # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
     # C_in will be defined by the previous layer's c_out
-    self.arch_weights_shape = [len(self.strides), layers, self.C_size, self.C_size, len(self.op_types)]
+    self.arch_weights_shape = [len(self.strides), self._layers, self.C_size, self.C_size, len(self.op_types)]
     # number of weights total
     self.weight_count = np.prod(self.arch_weights_shape)
     # number of weights in a softmax call
@@ -348,7 +347,7 @@ class MultiChannelNetwork(nn.Module):
         # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
         # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
         if not self._visualization:
-          max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
+          # max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))

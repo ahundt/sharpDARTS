@@ -147,11 +147,22 @@ def main():
     architect = None
   else:
     architect = Architect(cnn_model, args)
+
   epoch_stats = []
 
   with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
     best_valid_acc = 0.0
     best_epoch = 0
+    # state_dict = {}
+    # og_state_keys = set()
+    # updated_state_keys = set()
+
+    #saving state_dict for debugging weights by comparison
+    # for key in cnn_model.state_dict():
+    #   state_dict[key] = cnn_model.state_dict()[key].clone()
+    #   # logger.info('layer = {}'.format(key))
+    # logger.info('Total keys in state_dict = {}'.format(len(cnn_model.state_dict().keys())))
+    # og_state_keys.update(cnn_model.state_dict().keys())
     best_stats = {}
     weights_file = os.path.join(args.save, 'weights.pt')
     for epoch, learning_rate in zip(prog_epoch, lr_schedule):
@@ -171,6 +182,22 @@ def main():
 
       # training
       train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
+      
+      for key in cnn_model.state_dict():
+      updated_state_dict[key] = cnn_model.state_dict()[key].clone()
+
+      # logger.info("gradients computed")
+      # for name, parameter in cnn_model.named_parameters():
+      #   if parameter.requires_grad:
+      #     logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
+
+      # updated_state_keys = set()
+      # for key in state_dict:
+      #   if not (state_dict[key] == updated_state_dict[key]).all():
+      #     # logger.info('Update in {}'.format(key))
+      #     updated_state_keys.add(key)
+      # logger.info('Total updates = {}'.format(len(updated_state_keys)))
+      # logger.info('Parameters not updated {}'.format(og_state_keys - updated_state_keys))
 
       # validation
       valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
