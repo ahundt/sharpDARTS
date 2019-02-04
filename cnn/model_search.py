@@ -345,7 +345,7 @@ class MultiChannelNetwork(nn.Module):
         # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
         # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
         if not self._visualization:
-          max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
+          # max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
@@ -365,7 +365,7 @@ class MultiChannelNetwork(nn.Module):
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
                   if not self._visualization:
-                    x = (1 - max_w + w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                    x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                   else:
                     # doing visualization, skip the weights
                     x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
