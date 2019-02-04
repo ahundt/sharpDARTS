@@ -237,13 +237,18 @@ class Cutout(object):
 
 
 class BatchCutout(object):
-  """Cutout and dual cutout
+  """Cutout
 
-  Defaults to Dual Cutout.
+  Defaults to two Cutout holes.
+
+  Note that for dual cutout two inference predictions must be made
+  in your main loop with an additional loss between them.
+  Dual cutout will affect performance substantially because two
+  inferences losses and backprop steps must be done for each batch.
 
   Cutout: https://arxiv.org/abs/1708.04552
   Dual Cutout: https://arxiv.org/pdf/1802.07426
-
+  Dual Cutout Code Example: https://github.com/Learning-and-Intelligent-Systems/Analytical-Learning-Theory
   """
   def __init__(self, length=16, cuts=2, dtype=np.float32, cuda=True):
     self.length = length
