@@ -93,7 +93,7 @@ def list_of_dicts_to_csv(filename, list_of_dicts, separator=', ', key_prepend=''
         values += v
 
     header = separator.join(headers)
-    np.savetxt(filename, values, separator=separator)
+    np.savetxt(filename, values, delimiter=separator)
 
 
 def logging_setup(log_file_path):
