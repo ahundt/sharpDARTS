@@ -39,7 +39,8 @@ try:
 except ImportError:
     raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
-from model import NetworkImageNet as Network
+from model import NetworkImageNet as NetworkImageNet
+from model import NetworkCIFAR as NetworkCIFAR
 from tqdm import tqdm
 import dataset
 import genotypes
@@ -203,7 +204,10 @@ def main():
     # get the number of output channels
     classes = dataset.class_dict[args.dataset]
     # create the neural network
-    model = Network(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+    if args.dataset == 'imagenet':
+        model = NetworkImagenet(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+    else:
+        model = NetworkCIFAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
