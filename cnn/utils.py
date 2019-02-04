@@ -87,7 +87,7 @@ def list_of_dicts_to_dict_of_lists(ld):
 def list_of_dicts_to_csv(filename, list_of_dicts, separator=', ', key_prepend=''):
     headers = []
     values = []
-    dict_of_lists = list_of_dicts_to_dict_of_lists(ld)
+    dict_of_lists = list_of_dicts_to_dict_of_lists(list_of_dicts)
     for (k, v) in iteritems(dict_of_lists):
         headers += [key_prepend + str(k)]
         values += v
