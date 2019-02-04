@@ -232,8 +232,8 @@ def train(args, train_queue, cnn_model, criterion, optimizer):
 
   with tqdm(train_queue, dynamic_ncols=True) as progbar:
     for step, (input_batch, target) in enumerate(progbar):
-      input_batch = Variable(input_batch).cuda(async=True)
-      target = Variable(target).cuda(async=True)
+      input_batch = Variable(input_batch).cuda(non_blocking=True)
+      target = Variable(target).cuda(non_blocking=True)
 
       optimizer.zero_grad()
       logits, logits_aux = cnn_model(input_batch)
@@ -269,8 +269,8 @@ def infer(args, valid_queue, cnn_model, criterion, prefix='valid_', desc='Runnin
     # dynamic_ncols = false in this case because we want accurate timing stats
     with tqdm(valid_queue, dynamic_ncols=False, desc=desc) as progbar:
       for step, (input_batch, target) in enumerate(progbar):
-        input_batch = Variable(input_batch).cuda(async=True)
-        target = Variable(target).cuda(async=True)
+        input_batch = Variable(input_batch).cuda(non_blocking=True)
+        target = Variable(target).cuda(non_blocking=True)
 
         logits, _ = cnn_model(input_batch)
         loss = criterion(logits, target)
