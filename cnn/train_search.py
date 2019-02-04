@@ -149,6 +149,8 @@ def main():
     architect = Architect(cnn_model, args)
   epoch_stats = []
 
+  stats_csv = args.epoch_stats_file
+  stats_csv = stats_csv.replace('.json', '.csv')
   with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
     best_valid_acc = 0.0
     best_epoch = 0
@@ -180,6 +182,9 @@ def main():
         utils.save(cnn_model, weights_file)
         best_epoch = epoch
         best_valid_acc = valid_acc
+        prog_epoch.set_description(
+            'Overview ***** best_epoch: {0} best_valid_acc: {1:.2f} ***** Progress'
+            .format(best_epoch, best_valid_acc))
 
       logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
                   epoch, train_acc, valid_acc, train_obj, valid_obj, learning_rate, best_epoch, best_valid_acc)
@@ -194,9 +199,10 @@ def main():
         'best_valid_acc': best_valid_acc,
         'genotype': str(genotype),
         'arch_weights': str(cnn_model.arch_weights)}
-      epoch_stats += [stats]
+      epoch_stats += [copy.deepcopy(stats)]
       with open(args.epoch_stats_file, 'w') as f:
         json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
+      utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
 
   # print the final model
   genotype = cnn_model.genotype()
