@@ -90,10 +90,10 @@ def list_of_dicts_to_csv(filename, list_of_dicts, separator=', ', key_prepend=''
     dict_of_lists = list_of_dicts_to_dict_of_lists(list_of_dicts)
     for (k, v) in iteritems(dict_of_lists):
         headers += [key_prepend + str(k)]
-        values += v
+        values += [v]
 
     header = separator.join(headers)
-    np.savetxt(filename, values, delimiter=separator)
+    np.savetxt(filename, np.array(values), delimiter=separator)
 
 
 def logging_setup(log_file_path):
