@@ -205,7 +205,7 @@ def main():
     classes = dataset.class_dict[args.dataset]
     # create the neural network
     if args.dataset == 'imagenet':
-        model = NetworkImagenet(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+        model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
     else:
         model = NetworkCIFAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
     model.drop_path_prob = 0.0
