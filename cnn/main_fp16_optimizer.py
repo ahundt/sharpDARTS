@@ -553,6 +553,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     stats = {}
     prefix = 'train_'
     stats = get_stats(progbar, prefix, args, batch_time, data_time, top1m, top5m, losses, speed)
+    if progbar is not None:
+        del progbar
     return stats
 
 def get_stats(progbar, prefix, args, batch_time, data_time, top1, top5, losses, speed):
@@ -649,6 +651,8 @@ def validate(val_loader, model, criterion, args):
     #       .format(top1=top1, top5=top5))
     prefix = 'val_'
     stats = get_stats(progbar, prefix, args, batch_time, data_time, top1m, top5m, losses, speed)
+    if progbar is not None:
+        del progbar
     return top1m.avg, stats
 
 
