@@ -406,7 +406,7 @@ def main():
 
 
 class data_prefetcher():
-    def __init__(self, loader, mean=None, std=None, cutout=True, cutout_length=112, cutout_cuts=2):
+    def __init__(self, loader, mean=None, std=None, cutout=False, cutout_length=112, cutout_cuts=2):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
         if mean is None:
