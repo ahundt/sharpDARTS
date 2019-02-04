@@ -540,11 +540,11 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                 #   'Epoch: [{0}][{1}/{2}]\t'
                   'Train (cur/avg)  '
                   'batch_t: {batch_time.val:.3f}/{batch_time.avg:.3f}, '
-                  'img/s: {0:.3f}/{1:.3f}  '
+                  'img/s: {0:.1f}/{1:.1f}  '
                   'load_t: {data_time.val:.3f}/{data_time.avg:.3f}, '
                   'loss: {loss.val:.4f}/{loss.avg:.4f}, '
-                  'top1: {top1.val:.3f}/{top1.avg:.3f}, '
-                  'top5: {top5.val:.3f}/{top5.avg:.3f}, prog'.format(
+                  'top1: {top1.val:.2f}/{top1.avg:.2f}, '
+                  'top5: {top5.val:.2f}/{top5.avg:.2f}, prog'.format(
                 #    epoch, i, len(train_loader),
                    speed.val,
                    speed.avg,
@@ -636,10 +636,10 @@ def validate(val_loader, model, criterion, args):
                 # 'Test: [{0}/{1}]\t'
                   'Valid (cur/avg)  '
                   'batch_t: {batch_time.val:.3f}/{batch_time.avg:.3f}, '
-                  'img/s: {0:.3f}/{1:.3f}, '
+                  'img/s: {0:.1f}/{1:.1f}, '
                   'loss: {loss.val:.4f}/{loss.avg:.4f}, '
-                  'top1: {top1.val:.3f}/{top1.avg:.3f}, '
-                  'top5: {top5.val:.3f}/{top5.avg:.3f}, prog'.format(
+                  'top1: {top1.val:.2f}/{top1.avg:.2f}, '
+                  'top5: {top5.val:.2f}/{top5.avg:.2f}, prog'.format(
                 #    i, len(val_loader),
                    speed.val,
                    speed.avg,
