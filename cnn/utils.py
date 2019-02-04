@@ -8,6 +8,7 @@ import shutil
 import argparse
 import glob
 import json
+import csv
 import torchvision.transforms as transforms
 from torch.autograd import Variable
 import torch.nn.functional as F
@@ -84,16 +85,13 @@ def list_of_dicts_to_dict_of_lists(ld):
     return {key: [item[key] for item in ld] for key in ld[0].keys()}
 
 
-def list_of_dicts_to_csv(filename, list_of_dicts, separator=', ', key_prepend=''):
-    headers = []
-    values = []
-    dict_of_lists = list_of_dicts_to_dict_of_lists(list_of_dicts)
-    for (k, v) in iteritems(dict_of_lists):
-        headers += [key_prepend + str(k)]
-        values += [v]
-
-    header = separator.join(headers)
-    np.savetxt(filename, np.array(values), delimiter=separator)
+def list_of_dicts_to_csv(filename, list_of_dicts):
+    with open(filename, 'w') as f:
+      # https://stackoverflow.com/a/10373268/99379
+      w = csv.DictWriter(f, list_of_dicts[0].keys())
+      w.writeheader()
+      for d in list_of_dicts:
+        w.writerow(d)
 
 
 def logging_setup(log_file_path):

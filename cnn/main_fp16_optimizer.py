@@ -340,7 +340,7 @@ def main():
         warmup_epochs=args.warmup_epochs)
 
     stats_csv = args.epoch_stats_file
-    stats_csv.replace('.json', '.csv')
+    stats_csv = stats_csv.replace('.json', '.csv')
     with tqdm(epochs, dynamic_ncols=True, disable=args.local_rank != 0, leave=False) as prog_epoch:
         best_stats = {}
         stats = {}
@@ -392,7 +392,7 @@ def main():
             epoch_stats += [stats]
             with open(args.epoch_stats_file, 'w') as f:
                 json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
-            # utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
+            utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
         stats_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
         logger.info(stats_str)
         with open(args.stats_file, 'w') as f:
@@ -401,7 +401,7 @@ def main():
             json.dump(arg_dict, f, cls=utils.NumpyEncoder)
         with open(args.epoch_stats_file, 'w') as f:
             json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
-        # utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
+        utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
         logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
 
