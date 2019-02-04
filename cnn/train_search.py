@@ -75,6 +75,9 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                     help='load command line args from a json file, this will override '
                          'all currently set args except for --evaluate, and arguments '
                          'that did not exist when the json file was originally saved out.')
+parser.add_argument('--weighting_algorithm', type=str, default='scalar',
+                    help='which operations to use, options are '
+                         '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
 args = parser.parse_args()
 
 args.arch = args.primitives + '-' + args.ops
@@ -119,7 +122,8 @@ def main():
   else:
     cnn_model = model_search.Network(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      primitives=primitives, op_dict=op_dict, weights_are_parameters=args.no_architect, C_mid=args.mid_channels)
+      primitives=primitives, op_dict=op_dict, weights_are_parameters=args.no_architect, C_mid=args.mid_channels,
+      weighting_algorithm=args.weighting_algorithm)
   cnn_model = cnn_model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 

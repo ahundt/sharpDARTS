@@ -11,7 +11,7 @@ from genotypes import Genotype
 
 class MixedOp(nn.Module):
 
-  def __init__(self, C, stride, primitives=None, op_dict=None):
+  def __init__(self, C, stride, primitives=None, op_dict=None, weighting_algorithm=None):
     """ Perform a mixed forward pass incorporating multiple primitive operations like conv, max pool, etc.
 
     # Arguments
@@ -33,6 +33,7 @@ class MixedOp(nn.Module):
       if 'pool' in primitive:
         op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
       self._ops.append(op)
+      self._weighting_algorithm = weighting_algorithm
 
   def forward(self, x, weights):
     # result = 0
@@ -45,12 +46,19 @@ class MixedOp(nn.Module):
     #   result += w * op_out
     # return result
     # apply all ops with intensity corresponding to their weight
-    return sum(w * op(x) for w, op in zip(weights, self._ops))
+    if self._weighting_algorithm is None or self._weighting_algorithm == 'scalar':
+      return sum(w * op(x) for w, op in zip(weights, self._ops))
+    elif self._weighting_algorithm is 'max_w':
+      max_w = torch.max(weights)
+      return sum((1. - max_w + w) * op(x) for w, op in zip(weights, self._ops))
+    else:
+      raise ValueError('MixedOP(): Unsupported weighting algorithm: ' + str(self._weighting_algorithm) +
+                       ' try "scalar" or "max_w"')
 
 
 class Cell(nn.Module):
 
-  def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, primitives=None, op_dict=None):
+  def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, primitives=None, op_dict=None, weighting_algorithm=None):
     """Create a searchable cell representing multiple architectures.
 
     The Cell class in model.py is the equivalent for a single architecture.
@@ -80,7 +88,7 @@ class Cell(nn.Module):
     for i in range(self._steps):
       for j in range(2+i):
         stride = 2 if reduction and j < 2 else 1
-        op = MixedOp(C, stride, primitives, op_dict)
+        op = MixedOp(C, stride, primitives, op_dict, weighting_algorithm=weighting_algorithm)
         self._ops.append(op)
 
   def forward(self, s0, s1, weights):
@@ -100,7 +108,8 @@ class Cell(nn.Module):
 class Network(nn.Module):
 
   def __init__(self, C=16, num_classes=10, layers=8, criterion=None, steps=4, multiplier=4, stem_multiplier=3,
-               in_channels=3, primitives=None, op_dict=None, C_mid=None, weights_are_parameters=False):
+               in_channels=3, primitives=None, op_dict=None, C_mid=None, weights_are_parameters=False,
+               weighting_algorithm=None):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -128,7 +137,9 @@ class Network(nn.Module):
         reduction = True
       else:
         reduction = False
-      cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, primitives, op_dict)
+      cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr,
+                  reduction, reduction_prev, primitives, op_dict,
+                  weighting_algorithm=weighting_algorithm)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, multiplier*C_curr
