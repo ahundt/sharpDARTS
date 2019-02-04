@@ -341,7 +341,7 @@ def main():
 
     stats_csv = args.epoch_stats_file
     stats_csv.replace('.json', '.csv')
-    with tqdm(epochs, dynamic_ncols=True, disable=args.local_rank != 0) as prog_epoch:
+    with tqdm(epochs, dynamic_ncols=True, disable=args.local_rank != 0, leave=False) as prog_epoch:
         best_stats = {}
         stats = {}
         epoch_stats = []
@@ -478,7 +478,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     input, target = prefetcher.next()
     i = -1
     if args.local_rank == 0:
-        progbar = tqdm(total=len(train_loader))
+        progbar = tqdm(total=len(train_loader), leave=False)
     else:
         progbar = None
     while input is not None:
