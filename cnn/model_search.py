@@ -65,8 +65,10 @@ class Cell(nn.Module):
     super(Cell, self).__init__()
     self.reduction = reduction
 
-    if reduction_prev:
-      self.preprocess0 = FactorizedReduce(C_prev_prev, C, affine=False)
+    if reduction_prev is None:
+      self.preprocess0 = operations.Identity()
+    elif reduction_prev:
+      self.preprocess0 = SepConv(C_prev_prev, C, stride=2, affine=False)
     else:
       self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0, affine=False)
     self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0, affine=False)
@@ -259,7 +261,7 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]]
-    self.op_types = [operations.SepConv, operations.ResizablePool]
+    self.op_types = [operations.SharpSepConv, operations.ResizablePool]
     self.stem = nn.ModuleList()
     for c in self.Cs:
       s = nn.Sequential(
@@ -293,7 +295,7 @@ class MultiChannelNetwork(nn.Module):
 
     self.base = nn.ModuleList()
     for c in self.Cs:
-      self.base.append(operations.SepConv(int(c), int(final_linear_filters), 3))
+      self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
     # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
     # C_in will be defined by the previous layer's c_out
     self.arch_weights_shape = [len(self.strides), self._layers, self.C_size, self.C_size, len(self.op_types)]
@@ -337,7 +339,7 @@ class MultiChannelNetwork(nn.Module):
     # s1s = [None] * layers + 1
     for layer in range(self._layers):
       # layer is how many times we've called everything, i.e. the number of "layers"
-      # this is different from the number of layer types which is len([SepConv, ResizablePool]) == 2
+      # this is different from the number of layer types which is len([SharpSepConv, ResizablePool]) == 2
       for stride_idx in self.strides:
         stride = 1 + stride_idx
         # we don't pass the gradient along max_w because it is the weight for a different operation.

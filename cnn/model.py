@@ -16,6 +16,7 @@ import genotypes
 from operations import FactorizedReduce
 from operations import Identity
 from operations import ReLUConvBN
+from operations import SepConv
 from utils import drop_path
 
 
@@ -43,8 +44,8 @@ class Cell(nn.Module):
 
     if reduction_prev is None:
       self.preprocess0 = operations.Identity()
-    if reduction_prev:
-      self.preprocess0 = FactorizedReduce(C_prev_prev, C)
+    elif reduction_prev:
+      self.preprocess0 = SepConv(C_prev_prev, C, stride=2)
     else:
       self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0)
     self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0)
@@ -157,6 +158,7 @@ class NetworkCIFAR(nn.Module):
     self._layers = layers
     self._auxiliary = auxiliary
     self._in_channels = in_channels
+    self.drop_path_prob = 0.
 
     C_curr = stem_multiplier*C
     self.stem = nn.Sequential(
@@ -229,6 +231,7 @@ class NetworkImageNet(nn.Module):
     self._layers = layers
     self._auxiliary = auxiliary
     self._in_channels = in_channels
+    self.drop_path_prob = 0.
 
     self.stem0 = nn.Sequential(
       nn.Conv2d(in_channels, C // 2, kernel_size=3, stride=2, padding=1, bias=False),
