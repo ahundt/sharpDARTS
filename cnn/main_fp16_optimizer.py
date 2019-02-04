@@ -376,7 +376,7 @@ def main():
                 stats['best_top1'] = '{0:.3f}'.format(best_top1)
                 if is_best:
                     best_epoch = epoch
-                    best_stats = stats
+                    best_stats = copy.deepcopy(stats)
                 stats['best_epoch'] = best_epoch
 
                 stats_str = utils.dict_to_log_string(stats)
@@ -388,8 +388,12 @@ def main():
                     'best_top1': best_top1,
                     'optimizer': optimizer.state_dict(),
                     # 'lr_scheduler': scheduler.state_dict()
-                    'lr_schedule': lr_schedule
+                    'lr_schedule': lr_schedule,
+                    'stats': best_stats
                 }, is_best, path=args.save)
+                prog_epoch.set_description(
+                    '***** best_epoch: {0} best_top1: {1:.2f} *****'
+                    .format(best_epoch, best_top1))
             epoch_stats += [copy.deepcopy(stats)]
             with open(args.epoch_stats_file, 'w') as f:
                 json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
