@@ -422,6 +422,9 @@ class data_prefetcher():
             self.mean = self.mean.half()
             self.std = self.std.half()
             cutout_dtype = np.float16
+        else:
+            self.mean = self.mean.float()
+            self.std = self.std.float()
 
         self.cutout = None
         if cutout:
