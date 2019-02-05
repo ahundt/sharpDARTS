@@ -483,7 +483,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     input, target = prefetcher.next()
     i = -1
     if args.local_rank == 0:
-        progbar = tqdm(total=len(train_loader), leave=False)
+        progbar = tqdm(total=len(train_loader), leave=False, dynamic_ncols=True)
     else:
         progbar = None
     while input is not None:
