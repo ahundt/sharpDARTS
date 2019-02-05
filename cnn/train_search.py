@@ -25,6 +25,8 @@ import json
 # from learning_rate_schedulers import CosineWithRestarts
 import operations
 import genotypes
+import dataset
+from cosine_power_annealing import cosine_power_annealing
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")
@@ -33,12 +35,13 @@ parser.add_argument('--dataset', type=str, default='cifar10',
                     help='which dataset: cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
 parser.add_argument('--batch_size', type=int, default=64, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
-parser.add_argument('--learning_rate_min', type=float, default=0.001, help='min learning rate')
+parser.add_argument('--learning_rate_min', type=float, default=1e-4, help='min learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=50, help='num of training epochs')
+parser.add_argument('--warmup_epochs', type=int, default=5, help='num of warmup training epochs')
 parser.add_argument('--init_channels', type=int, default=16, help='num of init channels')
 parser.add_argument('--mid_channels', type=int, default=32, help='C_mid channels in choke SharpSepConv')
 parser.add_argument('--layers_of_cells', type=int, default=8, help='total number of cells in the whole network, default is 8 cells')
@@ -64,19 +67,20 @@ parser.add_argument('--ops', type=str, default='OPS', help='which operations to 
 parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                     help='which primitive layers to use inside a cell search space,'
                          ' options are PRIMITIVES and DARTS_PRIMITIVES')
+parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
+                    help='evaluate model at specified path on training, test, and validation datasets')
+parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
+parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
+                    help='load command line args from a json file, this will override '
+                         'all currently set args except for --evaluate, and arguments '
+                         'that did not exist when the json file was originally saved out.')
 args = parser.parse_args()
 
+args.arch = args.primitives + '-' + args.ops
 # TODO(ahundt) enable --dataset flag, merge code from mixed_aux branch
-assert args.dataset == 'cifar10'
-args.save = 'search-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset)
-utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
+args = utils.initialize_files_and_args(args, run_type='search')
 
-log_file_path = os.path.join(args.save, 'log.txt')
-logger = utils.logging_setup(log_file_path)
-params_path = os.path.join(args.save, 'commandline_args.json')
-with open(params_path, 'w') as f:
-    json.dump(vars(args), f)
-
+logger = utils.logging_setup(args.log_file_path)
 
 CIFAR_CLASSES = 10
 
@@ -124,88 +128,102 @@ def main():
       momentum=args.momentum,
       weight_decay=args.weight_decay)
 
-  train_transform, valid_transform = utils._data_transforms_cifar10(args)
-  train_data = dset.CIFAR10(root=args.data, train=True, download=True, transform=train_transform)
+  # Get preprocessing functions (i.e. transforms) to apply on data
+  train_transform, valid_transform = utils.get_data_transforms(args)
 
-  num_train = len(train_data)
-  indices = list(range(num_train))
-  split = int(np.floor(args.train_portion * num_train))
+  # Get the training queue, select training and validation from training set
+  train_queue, valid_queue = dataset.get_training_queues(
+    args.dataset, train_transform, valid_transform, args.data, args.batch_size, args.train_portion,
+    search_architecture=True)
 
-  train_queue = torch.utils.data.DataLoader(
-      train_data, batch_size=args.batch_size,
-      sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[:split]),
-      pin_memory=True, num_workers=2)
-
-  valid_queue = torch.utils.data.DataLoader(
-      train_data, batch_size=args.batch_size,
-      sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:num_train]),
-      pin_memory=True, num_workers=2)
-
-  scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, float(args.epochs), eta_min=args.learning_rate_min)
+  epochs = np.arange(1, args.epochs + 1)
+  lr_schedule = cosine_power_annealing(
+    epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+    warmup_epochs=args.warmup_epochs)
+  # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+  #       optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
   if args.no_architect:
     architect = None
   else:
     architect = Architect(cnn_model, args)
 
-  prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
-  best_valid_acc = 0.0
-  best_epoch = 0
-  # state_dict = {}
-  # og_state_keys = set()
-  # updated_state_keys = set()
+  epoch_stats = []
 
-  #saving state_dict for debugging weights by comparison
-  # for key in cnn_model.state_dict():
-  #   state_dict[key] = cnn_model.state_dict()[key].clone()
-  #   # logger.info('layer = {}'.format(key))
-  # logger.info('Total keys in state_dict = {}'.format(len(cnn_model.state_dict().keys())))
-  # og_state_keys.update(cnn_model.state_dict().keys())
+  with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
+    best_valid_acc = 0.0
+    best_epoch = 0
+    # state_dict = {}
+    # og_state_keys = set()
+    # updated_state_keys = set()
 
-  for epoch in prog_epoch:
-    scheduler.step()
-    lr = scheduler.get_lr()[0]
+    #saving state_dict for debugging weights by comparison
+    # for key in cnn_model.state_dict():
+    #   state_dict[key] = cnn_model.state_dict()[key].clone()
+    #   # logger.info('layer = {}'.format(key))
+    # logger.info('Total keys in state_dict = {}'.format(len(cnn_model.state_dict().keys())))
+    # og_state_keys.update(cnn_model.state_dict().keys())
+    best_stats = {}
+    weights_file = os.path.join(args.save, 'weights.pt')
+    for epoch, learning_rate in zip(prog_epoch, lr_schedule):
+      # scheduler.step()
+      # lr = scheduler.get_lr()[0]
+      for param_group in optimizer.param_groups:
+        param_group['lr'] = learning_rate
 
-    genotype = cnn_model.genotype()
-    logger.info('genotype = %s', genotype)
+      genotype = cnn_model.genotype()
+      logger.info('genotype = %s', genotype)
 
-    if not args.multi_channel:
-      # the genotype is the alphas in the multi-channel case
-      # print the alphas in other cases
-      logger.info('alphas_normal = %s', cnn_model.arch_weights(0))
-      logger.info('alphas_reduce = %s', cnn_model.arch_weights(1))
+      if not args.multi_channel:
+        # the genotype is the alphas in the multi-channel case
+        # print the alphas in other cases
+        logger.info('alphas_normal = %s', cnn_model.arch_weights(0))
+        logger.info('alphas_reduce = %s', cnn_model.arch_weights(1))
 
-    # training
-    train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, lr)
-    updated_state_dict = {}
-    for key in cnn_model.state_dict():
+      # training
+      train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
+      
+      for key in cnn_model.state_dict():
       updated_state_dict[key] = cnn_model.state_dict()[key].clone()
 
-    # logger.info("gradients computed")
-    # for name, parameter in cnn_model.named_parameters():
-    #   if parameter.requires_grad:
-    #     logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
+      # logger.info("gradients computed")
+      # for name, parameter in cnn_model.named_parameters():
+      #   if parameter.requires_grad:
+      #     logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
 
-    # updated_state_keys = set()
-    # for key in state_dict:
-    #   if not (state_dict[key] == updated_state_dict[key]).all():
-    #     # logger.info('Update in {}'.format(key))
-    #     updated_state_keys.add(key)
-    # logger.info('Total updates = {}'.format(len(updated_state_keys)))
-    # logger.info('Parameters not updated {}'.format(og_state_keys - updated_state_keys))
+      # updated_state_keys = set()
+      # for key in state_dict:
+      #   if not (state_dict[key] == updated_state_dict[key]).all():
+      #     # logger.info('Update in {}'.format(key))
+      #     updated_state_keys.add(key)
+      # logger.info('Total updates = {}'.format(len(updated_state_keys)))
+      # logger.info('Parameters not updated {}'.format(og_state_keys - updated_state_keys))
 
-    # validation
-    valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
+      # validation
+      valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
 
-    if valid_acc > best_valid_acc:
-      # new best epoch, save weights
-      utils.save(cnn_model, os.path.join(args.save, 'weights.pt'))
-      best_epoch = epoch
-      best_valid_acc = valid_acc
+      if valid_acc > best_valid_acc:
+        # new best epoch, save weights
+        utils.save(cnn_model, weights_file)
+        best_epoch = epoch
+        best_valid_acc = valid_acc
 
-    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
-                epoch, train_acc, valid_acc, train_obj, valid_obj, scheduler.get_lr()[0], best_epoch, best_valid_acc)
+      logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
+                  epoch, train_acc, valid_acc, train_obj, valid_obj, learning_rate, best_epoch, best_valid_acc)
+      stats = {
+        'epoch': epoch,
+        'train_acc': train_acc,
+        'valid_acc': valid_acc,
+        'train_loss': train_obj,
+        'valid_loss': valid_obj,
+        'lr': learning_rate,
+        'best_epoch': best_epoch,
+        'best_valid_acc': best_valid_acc,
+        'genotype': str(genotype),
+        'arch_weights': str(cnn_model.arch_weights)}
+      epoch_stats += [stats]
+      with open(args.epoch_stats_file, 'w') as f:
+        json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
 
   # print the final model
   genotype = cnn_model.genotype()
@@ -224,12 +242,12 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
     n = input_batch.size(0)
 
     input_batch = Variable(input_batch, requires_grad=False).cuda()
-    target = Variable(target, requires_grad=False).cuda(async=True)
+    target = Variable(target, requires_grad=False).cuda(non_blocking=True)
 
     # get a random minibatch from the search queue with replacement
     input_search, target_search = next(iter(valid_queue))
-    input_search = Variable(input_search, requires_grad=False).cuda(async=True)
-    target_search = Variable(target_search, requires_grad=False).cuda(async=True)
+    input_search = Variable(input_search, requires_grad=False).cuda(non_blocking=True)
+    target_search = Variable(target_search, requires_grad=False).cuda(non_blocking=True)
 
     # define validation loss for analyzing the importance of hyperparameters
     if architect is not None:
@@ -262,8 +280,8 @@ def infer(valid_queue, model, criterion):
   with torch.no_grad():
     progbar = tqdm(valid_queue, dynamic_ncols=True)
     for step, (input_batch, target) in enumerate(progbar):
-      input_batch = Variable(input_batch).cuda(async=True)
-      target = Variable(target).cuda(async=True)
+      input_batch = Variable(input_batch).cuda(non_blocking=True)
+      target = Variable(target).cuda(non_blocking=True)
 
       logits = model(input_batch)
       loss = criterion(logits, target)
