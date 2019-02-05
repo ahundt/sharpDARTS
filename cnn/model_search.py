@@ -98,7 +98,7 @@ class Cell(nn.Module):
 class Network(nn.Module):
 
   def __init__(self, C=16, num_classes=10, layers=8, criterion=None, steps=4, multiplier=4, stem_multiplier=3,
-               in_channels=3, primitives=None, op_dict=None, weights_are_parameters=False):
+               in_channels=3, primitives=None, op_dict=None, C_mid=None, weights_are_parameters=False):
     super(Network, self).__init__()
     self._C = C
     self._num_classes = num_classes
@@ -164,6 +164,10 @@ class Network(nn.Module):
 
     self.alphas_normal = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
     self.alphas_reduce = Variable(1e-3*torch.randn(k, num_ops).cuda(), requires_grad=True)
+    if self._weights_are_parameters:
+      # in simpler training modes the weights are just regular parameters
+      self.alphas_normal = torch.nn.Parameter(self.alphas_normal)
+      self.alphas_reduce = torch.nn.Parameter(self.alphas_reduce)
     self._arch_parameters = [
       self.alphas_normal,
       self.alphas_reduce,
@@ -342,7 +346,7 @@ class MultiChannelNetwork(nn.Module):
         stride = 1 + stride_idx
         # we don't pass the gradient along max_w because it is the weight for a different operation.
         # TODO(ahundt) is there a better way to create this variable without gradients & reallocating repeatedly?
-        # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
+        max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
         # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
         if not self._visualization:
           # max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
@@ -361,7 +365,7 @@ class MultiChannelNetwork(nn.Module):
               # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
               if self._always_apply_ops or w > self.min_score:
                 # only apply an op if weight score isn't too low: w > 1/(N*N)
-                # 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
+                1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
                   if not self._visualization:
