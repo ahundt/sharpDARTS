@@ -54,7 +54,7 @@ parser.add_argument('--cutout', action='store_true', default=False, help='use cu
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--autoaugment', action='store_true', default=False, help='use cifar10 autoaugment https://arxiv.org/abs/1805.09501')
 parser.add_argument('--random_eraser', action='store_true', default=False, help='use random eraser')
-parser.add_argument('--drop_path_prob', type=float, default=0.3, help='drop path probability')
+parser.add_argument('--drop_path_prob', type=float, default=0.0, help='drop path probability, 0.0 by default, a typical value is 0.2')
 parser.add_argument('--no_architect', action='store_true', default=False, help='directly train genotype parameters, disable architect.')
 parser.add_argument('--save', type=str, default='EXP', help='experiment name')
 parser.add_argument('--seed', type=int, default=2, help='random seed')
@@ -174,6 +174,7 @@ def main():
     best_stats = {}
     weights_file = os.path.join(args.save, 'weights.pt')
     for epoch, learning_rate in zip(prog_epoch, lr_schedule):
+      cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
       # scheduler.step()
       # lr = scheduler.get_lr()[0]
       for param_group in optimizer.param_groups:

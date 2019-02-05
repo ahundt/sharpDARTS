@@ -249,6 +249,7 @@ class MultiChannelNetwork(nn.Module):
     self._always_apply_ops = always_apply_ops
     self._visualization = visualization
     self._weighting_algorithm = weighting_algorithm
+    self.drop_path_prob = 0.
 
     self.normal_index = 0
     self.reduce_index = 1
@@ -392,6 +393,9 @@ class MultiChannelNetwork(nn.Module):
                   else:
                     # doing visualization, skip the weights
                     x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                  # drop the path for robustness
+                  if self.drop_path_prob > 0. and not isinstance(self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx], operations.Identity):
+                    x = utils.drop_path(x, self.drop_path_prob)
                   c_outs += [x]
           # only apply updates to layers of sufficient quality
           if c_outs:
