@@ -191,8 +191,8 @@ def main():
       # training
       train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
 
-      for key in cnn_model.state_dict():
-      updated_state_dict[key] = cnn_model.state_dict()[key].clone()
+      # for key in cnn_model.state_dict():
+      #   updated_state_dict[key] = cnn_model.state_dict()[key].clone()
 
       # logger.info("gradients computed")
       # for name, parameter in cnn_model.named_parameters():
