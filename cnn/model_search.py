@@ -48,7 +48,7 @@ class MixedOp(nn.Module):
     # apply all ops with intensity corresponding to their weight
     if self._weighting_algorithm is None or self._weighting_algorithm == 'scalar':
       return sum(w * op(x) for w, op in zip(weights, self._ops))
-    elif self._weighting_algorithm is 'max_w':
+    elif self._weighting_algorithm == 'max_w':
       max_w = torch.max(weights)
       return sum((1. - max_w + w) * op(x) for w, op in zip(weights, self._ops))
     else:
