@@ -348,10 +348,10 @@ class MultiChannelNetwork(nn.Module):
         stride = 1 + stride_idx
         # we don't pass the gradient along max_w because it is the weight for a different operation.
         # TODO(ahundt) is there a better way to create this variable without gradients & reallocating repeatedly?
-        max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
+        # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
         # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
         if not self._visualization:
-          # max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
+          max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
