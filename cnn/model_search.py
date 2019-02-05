@@ -174,9 +174,6 @@ class Network(nn.Module):
       self.alphas_normal,
       self.alphas_reduce,
     ]
-    if self._weights_are_parameters:
-          # in simpler training modes the weights are just regular parameters
-          self._arch_parameters = torch.nn.Parameter(self._arch_parameters)
 
   def arch_parameters(self):
     return self._arch_parameters
@@ -350,8 +347,8 @@ class MultiChannelNetwork(nn.Module):
         # TODO(ahundt) is there a better way to create this variable without gradients & reallocating repeatedly?
         # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
         # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
-        if not self._visualization:
-          max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
+        # if not self._visualization:
+        #   max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
@@ -371,7 +368,7 @@ class MultiChannelNetwork(nn.Module):
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
                   if not self._visualization:
-                    x = 1 - max_w + w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                    x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                   else:
                     # doing visualization, skip the weights
                     x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
