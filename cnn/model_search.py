@@ -367,7 +367,7 @@ class MultiChannelNetwork(nn.Module):
               # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
               if self._always_apply_ops or w > self.min_score:
                 # only apply an op if weight score isn't too low: w > 1/(N*N)
-                1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
+                x = 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
                   if not self._visualization:
