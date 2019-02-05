@@ -299,7 +299,7 @@ class MultiChannelNetwork(nn.Module):
       self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
     # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
     # C_in will be defined by the previous layer's c_out
-    self.arch_weights_shape = [len(self.strides), layers, self.C_size, self.C_size, len(self.op_types)]
+    self.arch_weights_shape = [len(self.strides), self._layers, self.C_size, self.C_size, len(self.op_types)]
     # number of weights total
     self.weight_count = np.prod(self.arch_weights_shape)
     # number of weights in a softmax call
@@ -347,8 +347,8 @@ class MultiChannelNetwork(nn.Module):
         # TODO(ahundt) is there a better way to create this variable without gradients & reallocating repeatedly?
         # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
         # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
-        if not self._visualization:
-          max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
+        # if not self._visualization:
+        #   max_w = torch.max(weight_views[stride_idx][layer, :, :, :]).clone().detach()
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
@@ -364,7 +364,7 @@ class MultiChannelNetwork(nn.Module):
               # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
               if self._always_apply_ops or w > self.min_score:
                 # only apply an op if weight score isn't too low: w > 1/(N*N)
-                # 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
+                # x = 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
                   if not self._visualization:
