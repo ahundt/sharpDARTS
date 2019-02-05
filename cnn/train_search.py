@@ -118,7 +118,8 @@ def main():
   criterion = criterion.cuda()
   if args.multi_channel:
     cnn_model = model_search.MultiChannelNetwork(
-      args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells)
+      args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
+      weighting_algorithm=args.weighting_algorithm)
   else:
     cnn_model = model_search.Network(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
@@ -189,7 +190,7 @@ def main():
 
       # training
       train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
-      
+
       for key in cnn_model.state_dict():
       updated_state_dict[key] = cnn_model.state_dict()[key].clone()
 

@@ -230,7 +230,8 @@ class Network(nn.Module):
 class MultiChannelNetwork(nn.Module):
 
   def __init__(self, C=32, num_classes=10, layers=6, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
-               in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False):
+               in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False,
+               weighting_algorithm=None):
     """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
     """
     super(MultiChannelNetwork, self).__init__()
@@ -247,6 +248,7 @@ class MultiChannelNetwork(nn.Module):
     self._multiplier = multiplier
     self._always_apply_ops = always_apply_ops
     self._visualization = visualization
+    self._weighting_algorithm = weighting_algorithm
 
     self.normal_index = 0
     self.reduce_index = 1
@@ -256,11 +258,11 @@ class MultiChannelNetwork(nn.Module):
     self.C_start = int(np.log2(C))
     self.C_end = self.C_start + steps
     print('c_start: ' + str(self.C_start) + ' c_end: ' + str(self.C_end))
-    self.Cs = np.array(np.exp2(np.arange(self.C_start,self.C_end)), dtype='int')
+    self.Cs = np.array(np.exp2(np.arange(self.C_start, self.C_end)), dtype='int')
     # $ print(Cs)
     # [ 32.  64. 128. 256. 512.]
     self.C_size = len(self.Cs)
-    C_in, C_out = np.array(np.meshgrid(self.Cs,self.Cs, indexing='ij'), dtype='int')
+    C_in, C_out = np.array(np.meshgrid(self.Cs, self.Cs, indexing='ij'), dtype='int')
     # $ print(C_in)
     # [[ 32.  32.  32.  32.  32.]
     #  [ 64.  64.  64.  64.  64.]
@@ -379,7 +381,14 @@ class MultiChannelNetwork(nn.Module):
                 s = s0s[stride_idx][C_in_idx]
                 if s is not None:
                   if not self._visualization:
-                    x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                    if self._weighting_algorithm is None or self._weighting_algorithm == 'scalar':
+                      x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                    elif self._weighting_algorithm == 'max_w':
+                      x = (1. - max_w + w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                    else:
+                      raise ValueError(
+                        'MultiChannelNetwork.forward(): Unsupported weighting algorithm: ' +
+                        str(self._weighting_algorithm) + ' try "scalar" or "max_w"')
                   else:
                     # doing visualization, skip the weights
                     x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
