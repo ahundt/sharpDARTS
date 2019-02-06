@@ -37,12 +37,6 @@ import torchvision
 import numpy as np
 import random
 
-try:
-    from apex.parallel import DistributedDataParallel as DDP
-    from apex.fp16_utils import *
-except ImportError:
-    raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
-
 from model import NetworkImageNet as NetworkImageNet
 from model import NetworkCIFAR as NetworkCIFAR
 from tqdm import tqdm
