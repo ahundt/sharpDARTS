@@ -31,7 +31,10 @@ def main():
                       cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
   parser.add_argument('--batch_size', type=int, default=64, help='batch size')
   parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
-  parser.add_argument('--learning_rate_min', type=float, default=1e-5, help='min learning rate')
+  parser.add_argument('--learning_rate_min', type=float, default=1e-3, help='min learning rate')
+  parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=2,
+                      help='Cosine Power Annealing Schedule Base, larger numbers make '
+                           'the exponential more dominant, smaller make cosine more dominant.')
   parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
   parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
   parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
@@ -155,7 +158,7 @@ def main():
   epochs = np.arange(1, args.epochs + 1)
   lr_schedule = cosine_power_annealing(
     epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
-    warmup_epochs=args.warmup_epochs)
+    warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order)
   # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
   epoch_stats = []
 

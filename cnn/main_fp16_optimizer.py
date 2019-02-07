@@ -76,6 +76,9 @@ parser.add_argument('--lr', '--learning_rate', dest='learning_rate', default=0.1
 parser.add_argument('--learning_rate_min', type=float, default=0.00016, help='min learning rate')
 parser.add_argument('--warmup_epochs', default=10, type=int, help='number of epochs for warmup (default: 10)')
 parser.add_argument('--warmup_lr_divisor', default=10, type=int, help='factor by which to reduce lr at warmup start (default: 10)')
+parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=10,
+                    help='Cosine Power Annealing Schedule Base, larger numbers make '
+                         'the exponential more dominant, smaller make cosine more dominant.')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
@@ -338,7 +341,7 @@ def main():
     epochs = np.arange(args.start_epoch, args.epochs + 1)
     lr_schedule = cosine_power_annealing(
         epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
-        warmup_epochs=args.warmup_epochs)
+        warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order)
 
     stats_csv = args.epoch_stats_file
     stats_csv = stats_csv.replace('.json', '.csv')
