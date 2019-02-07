@@ -79,7 +79,7 @@ def cosine_power_annealing(
     else:
         return range_limited_cos_power_proportions
 
-def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order):
+def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order, save_filename=''):
     # standard cosine power annealing
     schedules = cosine_power_annealing(
            epochs, max_lr, min_lr,
@@ -113,30 +113,40 @@ def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order):
         [epochs] + list(schedules) + list(warmup_schedules[1:]),
         header=', '.join(labels))
 
+    import matplotlib
     import matplotlib.pyplot as plt
+
+    # source for font selection code: http://jonathansoma.com/lede/data-studio/matplotlib/changing-fonts-in-matplotlib/
+    # Say, "the default sans-serif font is COMIC SANS"
+    matplotlib.rcParams['font.sans-serif'] = "Georgia"
+    # Then, "ALWAYS use sans-serif fonts"
+    matplotlib.rcParams['font.family'] = "serif"
+    fontsize = '16'
     fig, ax = plt.subplots()
     plot_cos_proportions = ax.plot(cos_proportions, label='cos annealing 1 to 0')
     plot_range_limited_cos_annealing_proportions = ax.plot(
         range_limited_cos_annealing_proportions, label='cos ann range ' + str(max_lr) + ' to ' + str(min_lr))
     plot_cos_power_proportions = ax.plot(cos_power_proportions, label='cos power annealing 1 to 0')
-    warmup_plot_cos_power_proportions = ax.plot(warmup_cos_power_proportions, label='warmup + cos power annealing proportions')
+    warmup_plot_cos_power_proportions = ax.plot(warmup_cos_power_proportions, label='warmup + cos power annealing 1 to 0')
     # plt.plot(log_limited)
     plot_range_limited_cos_power_proportions = ax.plot(
         range_limited_cos_power_proportions, label='cos power range ' + str(max_lr) + ' to ' + str(min_lr))
     warmup_plot_range_limited_cos_power_proportions = ax.plot(
         warmup_range_limited_cos_power_proportions, label='warmup + cos power range ' + str(max_lr) + ' to ' + str(min_lr))
     # ax.legend(schedules, labels[1:])
-    legend = ax.legend(loc='upper right', shadow=True, fontsize='large')
+    legend = ax.legend(loc='upper right', shadow=True, fontsize=fontsize)
     # plt.plot(result)
-    plt.ylabel('learning rate')
-    plt.xlabel('epoch')
+    plt.ylabel('learning rate', fontsize=fontsize)
+    plt.xlabel('epoch', fontsize=fontsize)
     plt.show()
+    if save_filename:
+        fig.savefig(save_filename, bbox_inches='tight')
 
 
 def main():
     # example of how to set up cosine power annealing with a configuration designed for imagenet
     plot_example = 'imagenet'
-    plot_example = 'cifar10'
+    # plot_example = 'cifar10'
     if plot_example == 'imagenet':
         max_lr = 0.2
         exponent_order = 10
@@ -151,7 +161,9 @@ def main():
         min_lr = 1e-3
 
     # standard cosine power annealing
-    plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order)
+    plot_power_annealing_schedule(
+        epochs, max_lr, min_lr, exponent_order,
+        save_filename='cosine_power_annealing_' + plot_example + '.pdf')
 
 
 if __name__ == '__main__':
