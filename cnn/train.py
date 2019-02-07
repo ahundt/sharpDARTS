@@ -117,7 +117,7 @@ def main():
       flops_shape = [1, 3, 224, 224]
   else:
       cnn_model = NetworkCIFAR(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
-      flops_shape = [1, 3, 224, 224]
+      flops_shape = [1, 3, 32, 32]
   cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
