@@ -9,6 +9,11 @@
 #
 # # note that --nproc_per_node is NUM_GPUS.
 # # Can add --sync_bn to sync bachnorm values if batch size is "very small" but note this also reduces img/s by ~10%.
+#
+# Example cifar10 command:
+#
+#    # TODO(ahundt) verify these are the correct parameters
+#    export CUDA_VISIBLE_DEVICES="2" && python3 main_fp16_optimizer.py --autoaugment --auxiliary --cutout --batch_size 128 --epochs 2000 --save sharpDARTS_2k_`git rev-parse --short HEAD`_Cmid32 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --dataset cifar10
 
 import argparse
 import os
