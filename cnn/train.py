@@ -14,7 +14,8 @@ import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
 
 from torch.autograd import Variable
-from model import NetworkCIFAR as Network
+from model import NetworkCIFAR
+from model import NetworkImageNet
 from tqdm import tqdm
 
 import genotypes
@@ -91,6 +92,12 @@ def main():
   logger.info('gpu device = %d' % args.gpu)
   logger.info("args = %s", args)
 
+  DATASET_CLASSES = dataset.class_dict[args.dataset]
+  DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
+  DATASET_MEAN = dataset.mean_dict[args.dataset]
+  DATASET_STD = dataset.std_dict[args.dataset]
+  logger.info('output channels: ' + str(DATASET_CLASSES))
+
   # # load the correct ops dictionary
   op_dict_to_load = "operations.%s" % args.ops
   logger.info('loading op dict: ' + str(op_dict_to_load))
@@ -102,15 +109,20 @@ def main():
   primitives = eval(primitives_to_load)
   logger.info('primitives: ' + str(primitives))
 
-  CIFAR_CLASSES = 10
-
   genotype = eval("genotypes.%s" % args.arch)
-  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+  # create the neural network
+
+  if args.dataset == 'imagenet':
+      cnn_model = NetworkImageNet(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+      flops_shape = [1, 3, 224, 224]
+  else:
+      cnn_model = NetworkCIFAR(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+      flops_shape = [1, 3, 224, 224]
   cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
   if args.flops:
-    logger.info("flops = " + utils.count_model_flops(cnn_model))
+    logger.info("flops = " + utils.count_model_flops(cnn_model, data_shape=flops_shape))
     return
 
   criterion = nn.CrossEntropyLoss()
