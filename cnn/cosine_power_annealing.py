@@ -70,7 +70,7 @@ def cosine_power_annealing(
     # check if we are doing warmup
     if warmup_epochs is not None and warmup_epochs > 0:
         # set the proportion values which apply during the warmup phase
-        cos_power_proportions[warmups] = np.arange(1, warmup_epochs + 1) / warmup_epochs
+        cos_power_proportions[warmups] = np.arange(1, warmup_epochs + 1) / float(warmup_epochs)
     # rescale the power curve between the user specified min and max learning rate
     range_limited_cos_power_proportions = ((cos_power_proportions * (max_lr - min_lr)) + min_lr)
 
@@ -79,15 +79,7 @@ def cosine_power_annealing(
     else:
         return range_limited_cos_power_proportions
 
-
-def main():
-    # example of how to set up cosine power annealing with a configuration designed for imagenet
-    max_lr = 0.2
-    exponent_order = 10
-    max_epoch = 300
-    epochs = np.arange(max_epoch) + 1
-    min_lr = 1e-4
-
+def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order):
     # standard cosine power annealing
     schedules = cosine_power_annealing(
            epochs, max_lr, min_lr,
@@ -139,6 +131,28 @@ def main():
     plt.ylabel('learning rate')
     plt.xlabel('epoch')
     plt.show()
+
+
+def main():
+    # example of how to set up cosine power annealing with a configuration designed for imagenet
+    plot_example = 'imagenet'
+    plot_example = 'cifar10'
+    if plot_example == 'imagenet':
+        max_lr = 0.2
+        exponent_order = 10
+        max_epoch = 300
+        epochs = np.arange(max_epoch) + 1
+        min_lr = 1e-4
+    elif plot_example == 'cifar10':
+        max_lr = 0.025
+        exponent_order = 2
+        max_epoch = 1000
+        epochs = np.arange(max_epoch) + 1
+        min_lr = 1e-3
+
+    # standard cosine power annealing
+    plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order)
+
 
 if __name__ == '__main__':
     main()
