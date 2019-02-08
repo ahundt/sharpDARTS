@@ -73,7 +73,7 @@ parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
 parser.add_argument('--epochs', default=300, type=int, metavar='N',
                     help='number of total epochs to run (default: 300)')
 parser.add_argument('--start_epoch', default=1, type=int, metavar='N',
-                    help='manual epoch number (useful on restarts)')
+                    help='manual epoch number (useful for restarts)')
 parser.add_argument('-b', '--batch_size', default=256, type=int,
                     metavar='N', help='mini-batch size per process (default: 256)')
 parser.add_argument('--lr', '--learning_rate', dest='learning_rate', default=0.1, type=float,

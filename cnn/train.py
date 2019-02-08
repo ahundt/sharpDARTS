@@ -35,13 +35,16 @@ def main():
   parser.add_argument('--learning_rate_min', type=float, default=1e-3, help='min learning rate')
   parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=2,
                       help='Cosine Power Annealing Schedule Base, larger numbers make '
-                           'the exponential more dominant, smaller make cosine more dominant.')
+                           'the exponential more dominant, smaller make cosine more dominant, '
+                           '1 returns to standard cosine annealing.')
   parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
   parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
   parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
   parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
   parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
   parser.add_argument('--epochs', type=int, default=1000, help='num of training epochs')
+  parser.add_argument('--start_epoch', default=1, type=int, metavar='N',
+                      help='manual epoch number (useful for restarts)')
   parser.add_argument('--warmup_epochs', type=int, default=5, help='num of warmup training epochs')
   parser.add_argument('--warm_restarts', type=int, default=20, help='warm restarts of cosine annealing')
   parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
@@ -167,10 +170,10 @@ def main():
     logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
     return
 
-  epochs = np.arange(1, args.epochs + 1)
   lr_schedule = cosine_power_annealing(
-    epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+    epochs=args.epochs, max_lr=args.learning_rate, min_lr=args.learning_rate_min,
     warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order)
+  epochs = np.arange(args.epochs) + args.start_epoch
   # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
   epoch_stats = []
 
