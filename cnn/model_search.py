@@ -288,7 +288,7 @@ class MultiChannelNetwork(nn.Module):
           out_modules = nn.ModuleList()
           # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
           for C_out_idx in range(self.C_size):
-            out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(C_out_idx)
+            out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(self.Cs[C_out_idx])
             type_modules = nn.ModuleList()
             for OpType in self.op_types:
               cin = C_in[C_in_idx][C_out_idx]
