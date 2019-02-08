@@ -275,7 +275,7 @@ class MultiChannelNetwork(nn.Module):
       self.G.add_node("BatchNorm_"+str(i))
       self.G.add_edge("Conv3x3_"+str(i), "BatchNorm_"+str(i))
       self.stem.append(s)
-    for layer_idx in range(self.layers):
+    for layer_idx in range(self._layers):
         for C_out_idx in range(self.C_size):
             out_node = 'layer_'+str(layer_idx)+' add '+' c_out'+str(C_out)
             G.add_node(out_node)
