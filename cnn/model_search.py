@@ -277,7 +277,7 @@ class MultiChannelNetwork(nn.Module):
       self.stem.append(s)
     for layer_idx in range(self._layers):
         for C_out_idx in range(self.C_size):
-            out_node = 'layer_'+str(layer_idx)+' add '+' c_out'+str(C_out_idx)
+            out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(C_out_idx)
             self.G.add_node(out_node)
     self.op_grid = nn.ModuleList()
     for layer_idx in range(self._layers):
@@ -288,6 +288,7 @@ class MultiChannelNetwork(nn.Module):
           out_modules = nn.ModuleList()
           # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
           for C_out_idx in range(self.C_size):
+            out_node = 'layer_'+str(layer)+' add '+'c_out'+str(C_out)
             type_modules = nn.ModuleList()
             for OpType in self.op_types:
               cin = C_in[C_in_idx][C_out_idx]
@@ -379,12 +380,12 @@ class MultiChannelNetwork(nn.Module):
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
-          out_node = 'layer_'+str(layer)+' add '+' c_out'+str(C_out)
+          out_node = 'layer_'+str(layer)+' add '+'c_out'+str(C_out)
           c_outs = []
           for C_in_idx, C_in in enumerate(self.Cs):
             for op_type_idx, OpType in enumerate(self.op_types):
               # get the specific weight for this op
-              name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(self.Cs[C_out]) + '_op_type_' + str(OpType.__name__)
+              name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(OpType.__name__)
               if not self._visualization:
                 w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
               # self.G.add_edge(name, out_node, {weight: w})
