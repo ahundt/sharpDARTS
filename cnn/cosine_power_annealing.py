@@ -5,7 +5,8 @@ import numpy as np
 
 def cosine_power_annealing(
         epochs=None, max_lr=0.1, min_lr=1e-4, exponent_order=10,
-        max_epoch=None, warmup_epochs=None, return_intermediates=False):
+        max_epoch=None, warmup_epochs=None, return_intermediates=False,
+        start_epoch=1, restart_lr=True):
     """ Cosine Power annealing is designed to be an improvement on cosine annealing.
 
     Often the cosine annealing schedule decreases too slowly at the beginning
@@ -17,12 +18,9 @@ def cosine_power_annealing(
 
     # Arguments
 
-    epochs: 1d numpy array with one or more epoch numbers which you expect to run.
-        This is set up so that you can start from the beginning or resume training.
-        Typical input will be np.arange(total_epochs) + 1.
-        Typically 1 should be the first epoch. If you are resuming at a later epoch,
-        generate the curve from 1 and simply extract the data starting from the epoch
-        number you currently care about.
+    epochs: An integer indicating the number of epochs to train.
+        If you are resuming from epoch 100 and want to run until epoch 300,
+        specify 200.
     max_lr: The maximum learning rate which is also the initial learning rate.
     min_lr: The minimum learning rate which is also the final learning rate.
     exponent_order: Determines how fast the learning rate decays.
@@ -35,7 +33,13 @@ def cosine_power_annealing(
         [cos_power_annealing, cos_power_proportions, cos_proportions]
         which is useful for comparing, understanding, and plotting several possible
         learning rate curves. False returns only the cos_power_annealing
-        learning rate values.
+        learning rate values.,
+    start_epoch: The epoch number to start training from which will be at index 0
+        of the returned numpy array.
+    restart_lr: If True the training curve will be returned as if starting from
+        epoch 1, even if you are resuming from a later epoch. Otherwise we will
+        return with the learning rate as if you have already trained up to
+        the value specified by start_epoch.
 
     # Returns
 
@@ -48,7 +52,9 @@ def cosine_power_annealing(
                          str(epochs) + '. "max_epoch" can be a single value, but got ' + str(max_epoch) + '.')
     elif epochs is None:
         epochs = np.arange(max_epoch) + 1
-    elif max_epoch is None:
+    elif isinstance(epochs, int):
+        epochs = np.arange(epochs) + 1
+    if max_epoch is None:
         max_epoch = np.max(epochs)
 
     if warmup_epochs is not None and warmup_epochs > 0:
@@ -87,15 +93,23 @@ def cosine_power_annealing(
     # rescale the power curve between the user specified min and max learning rate
     cos_power_annealing = ((cos_power_proportions * (max_lr - min_lr)) + min_lr)
 
+    if start_epoch > 1:
+        # If we are resuming, extract the portion of the curve
+        # the user asked for.
+        if restart_lr:
+            cos_power_annealing = cos_power_annealing[:len(epochs)]
+        else:
+            cos_power_annealing = cos_power_annealing[start_epoch-1:]
+
     if return_intermediates:
         return cos_power_annealing, cos_power_proportions, cos_proportions
     else:
         return cos_power_annealing
 
-def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order, save_filename=''):
+def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order, restart_lr=True, save_filename=''):
     # standard cosine power annealing
     schedules = cosine_power_annealing(
-           epochs, max_lr, min_lr,
+           epochs, max_lr, min_lr, restart_lr=restart_lr,
            exponent_order=exponent_order, return_intermediates=True)
 
     [cos_power_annealing, cos_power_proportions,
@@ -107,10 +121,11 @@ def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order, save_f
     # power cosine annealing with warmup
     warmup_schedules = cosine_power_annealing(
            epochs, max_lr, min_lr, warmup_epochs=5,
-           exponent_order=exponent_order, return_intermediates=True)
+           exponent_order=exponent_order, restart_lr=restart_lr,
+           return_intermediates=True)
     [warmup_cos_power_annealing, warmup_cos_power_proportions,
      warmup_cos_proportions] = warmup_schedules
-
+    epochs = np.arange(epochs) + 1
     print("epochs")
     print(epochs)
     print("cos_proportions")
@@ -160,30 +175,35 @@ def main():
     # example of how to set up cosine power annealing with a configuration designed for imagenet
     plot_example = 'imagenet'
     # plot_example = 'cifar10'
-    # plot_example = 'resume_imagenet'
+    plot_example = 'resume_imagenet'
     if plot_example == 'imagenet':
         max_lr = 0.2
         exponent_order = 10
-        max_epoch = 300
-        epochs = np.arange(max_epoch) + 1
+        # max_epoch = 300
+        # epochs = np.arange(max_epoch) + 1
+        epochs = 300
         min_lr = 1e-4
+        restart_lr = True
     elif plot_example == 'resume_imagenet':
         max_lr = 0.2
         exponent_order = 10
         min_epoch = 300
         max_epoch = 600
-        epochs = np.arange(min_epoch, max_epoch) + 1
+        # epochs = np.arange(min_epoch, max_epoch) + 1
+        epochs = max_epoch - min_epoch
         min_lr = 1e-4
+        restart_lr = True
     elif plot_example == 'cifar10':
         max_lr = 0.025
         exponent_order = 2
         max_epoch = 1000
         epochs = np.arange(max_epoch) + 1
         min_lr = 1e-3
+        restart_lr = True
 
     # standard cosine power annealing
     plot_power_annealing_schedule(
-        epochs, max_lr, min_lr, exponent_order,
+        epochs, max_lr, min_lr, exponent_order, restart_lr=restart_lr,
         save_filename='cosine_power_annealing_' + plot_example + '.pdf')
 
 

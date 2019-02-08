@@ -92,6 +92,10 @@ parser.add_argument('--print_freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
+parser.add_argument('--restart_lr', action='store_true',
+                    help='Used in conjunction with --resume, '
+                         'this will restart the lr curve as if it was epoch 1, '
+                         'but otherwise retain your current epoch count.')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
 
@@ -343,10 +347,11 @@ def main():
         validate(val_loader, model, criterion)
         return
 
-    epochs = np.arange(args.start_epoch, args.epochs + 1)
     lr_schedule = cosine_power_annealing(
-        epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
-        warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order)
+        epochs=args.epochs, max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+        warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order,
+        restart_lr=args.restart_lr)
+    epochs = np.arange(args.epochs) + args.start_epoch
 
     stats_csv = args.epoch_stats_file
     stats_csv = stats_csv.replace('.json', '.csv')
