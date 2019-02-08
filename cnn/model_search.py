@@ -277,8 +277,8 @@ class MultiChannelNetwork(nn.Module):
       self.stem.append(s)
     for layer_idx in range(self._layers):
         for C_out_idx in range(self.C_size):
-            out_node = 'layer_'+str(layer_idx)+' add '+' c_out'+str(C_out)
-            G.add_node(out_node)
+            out_node = 'layer_'+str(layer_idx)+' add '+' c_out'+str(C_out_idx)
+            self.G.add_node(out_node)
     self.op_grid = nn.ModuleList()
     for layer_idx in range(self._layers):
       stride_modules = nn.ModuleList()
@@ -311,8 +311,8 @@ class MultiChannelNetwork(nn.Module):
     self.base = nn.ModuleList()
     self.G.add_node("Add-SharpSep")
     for c in self.Cs:
-      self.G.add_node("SharpSepConv" + string(c))
-      self.G.add_edge("SharpSepConv" + string(c), "Add-SharpSep")
+      self.G.add_node("SharpSepConv" + str(c))
+      self.G.add_edge("SharpSepConv" + str(c), "Add-SharpSep")
       self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
     # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
     # C_in will be defined by the previous layer's c_out
@@ -327,9 +327,9 @@ class MultiChannelNetwork(nn.Module):
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.classifier = nn.Linear(final_linear_filters, num_classes)
     self.G.add_node("global_pooling")
-    self.add_edge("Add_SharpSep", "global_pooling")
+    self.G.add_edge("Add-SharpSep", "global_pooling")
     self.G.add_node("Linear")
-    self.add_edge("global_pooling", "Linear")
+    self.G.add_edge("global_pooling", "Linear")
     print("Nodes in graph")
     print(self.G.nodes())
     print("Edges in graph")
@@ -382,9 +382,9 @@ class MultiChannelNetwork(nn.Module):
           out_node = 'layer_'+str(layer)+' add '+' c_out'+str(C_out)
           c_outs = []
           for C_in_idx, C_in in enumerate(self.Cs):
-            for op_type_idx in range(len(self.op_types)):
+            for op_type_idx, OpType in enumerate(self.op_types):
               # get the specific weight for this op
-              name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(self.Cs[C_out]) + '_op_type_' + str(self.op_types[op_type_idx].__name__)
+              name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(self.Cs[C_out]) + '_op_type_' + str(OpType.__name__)
               if not self._visualization:
                 w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
               # self.G.add_edge(name, out_node, {weight: w})
