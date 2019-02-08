@@ -7,6 +7,7 @@ import operations
 from torch.autograd import Variable
 from genotypes import PRIMITIVES
 from genotypes import Genotype
+import networkx as nx
 
 
 class MixedOp(nn.Module):
@@ -264,13 +265,20 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]]
     self.op_types = [operations.SharpSepConv, operations.ResizablePool]
     self.stem = nn.ModuleList()
-    for c in self.Cs:
+    self.G = nx.DiGraph()
+    for i, c in enumerate(self.Cs):
       s = nn.Sequential(
         nn.Conv2d(int(in_channels), int(c), 3, padding=1, bias=False),
         nn.BatchNorm2d(c)
       )
+      self.G.add_node("Conv3x3_"+str(i))
+      self.G.add_node("BatchNorm_"+str(i))
+      self.G.add_edge("Conv3x3_"+str(i), "BatchNorm_"+str(i))
       self.stem.append(s)
-
+    for layer_idx in range(self.layers):
+        for C_out_idx in range(self.C_size):
+            out_node = 'layer_'+str(layer_idx)+' add '+' c_out'+str(C_out)
+            G.add_node(out_node)
     self.op_grid = nn.ModuleList()
     for layer_idx in range(self._layers):
       stride_modules = nn.ModuleList()
@@ -285,7 +293,13 @@ class MultiChannelNetwork(nn.Module):
               cin = C_in[C_in_idx][C_out_idx]
               cout = C_out[C_in_idx][C_out_idx]
               # print('cin: ' + str(cin) + ' cout: ' + str(cout))
-              # name = 'layer_' + str(layer_idx) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(self.Cs[C_in_idx]) + '_c_out_' + str(self.Cs[C_out_idx]) + '_op_type_' + str(OpType.__name__)
+              name = 'layer_' + str(layer_idx) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(self.Cs[C_in_idx]) + '_c_out_' + str(self.Cs[C_out_idx]) + '_op_type_' + str(OpType.__name__)
+              self.G.add_node(name)
+              if layer_idx == 0:
+                self.G.add_edge("BatchNorm_"+str(C_in_idx), name)
+              else:
+                self.G.add_edge('layer_'str(layer_idx-1)+' add ', ' c_out'+str(self.Cs[C_in_idx]), name)
+              self.G.add_edge(name, out_node)
               op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
               type_modules.append(op)
             out_modules.append(type_modules)
@@ -295,7 +309,10 @@ class MultiChannelNetwork(nn.Module):
       self.op_grid.append(stride_modules)
 
     self.base = nn.ModuleList()
+    self.G.add_node("Add-SharpSep")
     for c in self.Cs:
+      self.G.add_node("SharpSepConv" + string(c))
+      self.G.add_edge("SharpSepConv" + string(c), "Add-SharpSep")
       self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
     # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
     # C_in will be defined by the previous layer's c_out
@@ -309,6 +326,16 @@ class MultiChannelNetwork(nn.Module):
 
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.classifier = nn.Linear(final_linear_filters, num_classes)
+    self.G.add_node("global_pooling")
+    self.add_edge("Add_SharpSep", "global_pooling")
+    self.G.add_node("Linear")
+    self.add_edge("global_pooling", "Linear")
+    print("Nodes in graph")
+    print(self.G.nodes())
+    print("Edges in graph")
+    print(self.G.edges())
+    print("Saving graph...")
+    nx.write_gpickle(self.G, "network_test.graph")
 
     if not self._visualization:
       self._initialize_alphas()
@@ -352,12 +379,16 @@ class MultiChannelNetwork(nn.Module):
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
+          out_node = 'layer_'+str(layer)+' add '+' c_out'+str(C_out)
           c_outs = []
           for C_in_idx, C_in in enumerate(self.Cs):
             for op_type_idx in range(len(self.op_types)):
               # get the specific weight for this op
+              name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(self.Cs[C_out]) + '_op_type_' + str(self.op_types[op_type_idx].__name__)
               if not self._visualization:
                 w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
+              # self.G.add_edge(name, out_node, {weight: w})
+              self.G[name][out_node]["weight"] = w
               # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
