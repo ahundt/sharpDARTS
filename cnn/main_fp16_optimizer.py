@@ -274,7 +274,8 @@ def main():
                 logger.info("=> loading checkpoint '{}'".format(args.resume))
                 checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu))
                 args.start_epoch = checkpoint['epoch']
-                best_top1 = checkpoint['best_top1']
+                if 'best_top1' in checkpoint:
+                    best_top1 = checkpoint['best_top1']
                 model.load_state_dict(checkpoint['state_dict'])
                 # An FP16_Optimizer instance's state dict internally stashes the master params.
                 optimizer.load_state_dict(checkpoint['optimizer'])
