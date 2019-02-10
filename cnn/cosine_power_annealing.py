@@ -76,7 +76,7 @@ def cosine_power_annealing(
     cos_proportions = (1 + np.cos(np.pi * epochs / max_epoch)) / 2
     # power curve applied to cosine values
     if exponent_order < 1:
-        raise ValueError('cosine_power_annealing() requires the "exponent order" parameter'
+        raise ValueError('cosine_power_annealing() requires the "exponent order" parameter '
                          'to be greater than or equal to 1 but got ' + str(exponent_order) + '.')
     elif exponent_order == 1:
         cos_power_proportions = cos_proportions
@@ -162,7 +162,7 @@ def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order, restar
     warmup_plot_cos_power_annealing = ax.plot(
         warmup_cos_power_annealing, label='warmup + cos power range ' + str(max_lr) + ' to ' + str(min_lr))
     # ax.legend(schedules, labels[1:])
-    legend = ax.legend(loc='upper right', shadow=True, fontsize=fontsize)
+    legend = ax.legend(loc='upper right', shadow=False, fontsize=fontsize)
     # plt.plot(result)
     plt.ylabel('learning rate', fontsize=fontsize)
     plt.xlabel('epoch', fontsize=fontsize)
@@ -175,14 +175,15 @@ def main():
     # example of how to set up cosine power annealing with a configuration designed for imagenet
     plot_example = 'imagenet'
     # plot_example = 'cifar10'
-    plot_example = 'resume_imagenet'
+    # plot_example = 'resume_imagenet'
+    # plot_example = 'sub1'
     if plot_example == 'imagenet':
-        max_lr = 0.2
-        exponent_order = 10
+        max_lr = 0.1
+        exponent_order = 2
         # max_epoch = 300
         # epochs = np.arange(max_epoch) + 1
         epochs = 300
-        min_lr = 1e-4
+        min_lr = 7.5e-4
         restart_lr = True
     elif plot_example == 'resume_imagenet':
         max_lr = 0.2
@@ -191,7 +192,7 @@ def main():
         max_epoch = 600
         # epochs = np.arange(min_epoch, max_epoch) + 1
         epochs = max_epoch - min_epoch
-        min_lr = 1e-4
+        min_lr = 7.5e-4
         restart_lr = True
     elif plot_example == 'cifar10':
         max_lr = 0.025
@@ -199,6 +200,14 @@ def main():
         max_epoch = 1000
         epochs = np.arange(max_epoch) + 1
         min_lr = 1e-3
+        restart_lr = True
+    elif plot_example == 'sub1':
+        max_lr = 0.1
+        exponent_order = 0.5
+        # max_epoch = 300
+        # epochs = np.arange(max_epoch) + 1
+        epochs = 300
+        min_lr = 7.5e-4
         restart_lr = True
 
     # standard cosine power annealing
