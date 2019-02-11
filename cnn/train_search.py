@@ -181,10 +181,9 @@ def main():
         logger.info('alphas_normal = %s', cnn_model.arch_weights(0))
         logger.info('alphas_reduce = %s', cnn_model.arch_weights(1))
 
-      nx.write_gpickle(cnn_model.G, "network_graph_" + epoch + ".graph")
-
       # training
       train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
+      nx.write_gpickle(cnn_model.G, "network_graph_" + str(epoch) + ".graph")
 
       # for key in cnn_model.state_dict():
       #  updated_state_dict[key] = cnn_model.state_dict()[key].clone()
