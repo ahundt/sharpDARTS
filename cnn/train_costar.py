@@ -14,7 +14,8 @@ import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
 
 from torch.autograd import Variable
-from model import NetworkCIFAR as Network
+from model import NetworkCIFAR
+from model import NetworkImageNet
 from tqdm import tqdm
 
 import genotypes
@@ -22,6 +23,7 @@ import operations
 import cifar10_1
 import dataset
 import flops_counter
+from cosine_power_annealing import cosine_power_annealing
 
 def main():
   parser = argparse.ArgumentParser("Common Argument Parser")
@@ -30,13 +32,20 @@ def main():
                       cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
   parser.add_argument('--batch_size', type=int, default=64, help='batch size')
   parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
-  parser.add_argument('--learning_rate_min', type=float, default=0.0000001, help='min learning rate')
+  parser.add_argument('--learning_rate_min', type=float, default=1e-3, help='min learning rate')
+  parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=2,
+                      help='Cosine Power Annealing Schedule Base, larger numbers make '
+                           'the exponential more dominant, smaller make cosine more dominant, '
+                           '1 returns to standard cosine annealing.')
   parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
   parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
   parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
   parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
   parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
   parser.add_argument('--epochs', type=int, default=1000, help='num of training epochs')
+  parser.add_argument('--start_epoch', default=1, type=int, metavar='N',
+                      help='manual epoch number (useful for restarts)')
+  parser.add_argument('--warmup_epochs', type=int, default=5, help='num of warmup training epochs')
   parser.add_argument('--warm_restarts', type=int, default=20, help='warm restarts of cosine annealing')
   parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
   parser.add_argument('--mid_channels', type=int, default=32, help='C_mid channels in choke SharpSepConv')
@@ -58,19 +67,20 @@ def main():
                       help='which primitive layers to use inside a cell search space,'
                            ' options are PRIMITIVES and DARTS_PRIMITIVES')
   parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
-  parser.add_argument('--load', type=str, default='sgd', help='load weights at specified location')
+  parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
   parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
   parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
+  parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
+                      help='evaluate model at specified path on training, test, and validation datasets')
+  parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
+                      help='load command line args from a json file, this will override '
+                           'all currently set args except for --evaluate, and arguments '
+                           'that did not exist when the json file was originally saved out.')
   args = parser.parse_args()
 
-  args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
-  utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
+  args = utils.initialize_files_and_args(args)
 
-  log_file_path = os.path.join(args.save, 'log.txt')
-  logger = utils.logging_setup(log_file_path)
-  params_path = os.path.join(args.save, 'commandline_args.json')
-  with open(params_path, 'w') as f:
-      json.dump(vars(args), f)
+  logger = utils.logging_setup(args.log_file_path)
 
   if not torch.cuda.is_available():
     logger.info('no gpu device available')
@@ -85,6 +95,12 @@ def main():
   logger.info('gpu device = %d' % args.gpu)
   logger.info("args = %s", args)
 
+  DATASET_CLASSES = dataset.class_dict[args.dataset]
+  DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
+  DATASET_MEAN = dataset.mean_dict[args.dataset]
+  DATASET_STD = dataset.std_dict[args.dataset]
+  logger.info('output channels: ' + str(DATASET_CLASSES))
+
   # # load the correct ops dictionary
   op_dict_to_load = "operations.%s" % args.ops
   logger.info('loading op dict: ' + str(op_dict_to_load))
@@ -96,17 +112,21 @@ def main():
   primitives = eval(primitives_to_load)
   logger.info('primitives: ' + str(primitives))
 
-  CIFAR_CLASSES = 10
-
   genotype = eval("genotypes.%s" % args.arch)
-  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+  # create the neural network
+
+  if args.dataset == 'imagenet':
+      cnn_model = NetworkImageNet(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+      flops_shape = [1, 3, 224, 224]
+  else:
+      cnn_model = NetworkCIFAR(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+      flops_shape = [1, 3, 32, 32]
   cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
   if args.flops:
-    cnn_model.drop_path_prob = 0.0
-    logger.info("flops = " + utils.count_model_flops(cnn_model))
-    exit(1)
+    logger.info("flops = " + utils.count_model_flops(cnn_model, data_shape=flops_shape))
+    return
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
@@ -119,61 +139,107 @@ def main():
 
   # Get preprocessing functions (i.e. transforms) to apply on data
   train_transform, valid_transform = utils.get_data_transforms(args)
+  if args.evaluate:
+    # evaluate the train dataset without augmentation
+    train_transform = valid_transform
 
   # Get the training queue, use full training and test set
   train_queue, valid_queue = dataset.get_training_queues(
     args.dataset, train_transform, valid_transform, args.data, args.batch_size, train_proportion=1.0, search_architecture=False)
 
-  scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
-
-  prog_epoch = tqdm(range(args.epochs), dynamic_ncols=True)
-  best_valid_acc = 0.0
-  best_epoch = 0
-  best_stats = {}
-  weights_file = os.path.join(args.save, 'weights.pt')
-  for epoch in prog_epoch:
-    scheduler.step()
-    cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
-
-    train_acc, train_obj = train(args, train_queue, cnn_model, criterion, optimizer)
-
-    stats = infer(args, valid_queue, cnn_model, criterion)
-
-    if stats['valid_acc'] > best_valid_acc:
-      # new best epoch, save weights
-      utils.save(cnn_model, weights_file)
-      best_epoch = epoch
-      best_valid_acc = stats['valid_acc']
-
-      best_stats = stats
-      best_stats['lr'] = scheduler.get_lr()[0]
-      best_stats['epoch'] = best_epoch
-      best_train_loss = train_obj
-      best_train_acc = train_acc
-    # else:
-    #   # not best epoch, load best weights
-    #   utils.load(cnn_model, weights_file)
-    logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
-                epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], scheduler.get_lr()[0], best_epoch, best_valid_acc)
-
+  test_queue = None
   if args.dataset == 'cifar10':
     # evaluate best model weights on cifar 10.1
     # https://github.com/modestyachts/CIFAR-10.1
-    valid_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
-    valid_queue = torch.utils.data.DataLoader(
-        valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
-    # load the best model weights
-    utils.load(cnn_model, weights_file)
-    cifar10_1_stats = infer(args, valid_queue, cnn_model, criterion=criterion, prefix='cifar10_1_')
-    cifar10_1_str = utils.dict_to_log_string(cifar10_1_stats)
-    best_epoch_str = utils.dict_to_log_string(best_stats, key_prepend='best_')
-    logger.info(best_epoch_str + ', ' + cifar10_1_str)
-    # printout all stats from best epoch including cifar10.1
-    # TODO(ahundt) add best eval timing string and cifar10.1 eval timing string
-    # logger.info('best_epoch, %d, best_train_acc, %f, best_valid_acc, %f, best_train_loss, %f, best_valid_loss, %f, lr, %e, '
-    #             'best_epoch, %d, best_valid_acc, %f cifar10.1_valid_acc, %f, cifar10.1_valid_loss, %f, cifar10.1_eval_timing, ' + eval_timing_str,
-    #             best_epoch, best_train_acc, best_valid_acc, train_obj, valid_obj, best_stats['lr'], best_epoch, best_valid_acc, cifar10_1_valid_acc, cifar10_1_valid_loss)
-  logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
+    test_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
+    test_queue = torch.utils.data.DataLoader(
+      test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
+
+  if args.evaluate:
+    # evaluate the loaded model, print the result, and return
+    logger.info("Evaluating inference with weights file: " + args.load)
+    eval_stats = evaluate(
+      args, cnn_model, criterion, args.load,
+      train_queue=train_queue, valid_queue=valid_queue, test_queue=test_queue)
+    with open(args.stats_file, 'w') as f:
+      arg_dict = vars(args)
+      arg_dict.update(eval_stats)
+      json.dump(arg_dict, f)
+    logger.info("flops = " + utils.count_model_flops(cnn_model))
+    logger.info(utils.dict_to_log_string(eval_stats))
+    logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
+    return
+
+  lr_schedule = cosine_power_annealing(
+    epochs=args.epochs, max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+    warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order)
+  epochs = np.arange(args.epochs) + args.start_epoch
+  # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
+  epoch_stats = []
+
+  with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
+    best_valid_acc = 0.0
+    best_epoch = 0
+    best_stats = {}
+    weights_file = os.path.join(args.save, 'weights.pt')
+    for epoch, learning_rate in zip(prog_epoch, lr_schedule):
+      # update the drop_path_prob augmentation
+      cnn_model.drop_path_prob = args.drop_path_prob * epoch / args.epochs
+      # update the learning rate
+      for param_group in optimizer.param_groups:
+        param_group['lr'] = learning_rate
+      # scheduler.get_lr()[0]
+
+      train_acc, train_obj = train(args, train_queue, cnn_model, criterion, optimizer)
+
+      stats = infer(args, valid_queue, cnn_model, criterion)
+
+      if stats['valid_acc'] > best_valid_acc:
+        # new best epoch, save weights
+        utils.save(cnn_model, weights_file)
+        best_epoch = epoch
+        best_valid_acc = stats['valid_acc']
+
+        best_stats = stats
+        best_stats['lr'] = '{0:.5f}'.format(learning_rate)
+        best_stats['epoch'] = best_epoch
+        best_train_loss = train_obj
+        best_train_acc = train_acc
+      # else:
+      #   # not best epoch, load best weights
+      #   utils.load(cnn_model, weights_file)
+      logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f, ' + utils.dict_to_log_string(stats),
+                  epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], learning_rate, best_epoch, best_valid_acc)
+      stats['train_acc'] = train_acc
+      stats['train_loss'] = train_obj
+      epoch_stats += [stats]
+      with open(args.epoch_stats_file, 'w') as f:
+        json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
+
+    # get stats from best epoch including cifar10.1
+    eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
+    with open(args.stats_file, 'w') as f:
+      arg_dict = vars(args)
+      arg_dict.update(eval_stats)
+      json.dump(arg_dict, f, cls=utils.NumpyEncoder)
+    with open(args.epoch_stats_file, 'w') as f:
+      json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
+    logger.info(utils.dict_to_log_string(eval_stats))
+    logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
+
+def evaluate(args, cnn_model, criterion, weights_file, train_queue=None, valid_queue=None, test_queue=None, prefix='best_'):
+  # load the best model weights
+  utils.load(cnn_model, weights_file)
+  test_prefix = 'test_'
+  if args.dataset == 'cifar10':
+    test_prefix = 'cifar10_1_test_'
+  queues = [train_queue, valid_queue, test_queue]
+  stats = {}
+  with tqdm(['train_', 'valid_', test_prefix], desc='Final Evaluation', dynamic_ncols=True) as prefix_progbar:
+    for dataset_prefix, queue in zip(prefix_progbar, queues):
+      if queue is not None:
+        stats.update(infer(args, queue, cnn_model, criterion=criterion, prefix=prefix + dataset_prefix, desc='Running ' + dataset_prefix + 'data'))
+  return stats
 
 
 def train(args, train_queue, cnn_model, criterion, optimizer):
@@ -182,39 +248,36 @@ def train(args, train_queue, cnn_model, criterion, optimizer):
   top5 = utils.AvgrageMeter()
   cnn_model.train()
 
-  progbar = tqdm(train_queue, dynamic_ncols=True)
-  for step, (input_batch, target) in enumerate(progbar):
-    input_batch = Variable(input_batch)
-    target = Variable(target)
-    if torch.cuda.is_available():
-      input_batch = input_batch.cuda(async=True)
-      target = target.cuda(async=True)
+  with tqdm(train_queue, dynamic_ncols=True) as progbar:
+    for step, (input_batch, target) in enumerate(progbar):
+      input_batch = Variable(input_batch).cuda(non_blocking=True)
+      target = Variable(target).cuda(non_blocking=True)
 
-    optimizer.zero_grad()
-    logits, logits_aux = cnn_model(input_batch)
-    loss = criterion(logits, target)
-    if logits_aux is not None and args.auxiliary:
-      loss_aux = criterion(logits_aux, target)
-      loss += args.auxiliary_weight * loss_aux
-    loss.backward()
-    nn.utils.clip_grad_norm_(cnn_model.parameters(), args.grad_clip)
-    # if cnn_model.auxs is not None:
-    #   # clip the aux weights even more so they don't jump too quickly
-    #   nn.utils.clip_grad_norm_(cnn_model.auxs.alphas, args.grad_clip/10)
-    optimizer.step()
+      optimizer.zero_grad()
+      logits, logits_aux = cnn_model(input_batch)
+      loss = criterion(logits, target)
+      if logits_aux is not None and args.auxiliary:
+        loss_aux = criterion(logits_aux, target)
+        loss += args.auxiliary_weight * loss_aux
+      loss.backward()
+      nn.utils.clip_grad_norm_(cnn_model.parameters(), args.grad_clip)
+      # if cnn_model.auxs is not None:
+      #   # clip the aux weights even more so they don't jump too quickly
+      #   nn.utils.clip_grad_norm_(cnn_model.auxs.alphas, args.grad_clip/10)
+      optimizer.step()
 
-    prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
-    n = input_batch.size(0)
-    objs.update(loss.data.item(), n)
-    top1.update(prec1.data.item(), n)
-    top5.update(prec5.data.item(), n)
+      prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
+      n = input_batch.size(0)
+      objs.update(loss.data.item(), n)
+      top1.update(prec1.data.item(), n)
+      top5.update(prec5.data.item(), n)
 
-    progbar.set_description('Training loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f} progress'.format(objs.avg, top1.avg, top5.avg))
+      progbar.set_description('Training loss: {0:9.5f}, top 1: {1:5.2f}, top 5: {2:5.2f} progress'.format(objs.avg, top1.avg, top5.avg))
 
   return top1.avg, objs.avg
 
 
-def infer(args, valid_queue, cnn_model, criterion, prefix='valid_'):
+def infer(args, valid_queue, cnn_model, criterion, prefix='valid_', desc='Running Validation'):
   objs = utils.AvgrageMeter()
   top1 = utils.AvgrageMeter()
   top5 = utils.AvgrageMeter()
@@ -222,10 +285,10 @@ def infer(args, valid_queue, cnn_model, criterion, prefix='valid_'):
 
   with torch.no_grad():
     # dynamic_ncols = false in this case because we want accurate timing stats
-    with tqdm(valid_queue, dynamic_ncols=False, desc='Running Validation') as progbar:
+    with tqdm(valid_queue, dynamic_ncols=False, desc=desc) as progbar:
       for step, (input_batch, target) in enumerate(progbar):
-        input_batch = Variable(input_batch).cuda(async=True)
-        target = Variable(target).cuda(async=True)
+        input_batch = Variable(input_batch).cuda(non_blocking=True)
+        target = Variable(target).cuda(non_blocking=True)
 
         logits, _ = cnn_model(input_batch)
         loss = criterion(logits, target)
