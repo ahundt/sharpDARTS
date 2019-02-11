@@ -12,6 +12,7 @@ import torch.utils
 import torch.nn.functional as F
 import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
+import networkx as nx
 
 from torch.autograd import Variable
 import model_search
@@ -180,9 +181,11 @@ def main():
         logger.info('alphas_normal = %s', cnn_model.arch_weights(0))
         logger.info('alphas_reduce = %s', cnn_model.arch_weights(1))
 
+      nx.write_gpickle(cnn_model.G, "network_graph_" + epoch + ".graph")
+
       # training
       train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
-      
+
       # for key in cnn_model.state_dict():
       #  updated_state_dict[key] = cnn_model.state_dict()[key].clone()
 
@@ -260,6 +263,8 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
     loss.backward()
     nn.utils.clip_grad_norm(cnn_model.parameters(), args.grad_clip)
     optimizer.step()
+    optimal_path = nx.algorithms.dag.dag_longest_path(cnn_model.G)
+    logger.info("optimal_path  : %s", optimal_path)
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
     objs.update(loss.data.item(), n)
