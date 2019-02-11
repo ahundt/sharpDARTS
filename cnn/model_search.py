@@ -299,7 +299,7 @@ class MultiChannelNetwork(nn.Module):
               if layer_idx == 0:
                 self.G.add_edge("BatchNorm_"+str(C_in_idx), name)
               else:
-                self.G.add_edge('layer_' + str(layer_idx-1)+' add ' + ' c_out'+str(self.Cs[C_in_idx]), name)
+                self.G.add_edge('layer_' + str(layer_idx-1)+' add ' + 'c_out'+str(self.Cs[C_in_idx]), name)
               self.G.add_edge(name, out_node)
               op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
               type_modules.append(op)
@@ -312,7 +312,7 @@ class MultiChannelNetwork(nn.Module):
     self.base = nn.ModuleList()
     self.G.add_node("Add-SharpSep")
     for C_out_idx in range(self.C_size):
-        G.add_edge('layer_'+str(self._layers-1)+' add '+'c_out'+str(self.Cs[C_out_idx]), "Add-SharpSep")
+        self.G.add_edge('layer_'+str(self._layers-1)+' add '+'c_out'+str(self.Cs[C_out_idx]), "Add-SharpSep")
     for c in self.Cs:
       self.G.add_node("SharpSepConv" + str(c))
       self.G.add_edge("SharpSepConv" + str(c), "Add-SharpSep")
