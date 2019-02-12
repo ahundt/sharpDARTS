@@ -353,7 +353,7 @@ def main():
             test_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
             test_queue = torch.utils.data.DataLoader(
                 test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
-            evaluate(args, model, criterion, train_loader, val_loader, test_queue)
+            evaluate(args, model, criterion, train_queue=train_loader, valid_queue=val_loader, test_queue=test_queue)
         else:
             validate(val_loader, model, criterion, args)
         return
