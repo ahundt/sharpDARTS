@@ -227,9 +227,10 @@ def main():
     logger.info(utils.dict_to_log_string(eval_stats))
     logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
-def evaluate(args, cnn_model, criterion, weights_file, train_queue=None, valid_queue=None, test_queue=None, prefix='best_'):
+def evaluate(args, cnn_model, criterion, weights_file=None, train_queue=None, valid_queue=None, test_queue=None, prefix='best_'):
   # load the best model weights
-  utils.load(cnn_model, weights_file)
+  if weights_file is not None:
+    utils.load(cnn_model, weights_file)
   test_prefix = 'test_'
   if args.dataset == 'cifar10':
     test_prefix = 'cifar10_1_test_'
