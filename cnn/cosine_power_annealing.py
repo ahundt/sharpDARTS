@@ -106,7 +106,7 @@ def cosine_power_annealing(
     else:
         return cos_power_annealing
 
-def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order, restart_lr=True, save_filename=''):
+def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order, restart_lr=True, y_scale='linear', save_filename=''):
     # standard cosine power annealing
     schedules = cosine_power_annealing(
            epochs, max_lr, min_lr, restart_lr=restart_lr,
@@ -149,37 +149,47 @@ def plot_power_annealing_schedule(epochs, max_lr, min_lr, exponent_order, restar
     matplotlib.rcParams['font.sans-serif'] = "Georgia"
     # Then, "ALWAYS use sans-serif fonts"
     matplotlib.rcParams['font.family'] = "serif"
-    fontsize = '16'
+    fontsize = '20'
+
+    min_lr_str = '{0:.1E}'.format(min_lr)
+    min_lr_str = min_lr_str.replace('E', 'e')
+    min_lr_str = min_lr_str.replace('04', '4')
     fig, ax = plt.subplots()
-    plot_cos_proportions = ax.plot(cos_proportions, label='cos annealing 1 to 0')
+    if y_scale == 'linear':
+        plot_cos_proportions = ax.plot(cos_proportions, label='cos annealing, from 1 to 0', color='darkorange')
+        warmup_plot_cos_power_proportions = ax.plot(warmup_cos_power_proportions, label='warmup + cos power annealing, from 1 to 0', color='darkviolet')
+        plot_cos_power_proportions = ax.plot(cos_power_proportions, label='cos power annealing, from 1 to 0')
     plot_range_limited_cos_annealing_proportions = ax.plot(
-        range_limited_cos_annealing_proportions, label='cos ann range ' + str(max_lr) + ' to ' + str(min_lr))
-    plot_cos_power_proportions = ax.plot(cos_power_proportions, label='cos power annealing 1 to 0')
-    warmup_plot_cos_power_proportions = ax.plot(warmup_cos_power_proportions, label='warmup + cos power annealing 1 to 0')
+        range_limited_cos_annealing_proportions, label='cos annealing, from ' + '{0:.1}'.format(max_lr) + ' to ' + min_lr_str, color='orange')
+
     # plt.plot(log_limited)
     plot_cos_power_annealing = ax.plot(
-        cos_power_annealing, label='cos power range ' + str(max_lr) + ' to ' + str(min_lr))
+        cos_power_annealing, label='cos power annealing, from ' + '{0:.1}'.format(max_lr) + ' to ' + min_lr_str, color='royalblue')
     warmup_plot_cos_power_annealing = ax.plot(
-        warmup_cos_power_annealing, label='warmup + cos power range ' + str(max_lr) + ' to ' + str(min_lr))
+        warmup_cos_power_annealing, label='warmup + cos power annealing, from ' + '{0:.1}'.format(max_lr) + ' to ' + min_lr_str, color='darkmagenta')
     # ax.legend(schedules, labels[1:])
-    legend = ax.legend(loc='upper right', shadow=False, fontsize=fontsize)
+    legend = ax.legend(loc='bottom left', shadow=False, fontsize='14')
     # plt.plot(result)
-    plt.ylabel('learning rate', fontsize=fontsize)
+    lr_str = 'learning rate, ' + y_scale + ' scale'
+    plt.ylabel(lr_str, fontsize=fontsize)
     plt.xlabel('epoch', fontsize=fontsize)
+    plt.yscale(y_scale)
+    ax.xaxis.set_tick_params(labelsize=fontsize)
+    ax.yaxis.set_tick_params(labelsize=fontsize)
+    plt.tight_layout()
     plt.show()
     if save_filename:
         fig.savefig(save_filename, bbox_inches='tight')
 
 
-def main():
+def main(plot_example='imagenet'):
     # example of how to set up cosine power annealing with a configuration designed for imagenet
-    plot_example = 'imagenet'
     # plot_example = 'cifar10'
     # plot_example = 'resume_imagenet'
     # plot_example = 'sub1'
     if plot_example == 'imagenet':
         max_lr = 0.1
-        exponent_order = 2
+        exponent_order = 10
         # max_epoch = 300
         # epochs = np.arange(max_epoch) + 1
         epochs = 300
@@ -197,9 +207,8 @@ def main():
     elif plot_example == 'cifar10':
         max_lr = 0.025
         exponent_order = 2
-        max_epoch = 1000
-        epochs = np.arange(max_epoch) + 1
-        min_lr = 1e-3
+        epochs = 1000
+        min_lr = 7.5e-4
         restart_lr = True
     elif plot_example == 'sub1':
         max_lr = 0.1
@@ -209,11 +218,17 @@ def main():
         epochs = 300
         min_lr = 7.5e-4
         restart_lr = True
+    else:
+        raise ValueError('main(): unknown plot_example: ' + str(plot_example))
 
     # standard cosine power annealing
     plot_power_annealing_schedule(
         epochs, max_lr, min_lr, exponent_order, restart_lr=restart_lr,
         save_filename='cosine_power_annealing_' + plot_example + '.pdf')
+    plot_power_annealing_schedule(
+        epochs, max_lr, min_lr, exponent_order, restart_lr=restart_lr,
+        y_scale='log',
+        save_filename='cosine_power_annealing_' + plot_example + '_log.pdf')
 
 
 if __name__ == '__main__':
