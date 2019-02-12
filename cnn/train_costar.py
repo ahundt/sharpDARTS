@@ -122,7 +122,6 @@ parser.add_argument('--primitives', type=str, default='PRIMITIVES',
 parser.add_argument('--save', type=str, default='EXP', help='experiment name')
 parser.add_argument('--mid_channels', type=int, default=96, help='C_mid channels in choke SharpSepConv')
 parser.add_argument('--layers', type=int, default=14, help='total number of layers')
-parser.add_argument('--dataset', type=str, default='imagenet', help='which dataset, only option is imagenet')
 parser.add_argument('--init_channels', type=int, default=48, help='num of init channels')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
@@ -138,15 +137,28 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                     help='load command line args from a json file, this will override '
                          'all currently set args except for --evaluate, and arguments '
                          'that did not exist when the json file was originally saved out.')
+# CoSTAR BSD specific arguments
+parser.add_argument('--dataset', type=str, default='stacking', help='which dataset, only option is stacking')
+parser.add_argument('--set_name', type=str, default=None, 
+                    help='which set to use in the CoSTAR BSD. Options are "blocks_only" or "blocks_with_plush_toy"')
+parser.add_argument('--subset_name', type=str, default=None, 
+                    help='which subset to use in the CoSTAR BSD. Options are "success_only", '
+                         '"error_failure_only", "task_failure_only", or "task_and_error_failure"')
+parser.add_argument('--feature_mode', type=str, default='original_block',
+                    help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward", '
+                         'or the default "original_block"')
 
 cudnn.benchmark = True
 
 best_top1 = 0
 args = parser.parse_args()
 logger = None
-DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
-DATASET_MEAN = dataset.mean_dict[args.dataset]
-DATASET_STD = dataset.std_dict[args.dataset]
+
+DATASET_CHANNELS = dataset.costar_inp_channel_dict[args.feature_mode]
+
+# TODO(rexxarchl): Use mean and std from imagenet, for now
+DATASET_MEAN = dataset.mean_dict['imagenet']
+DATASET_STD = dataset.std_dict['imagenet']
 # print('>>>>>>>DATASET_CHANNELS: ' + str(DATASET_CHANNELS))
 
 def fast_collate(batch):
@@ -215,12 +227,9 @@ def main():
     # create model
     genotype = eval("genotypes.%s" % args.arch)
     # get the number of output channels
-    classes = dataset.class_dict[args.dataset]
+    classes = dataset.costar_class_dict[args.feature_mode]
     # create the neural network
-    if args.dataset == 'imagenet':
-        model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
-    else:
-        model = NetworkCIFAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+    model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -245,7 +254,9 @@ def main():
         model = DDP(model, delay_allreduce=True)
 
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda()
+    criterion = nn.MSELoss().cuda()
+    # NOTE(rexxarchl): MSLE loss, indicated as better for rotation in costar_hyper/costar_block_stacking_train_regression.py
+    #                  is not available in PyTorch by default
 
     # Scale learning rate based on global batch size
     args.learning_rate = args.learning_rate * float(args.batch_size * args.world_size)/256.
@@ -336,7 +347,8 @@ def main():
     # normalize_as_tensor = False because we normalize and convert to a
     # tensor in our custom prefetching function, rather than as part of
     # the transform preprocessing list.
-    train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
+    # train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
+    train_transform = valid_transform = None  # NOTE(rexxarchl): data transforms are not applicable for CoSTAR BSD at the moment
     # Get the training queue, select training and validation from training set
     train_loader, val_loader = dataset.get_training_queues(
         args.dataset, train_transform, valid_transform, args.data,

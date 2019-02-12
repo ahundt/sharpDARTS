@@ -79,7 +79,15 @@ inp_channel_dict = {'cifar10': 3,
                     'svhn': 3,
                     'stl10': 3,
                     'devanagari' : 1,
-                    'imagenet': 3,}
+                    'imagenet': 3,
+                    'stacking': 55}
+
+costar_class_dict = {'translation_only': 3,
+                     'rotation_only': 5,
+                     'original_block': 8}
+costar_inp_channel_dict = {'translation_only': 52,
+                           'rotation_only': 55,
+                           'original_block': 57}
 
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
