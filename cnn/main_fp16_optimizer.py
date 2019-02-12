@@ -344,7 +344,7 @@ def main():
         num_workers=args.workers)
 
     if args.evaluate:
-        validate(val_loader, model, criterion)
+        validate(val_loader, model, criterion, args)
         return
 
     lr_schedule = cosine_power_annealing(
