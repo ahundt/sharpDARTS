@@ -350,10 +350,17 @@ def main():
         if args.dataset == 'cifar10':
             # evaluate best model weights on cifar 10.1
             # https://github.com/modestyachts/CIFAR-10.1
+            train_transform, valid_transform = utils.get_data_transforms(args)
+            # Get the training queue, select training and validation from training set
+            # Get the training queue, use full training and test set
+            train_queue, valid_queue = dataset.get_training_queues(
+              args.dataset, train_transform, valid_transform, args.data, args.batch_size,
+              train_proportion=1.0, search_architecture=False)
             test_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
             test_queue = torch.utils.data.DataLoader(
-                test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
-            evaluate(args, model, criterion, train_queue=train_loader, valid_queue=val_loader, test_queue=test_queue)
+                test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=args.workers)
+            evaluate(args, model, criterion, train_queue=train_queue,
+                     valid_queue=valid_queue, test_queue=test_queue)
         else:
             validate(val_loader, model, criterion, args)
         return
