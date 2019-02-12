@@ -359,8 +359,15 @@ def main():
             test_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
             test_queue = torch.utils.data.DataLoader(
                 test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=args.workers)
-            evaluate(args, model, criterion, train_queue=train_queue,
-                     valid_queue=valid_queue, test_queue=test_queue)
+            eval_stats = evaluate(args, model, criterion, train_queue=train_queue,
+                                  valid_queue=valid_queue, test_queue=test_queue)
+            with open(args.stats_file, 'w') as f:
+                arg_dict = vars(args)
+                arg_dict.update(eval_stats)
+                json.dump(arg_dict, f)
+            logger.info("flops = " + utils.count_model_flops(model))
+            logger.info(utils.dict_to_log_string(eval_stats))
+            logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
         else:
             validate(val_loader, model, criterion, args)
         return
