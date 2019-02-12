@@ -55,7 +55,7 @@ import operations
 import utils
 import warmup_scheduler
 from cosine_power_annealing import cosine_power_annealing
-import train
+from train import evaluate
 import cifar10_1
 
 model_names = sorted(name for name in models.__dict__
@@ -353,7 +353,7 @@ def main():
             test_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
             test_queue = torch.utils.data.DataLoader(
                 test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
-            train.evaluate(args, model, criterion, train_loader, val_loader, test_queue)
+            evaluate(args, model, criterion, train_loader, val_loader, test_queue)
         else:
             validate(val_loader, model, criterion, args)
         return
