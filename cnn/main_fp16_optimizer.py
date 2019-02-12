@@ -55,6 +55,7 @@ import operations
 import utils
 import warmup_scheduler
 from cosine_power_annealing import cosine_power_annealing
+import train
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -345,7 +346,15 @@ def main():
         num_workers=args.workers)
 
     if args.evaluate:
-        validate(val_loader, model, criterion, args)
+        if args.dataset == 'cifar10':
+            # evaluate best model weights on cifar 10.1
+            # https://github.com/modestyachts/CIFAR-10.1
+            test_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
+            test_queue = torch.utils.data.DataLoader(
+                test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=8)
+            train.evaluate(args, model, criterion, train_loader, val_loader, test_queue)
+        else:
+            validate(val_loader, model, criterion, args)
         return
 
     lr_schedule = cosine_power_annealing(
