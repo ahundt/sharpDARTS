@@ -362,9 +362,11 @@ def main():
             eval_stats = evaluate(args, model, criterion, train_queue=train_queue,
                                   valid_queue=valid_queue, test_queue=test_queue)
             with open(args.stats_file, 'w') as f:
-                arg_dict = vars(args)
-                arg_dict.update(eval_stats)
-                json.dump(arg_dict, f)
+                # TODO(ahundt) fix "TypeError: 1869 is not JSON serializable" to include arg info, see train.py
+                # arg_dict = vars(args)
+                # arg_dict.update(eval_stats)
+                # json.dump(arg_dict, f)
+                json.dump(eval_stats, f)
             logger.info("flops = " + utils.count_model_flops(model))
             logger.info(utils.dict_to_log_string(eval_stats))
             logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
