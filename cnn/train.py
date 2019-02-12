@@ -38,7 +38,7 @@ def main():
                            'the exponential more dominant, smaller make cosine more dominant, '
                            '1 returns to standard cosine annealing.')
   parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
-  parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
+  parser.add_argument('--weight_decay', '--wd', dest='weight_decay', type=float, default=3e-4, help='weight decay')
   parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
   parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
   parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
