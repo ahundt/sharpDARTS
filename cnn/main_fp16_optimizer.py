@@ -56,6 +56,7 @@ import utils
 import warmup_scheduler
 from cosine_power_annealing import cosine_power_annealing
 import train
+import cifar10_1
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
