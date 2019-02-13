@@ -45,6 +45,12 @@ try:
 except ImportError:
     raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
+try:
+    import costar_dataset
+except ImportError:
+    ImportError('The costar dataset is not available. '
+                'See https://github.com/ahundt/costar_dataset for details')
+
 from model import NetworkCOSTAR as NetworkCOSTAR
 from tqdm import tqdm
 import dataset
@@ -508,8 +514,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     data_time = AverageMeter()
     speed = AverageMeter()
     losses = AverageMeter()
-    top1m = AverageMeter()
-    top5m = AverageMeter()
+    abs_cart_m = AverageMeter()
+    abs_angle_m = AverageMeter()
 
     # switch to train mode
     model.train()
@@ -545,18 +551,18 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        top1f, top5f = accuracy(output.data, target, topk=(1, 5))
+        abs_cart_f, abs_angle_f = accuracy(output.data, target)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
-            top1f = reduce_tensor(top1f)
-            top5f = reduce_tensor(top5f)
+            abs_cart_f = reduce_tensor(abs_cart_f)
+            abs_angle_f = reduce_tensor(abs_angle_f)
         else:
             reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
-        top1m.update(to_python_float(top1f), input.size(0))
-        top5m.update(to_python_float(top5f), input.size(0))
+        abs_cart_m.update(to_python_float(abs_cart_f), input.size(0))
+        abs_angle_m.update(to_python_float(abs_angle_f), input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -584,22 +590,23 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                   'img/s: {0:.1f}/{1:.1f}  '
                   'load_t: {data_time.val:.3f}/{data_time.avg:.3f}, '
                   'loss: {loss.val:.4f}/{loss.avg:.4f}, '
-                  'top1: {top1.val:.2f}/{top1.avg:.2f}, '
-                  'top5: {top5.val:.2f}/{top5.avg:.2f}, prog'.format(
+                  'cart: {abs_cart.val:.2f}/{abs_cart.avg:.2f}, '
+                  'angle: {abs_angle.val:.2f}/{abs_angle.avg:.2f}, prog'.format(
                 #    epoch, i, len(train_loader),
                    speed.val,
                    speed.avg,
                    batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1m, top5=top5m))
+                   data_time=data_time, loss=losses, abs_cart=abs_cart_m, abs_angle=abs_angle_m))
     stats = {}
     prefix = 'train_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, top1m, top5m, losses, speed)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
         del progbar
     return stats
 
-def get_stats(progbar, prefix, args, batch_time, data_time, top1, top5, losses, speed):
+
+def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle, losses, speed):
     stats = {}
     if progbar is not None:
         stats = utils.tqdm_stats(progbar, prefix=prefix)
@@ -607,8 +614,8 @@ def get_stats(progbar, prefix, args, batch_time, data_time, top1, top5, losses, 
         prefix + 'time_step_wall': '{0:.3f}'.format(args.world_size * args.batch_size / batch_time.avg),
         prefix + 'batch_time_one_gpu': '{0:.3f}'.format(batch_time.avg),
         prefix + 'data_time': '{0:.3f}'.format(data_time.avg),
-        prefix + 'top1': '{0:.3f}'.format(top1.avg),
-        prefix + 'top5': '{0:.3f}'.format(top5.avg),
+        prefix + 'cart': '{0:.3f}'.format(abs_cart.avg),
+        prefix + 'angle': '{0:.3f}'.format(abs_angle.avg),
         prefix + 'loss': '{0:.4f}'.format(losses.avg),
         prefix + 'images_per_second': '{0:.4f}'.format(speed.avg),
     })
@@ -623,8 +630,8 @@ def validate(val_loader, model, criterion, args):
     data_time = AverageMeter()
     speed = AverageMeter()
     losses = AverageMeter()
-    top1m = AverageMeter()
-    top5m = AverageMeter()
+    abs_cart_m = AverageMeter()
+    abs_angle_m = AverageMeter()
 
     # switch to evaluate mode
     model.eval()
@@ -652,18 +659,18 @@ def validate(val_loader, model, criterion, args):
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        top1f, top5f = accuracy(output.data, target, topk=(1, 5))
+        abs_cart_f, abs_angle_f = accuracy(output.data, target)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
-            top1f = reduce_tensor(top1f)
-            top5f = reduce_tensor(top5f)
+            abs_cart_f = reduce_tensor(abs_cart_f)
+            abs_angle_f = reduce_tensor(abs_angle_f)
         else:
             reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
-        top1m.update(to_python_float(top1f), input.size(0))
-        top5m.update(to_python_float(top5f), input.size(0))
+        abs_cart_m.update(to_python_float(abs_cart_f), input.size(0))
+        abs_angle_m.update(to_python_float(abs_angle_f), input.size(0))
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -679,24 +686,24 @@ def validate(val_loader, model, criterion, args):
                   'batch_t: {batch_time.val:.3f}/{batch_time.avg:.3f}, '
                   'img/s: {0:.1f}/{1:.1f}, '
                   'loss: {loss.val:.4f}/{loss.avg:.4f}, '
-                  'top1: {top1.val:.2f}/{top1.avg:.2f}, '
-                  'top5: {top5.val:.2f}/{top5.avg:.2f}, prog'.format(
+                  'cart: {abs_cart.val:.2f}/{abs_cart.avg:.2f}, '
+                  'angle: {abs_angle.val:.2f}/{abs_angle.avg:.2f}, prog'.format(
                 #    i, len(val_loader),
                    speed.val,
                    speed.avg,
                    batch_time=batch_time, loss=losses,
-                   top1=top1m, top5=top5m))
+                   abs_cart=abs_cart_m, abs_angle=abs_angle_m))
 
         input, target = prefetcher.next()
 
     # logger.info(' * top1 {top1.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(top1=top1, top5=top5))
     prefix = 'val_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, top1m, top5m, losses, speed)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
         del progbar
-    return top1m.avg, stats
+    return abs_cart_m.avg, stats
 
 
 def save_checkpoint(state, is_best, path='', filename='checkpoint.pth.tar', best_filename='model_best.pth.tar'):
@@ -744,20 +751,28 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
         param_group['lr'] = lr
 
 
-def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
-    maxk = max(topk)
-    batch_size = target.size(0)
+def accuracy(output, target):
+    """Computes the absolute cartesian and angle distance between output and target"""
+    batch_size, out_channels = target.shape
 
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
+    if out_channels == 3:  # xyz
+        # Format into [batch, 8]
+        fake_rotation = torch.zeros([batch_size, 5], dtype=target.dtype)
+        target = torch.cat((target, fake_rotation), 0)
+        output = torch.cat((output, fake_rotation), 0)
+    elif out_channels == 5:  # aaxyz_nsc
+        fake_translation = torch.zeros([batch_size, 3], dtype=target.dtype)
+        target = torch.cat((fake_translation, target), 0)
+        output = torch.cat((output, fake_rotation), 0)
+    elif out_channels == 8:  # xyz + aaxyz_nsc
+        pass  # Do nothing
+    else:
+        assert False, "accuracy: unknown number of output channels: {}".format(out_channels)
 
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
-        res.append(correct_k.mul_(100.0 / batch_size))
-    return res
+    abs_cart_distance = costar_dataset.absolute_cart_distance_xyz_aaxyz_nsc_batch(target, output)
+    abs_angle_distance = costar_dataset.absolute_angle_distance_xyz_aaxyz_nsc_batch(target, output)
+
+    return torch.mean(abs_cart_distance, dim=1), torch.mean(abs_angle_distance, dim=1)
 
 
 def reduce_tensor(tensor):
