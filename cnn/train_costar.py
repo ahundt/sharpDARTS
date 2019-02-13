@@ -45,8 +45,7 @@ try:
 except ImportError:
     raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
-from model import NetworkImageNet as NetworkImageNet
-from model import NetworkCIFAR as NetworkCIFAR
+from model import NetworkCOSTAR as NetworkCOSTAR
 from tqdm import tqdm
 import dataset
 import genotypes
@@ -139,9 +138,9 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                          'that did not exist when the json file was originally saved out.')
 # CoSTAR BSD specific arguments
 parser.add_argument('--dataset', type=str, default='stacking', help='which dataset, only option is stacking')
-parser.add_argument('--set_name', type=str, default=None, 
+parser.add_argument('--set_name', type=str, default=None, required=True,
                     help='which set to use in the CoSTAR BSD. Options are "blocks_only" or "blocks_with_plush_toy"')
-parser.add_argument('--subset_name', type=str, default=None, 
+parser.add_argument('--subset_name', type=str, default=None, required=True,
                     help='which subset to use in the CoSTAR BSD. Options are "success_only", '
                          '"error_failure_only", "task_failure_only", or "task_and_error_failure"')
 parser.add_argument('--feature_mode', type=str, default='original_block',
@@ -159,30 +158,34 @@ DATASET_CHANNELS = dataset.costar_inp_channel_dict[args.feature_mode]
 # TODO(rexxarchl): Use mean and std from imagenet, for now
 DATASET_MEAN = dataset.mean_dict['imagenet']
 DATASET_STD = dataset.std_dict['imagenet']
+args.mean = DATASET_MEAN
+args.std = DATASET_STD
 # print('>>>>>>>DATASET_CHANNELS: ' + str(DATASET_CHANNELS))
+
 
 def fast_collate(batch):
     imgs = [img[0] for img in batch]
-    targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
-    w = imgs[0].size[0]
-    h = imgs[0].size[1]
+    targets = torch.tensor([target[1] for target in batch], dtype=torch.float)
+    w = imgs[0].shape[1]
+    h = imgs[0].shape[2]
     tensor = torch.zeros((len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
     for i, img in enumerate(imgs):
         nump_array = np.asarray(img, dtype=np.uint8)
         # tens = torch.from_numpy(nump_array)
         if(nump_array.ndim < 3):
             nump_array = np.expand_dims(nump_array, axis=-1)
-        nump_array = np.rollaxis(nump_array, 2)
-
+        # nump_array = np.rollaxis(nump_array, 2)
         tensor[i] += torch.from_numpy(nump_array)
     return tensor, targets
 
 # CLASSES = 1000
 
+
 if args.deterministic:
     cudnn.benchmark = False
     cudnn.deterministic = True
     torch.manual_seed(args.local_rank)
+
 
 def main():
     global best_top1, args, logger
@@ -229,7 +232,7 @@ def main():
     # get the number of output channels
     classes = dataset.costar_class_dict[args.feature_mode]
     # create the neural network
-    model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+    model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -354,7 +357,10 @@ def main():
         args.dataset, train_transform, valid_transform, args.data,
         args.batch_size, train_proportion=1.0,
         collate_fn=fast_collate, distributed=args.distributed,
-        num_workers=args.workers)
+        num_workers=args.workers,
+        costar_set_name=args.set_name, costar_subset_name=args.subset_name,
+        costar_feature_mode=args.feature_mode, costar_version='v0.4',
+        costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
 
     if args.evaluate:
         validate(val_loader, model, criterion)
@@ -437,17 +443,21 @@ def main():
 
 
 class data_prefetcher():
-    def __init__(self, loader, mean=None, std=None, cutout=False, cutout_length=112, cutout_cuts=2):
+    def __init__(self, loader, in_channels, mean=None, std=None, cutout=False, cutout_length=112, cutout_cuts=2):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
         if mean is None:
             mean = [0.485, 0.456, 0.406]
         if std is None:
             std = [0.229, 0.224, 0.225]
-        mean = np.array(mean) * 255
-        std = np.array(std) * 255
-        self.mean = torch.tensor(mean).cuda().view(1,3,1,1)
-        self.std = torch.tensor(std).cuda().view(1,3,1,1)
+
+        padded_mean, padded_std = np.zeros(in_channels), np.zeros(in_channels)
+        padded_mean[:3], padded_mean[3:6] = mean, mean
+        padded_std[:3], padded_std[3:6] = std, std
+        mean = np.array(padded_mean) * 255
+        std = np.array(padded_std) * 255
+        self.mean = torch.tensor(mean).cuda().view(1, in_channels, 1, 1)
+        self.std = torch.tensor(std).cuda().view(1, in_channels, 1, 1)
         cutout_dtype = np.float32
         if args.fp16:
             self.mean = self.mean.half()
@@ -504,7 +514,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
     end = time.time()
-    prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std, cutout=args.cutout, cutout_length=args.cutout_length)
+    prefetcher = data_prefetcher(train_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std, cutout=args.cutout, cutout_length=args.cutout_length)
 
     input, target = prefetcher.next()
     i = -1
@@ -621,7 +631,7 @@ def validate(val_loader, model, criterion, args):
 
     end = time.time()
 
-    prefetcher = data_prefetcher(val_loader, mean=args.mean, std=args.std)
+    prefetcher = data_prefetcher(val_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std)
     input, target = prefetcher.next()
     i = -1
     if args.local_rank == 0:
@@ -755,6 +765,7 @@ def reduce_tensor(tensor):
     dist.all_reduce(rt, op=dist.reduce_op.SUM)
     rt /= args.world_size
     return rt
+
 
 if __name__ == '__main__':
     main()
