@@ -772,7 +772,7 @@ def accuracy(output, target):
     abs_cart_distance = costar_dataset.absolute_cart_distance_xyz_aaxyz_nsc_batch(target, output)
     abs_angle_distance = costar_dataset.absolute_angle_distance_xyz_aaxyz_nsc_batch(target, output)
 
-    return torch.mean(abs_cart_distance, dim=1), torch.mean(abs_angle_distance, dim=1)
+    return np.mean(abs_cart_distance), np.mean(abs_angle_distance)
 
 
 def reduce_tensor(tensor):
