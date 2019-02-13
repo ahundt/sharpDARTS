@@ -457,6 +457,8 @@ class data_prefetcher():
         if std is None:
             std = [0.229, 0.224, 0.225]
 
+        # The first 6 channels are first and last images of a session
+        # Subtract std and mean from these two images, while leaving others intact
         padded_mean, padded_std = np.zeros(in_channels), np.zeros(in_channels)
         padded_mean[:3], padded_mean[3:6] = mean, mean
         padded_std[:3], padded_std[3:6] = std, std
@@ -756,18 +758,19 @@ def accuracy(output, target):
     batch_size, out_channels = target.shape
 
     if out_channels == 3:  # xyz
-        # Format into [batch, 8]
+        # Format into [batch, 8] by adding fake rotations
         fake_rotation = torch.zeros([batch_size, 5], dtype=target.dtype)
         target = torch.cat((target, fake_rotation), 0)
         output = torch.cat((output, fake_rotation), 0)
     elif out_channels == 5:  # aaxyz_nsc
+        # Format into [batch, 8] by adding fake translations
         fake_translation = torch.zeros([batch_size, 3], dtype=target.dtype)
         target = torch.cat((fake_translation, target), 0)
-        output = torch.cat((output, fake_rotation), 0)
+        output = torch.cat((fake_translation, output), 0)
     elif out_channels == 8:  # xyz + aaxyz_nsc
         pass  # Do nothing
     else:
-        assert False, "accuracy: unknown number of output channels: {}".format(out_channels)
+        raise ValueError("accuracy: unknown number of output channels: {}".format(out_channels))
 
     abs_cart_distance = costar_dataset.absolute_cart_distance_xyz_aaxyz_nsc_batch(target, output)
     abs_angle_distance = costar_dataset.absolute_angle_distance_xyz_aaxyz_nsc_batch(target, output)
