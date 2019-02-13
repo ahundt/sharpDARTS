@@ -217,7 +217,7 @@ def main():
         json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
 
     # get stats from best epoch including cifar10.1
-    eval_stats = evaluate(args, cnn_model, criterion, train_queue, valid_queue, test_queue)
+    eval_stats = evaluate(args, cnn_model, weights_file, criterion, train_queue, valid_queue, test_queue)
     with open(args.stats_file, 'w') as f:
       arg_dict = vars(args)
       arg_dict.update(eval_stats)
