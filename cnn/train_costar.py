@@ -5,16 +5,14 @@
 # pip3 install --user --upgrade -e . --global-option="build_ext" --global-option="--cpp_ext" --global-option="--cuda_ext"
 #
 # ### Multi-process training with FP16_Optimizer, dynamic loss scaling
-#     $ python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 256 --save `git rev-parse --short HEAD` --epochs 300 --dynamic-loss-scale --workers 14 --data /home/costar/datasets/imagenet/
+#     $ python3 -m torch.distributed.launch --nproc_per_node=2 train_costar.py --fp16 --b 256 --save `git rev-parse --short HEAD` --epochs 300 --dynamic-loss-scale --workers 14 --data ~/.keras/datasets/costar_block_stacking_dataset_v0.4
 #
 # # note that --nproc_per_node is NUM_GPUS.
 # # Can add --sync_bn to sync bachnorm values if batch size is "very small" but note this also reduces img/s by ~10%.
 #
 # Example cifar10 command:
 #
-#    # TODO(ahundt) verify these are the correct parameters
-#    export CUDA_VISIBLE_DEVICES="2" && python3 main_fp16_optimizer.py --autoaugment --auxiliary --cutout --batch_size 128 --epochs 2000 --save sharpDARTS_2k_`git rev-parse --short HEAD`_Cmid32 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --dataset cifar10
-
+#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --set_name blocks_only --subset_name success_only --feature_mode original_block
 import argparse
 import os
 import shutil
@@ -144,6 +142,7 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                          'that did not exist when the json file was originally saved out.')
 # CoSTAR BSD specific arguments
 parser.add_argument('--dataset', type=str, default='stacking', help='which dataset, only option is stacking')
+parser.add_argument('--version', type=str, default='v0.4', help='the CoSTAR BSD version to use')
 parser.add_argument('--set_name', type=str, default=None, required=True,
                     help='which set to use in the CoSTAR BSD. Options are "blocks_only" or "blocks_with_plush_toy"')
 parser.add_argument('--subset_name', type=str, default=None, required=True,
@@ -365,7 +364,7 @@ def main():
         collate_fn=fast_collate, distributed=args.distributed,
         num_workers=args.workers,
         costar_set_name=args.set_name, costar_subset_name=args.subset_name,
-        costar_feature_mode=args.feature_mode, costar_version='v0.4',
+        costar_feature_mode=args.feature_mode, costar_version=args.version,
         costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
 
     if args.evaluate:
