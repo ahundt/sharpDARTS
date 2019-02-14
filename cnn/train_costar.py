@@ -552,7 +552,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        abs_cart_f, abs_angle_f = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f, grasp_acc_dict = accuracy(output.data, target)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -600,14 +600,14 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                    data_time=data_time, loss=losses, abs_cart=abs_cart_m, abs_angle=abs_angle_m))
     stats = {}
     prefix = 'train_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed, grasp_acc_dict)
     if progbar is not None:
         progbar.close()
         del progbar
     return stats
 
 
-def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle, losses, speed):
+def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle, losses, speed, grasp_acc_dict):
     stats = {}
     if progbar is not None:
         stats = utils.tqdm_stats(progbar, prefix=prefix)
@@ -615,11 +615,12 @@ def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle,
         prefix + 'time_step_wall': '{0:.3f}'.format(args.world_size * args.batch_size / batch_time.avg),
         prefix + 'batch_time_one_gpu': '{0:.3f}'.format(batch_time.avg),
         prefix + 'data_time': '{0:.3f}'.format(data_time.avg),
-        prefix + 'cart': '{0:.3f}'.format(abs_cart.avg),
-        prefix + 'angle': '{0:.3f}'.format(abs_angle.avg),
+        prefix + 'abs_cart': '{0:.3f}'.format(abs_cart.avg),
+        prefix + 'abs_angle': '{0:.3f}'.format(abs_angle.avg),
         prefix + 'loss': '{0:.4f}'.format(losses.avg),
         prefix + 'images_per_second': '{0:.4f}'.format(speed.avg),
     })
+    stats.update({prefix + metric_name: percentage for metric_name, percentage in grasp_acc_dict})
     return stats
 
 
@@ -660,7 +661,7 @@ def validate(val_loader, model, criterion, args):
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        abs_cart_f, abs_angle_f = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f, grasp_acc_dict = accuracy(output.data, target)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -687,8 +688,8 @@ def validate(val_loader, model, criterion, args):
                   'batch_t: {batch_time.val:.3f}/{batch_time.avg:.3f}, '
                   'img/s: {0:.1f}/{1:.1f}, '
                   'loss: {loss.val:.4f}/{loss.avg:.4f}, '
-                  'cart: {abs_cart.val:.2f}/{abs_cart.avg:.2f}, '
-                  'angle: {abs_angle.val:.2f}/{abs_angle.avg:.2f}, prog'.format(
+                  'abs_cart: {abs_cart.val:.2f}/{abs_cart.avg:.2f}, '
+                  'abs_angle: {abs_angle.val:.2f}/{abs_angle.avg:.2f}, prog'.format(
                 #    i, len(val_loader),
                    speed.val,
                    speed.avg,
@@ -700,7 +701,7 @@ def validate(val_loader, model, criterion, args):
     # logger.info(' * top1 {top1.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(top1=top1, top5=top5))
     prefix = 'val_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed, grasp_acc_dict)
     if progbar is not None:
         progbar.close()
         del progbar
@@ -756,6 +757,8 @@ def accuracy(output, target):
     """Computes the absolute cartesian and angle distance between output and target"""
     batch_size, out_channels = target.shape
 
+    # TODO(rexxarchl): test if this padding process is really necessary, as hypertree_pose_metrics
+    #                  also detects the length and pad accordingly
     if out_channels == 3:  # xyz
         # Format into [batch, 8] by adding fake rotations
         fake_rotation = torch.zeros([batch_size, 5], dtype=target.dtype).cuda()
@@ -771,10 +774,11 @@ def accuracy(output, target):
     else:
         raise ValueError("accuracy: unknown number of output channels: {}".format(out_channels))
 
-    abs_cart_distance = costar_dataset.absolute_cart_distance_xyz_aaxyz_nsc_batch(target, output)
-    abs_angle_distance = costar_dataset.absolute_angle_distance_xyz_aaxyz_nsc_batch(target, output)
+    abs_cart_distance = costar_dataset.cart_error(target, output)
+    abs_angle_distance = costar_dataset.angle_error(target, output)
+    grasp_acc_dict = costar_dataset.grasp_acc_in_bins_batch(target, output)
 
-    return np.mean(abs_cart_distance), np.mean(abs_angle_distance)
+    return np.mean(abs_cart_distance), np.mean(abs_angle_distance), grasp_acc_dict
 
 
 def reduce_tensor(tensor):
