@@ -12,7 +12,7 @@
 #
 # Example cifar10 command:
 #
-#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --set_name blocks_only --subset_name success_only --feature_mode original_block
+#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --set_name blocks_only --subset_name success_only --feature_mode all_features
 import argparse
 import os
 import shutil
@@ -148,9 +148,9 @@ parser.add_argument('--set_name', type=str, default=None, required=True,
 parser.add_argument('--subset_name', type=str, default=None, required=True,
                     help='which subset to use in the CoSTAR BSD. Options are "success_only", '
                          '"error_failure_only", "task_failure_only", or "task_and_error_failure"')
-parser.add_argument('--feature_mode', type=str, default='original_block',
+parser.add_argument('--feature_mode', type=str, default='all_features',
                     help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward", '
-                         'or the default "original_block"')
+                         'or the default "all_features"')
 
 cudnn.benchmark = True
 
