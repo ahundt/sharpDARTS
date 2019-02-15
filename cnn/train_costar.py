@@ -155,6 +155,14 @@ parser.add_argument('--cart_weight', type=float, default=0.7,
                     help='the weight for the cartesian error. In validation, the metric to determine whether a run is good is '
                          'comparing the weighted sum of cart_weight*cart_error+(1-cart_weight)*angle_error. Defaults to 0.7 '
                          'because translational error is more important than rotational error.')
+parser.add_argument('--abs_cart_error_output_csv_name', type=str, default='abs_cart_error.csv',
+                    help='the output csv file name for the absolute cartesian error of ALL samples in ALL epochs. '
+                         'Actual output file will have train_/val_/test_ prefix')
+parser.add_argument('--abs_angle_error_output_csv_name', type=str, default='abs_angle_error.csv',
+                    help='the output csv file name for the absolute cartesian error of ALL samples in ALL epochs. '
+                         'Actual output file will have train_/val_/test_ prefix')
+parser.add_argument('--abs_error_output_write', action='store_true', default=False,
+                    help='use this flag to actually output the error csv files for ALL samples in ALL epoches.')
 
 cudnn.benchmark = True
 
@@ -527,6 +535,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     end = time.time()
     prefetcher = data_prefetcher(train_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std, cutout=args.cutout, cutout_length=args.cutout_length)
 
+    cart_error, angle_error = [], []
     input, target = prefetcher.next()
     i = -1
     if args.local_rank == 0:
@@ -556,7 +565,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        abs_cart_f, abs_angle_f = accuracy(output.data, target)
+        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+        cart_error.append(batch_abs_cart_distance)
+        angle_error.append(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -604,6 +616,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                    data_time=data_time, loss=losses, abs_cart=abs_cart_m, abs_angle=abs_angle_m))
     stats = {}
     prefix = 'train_'
+    utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
+                      batch_abs_cart_distance, args.abs_error_output_write)
+    utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
+                      batch_abs_angle_distance, args.abs_error_output_write)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
@@ -643,6 +659,7 @@ def validate(val_loader, model, criterion, args):
 
     end = time.time()
 
+    cart_error, angle_error = [], []
     prefetcher = data_prefetcher(val_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std)
     input, target = prefetcher.next()
     i = -1
@@ -664,7 +681,10 @@ def validate(val_loader, model, criterion, args):
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        abs_cart_f, abs_angle_f = accuracy(output.data, target)
+        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+        cart_error.append(batch_abs_cart_distance)
+        angle_error.append(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -704,6 +724,10 @@ def validate(val_loader, model, criterion, args):
     # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(combined_error=combined_error, top5=top5))
     prefix = 'val_'
+    utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
+                      batch_abs_cart_distance, args.abs_error_output_write)
+    utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
+                      batch_abs_angle_distance, args.abs_error_output_write)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
@@ -782,7 +806,7 @@ def accuracy(output, target):
     abs_cart_distance = costar_dataset.cart_error(target, output)
     abs_angle_distance = costar_dataset.angle_error(target, output)
 
-    return np.mean(abs_cart_distance), np.mean(abs_angle_distance)
+    return abs_cart_distance, abs_angle_distance
 
 
 def reduce_tensor(tensor):
