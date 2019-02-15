@@ -3,6 +3,7 @@ import sys
 import time
 import glob
 import json
+import copy
 import numpy as np
 import torch
 import utils
@@ -177,10 +178,14 @@ def main():
   # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
   epoch_stats = []
 
+  stats_csv = args.epoch_stats_file
+  stats_csv = stats_csv.replace('.json', '.csv')
   with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
     best_valid_acc = 0.0
     best_epoch = 0
     best_stats = {}
+    stats = {}
+    epoch_stats = []
     weights_file = os.path.join(args.save, 'weights.pt')
     for epoch, learning_rate in zip(prog_epoch, lr_schedule):
       # update the drop_path_prob augmentation
@@ -192,17 +197,19 @@ def main():
 
       train_acc, train_obj = train(args, train_queue, cnn_model, criterion, optimizer)
 
-      stats = infer(args, valid_queue, cnn_model, criterion)
+      val_stats = infer(args, valid_queue, cnn_model, criterion)
+      stats.update(val_stats)
+      stats['train_acc'] = train_acc
+      stats['train_loss'] = train_obj
+      stats['lr'] = learning_rate
+      stats['epoch'] = epoch
 
       if stats['valid_acc'] > best_valid_acc:
         # new best epoch, save weights
         utils.save(cnn_model, weights_file)
         best_epoch = epoch
+        best_stats.update(copy.deepcopy(stats))
         best_valid_acc = stats['valid_acc']
-
-        best_stats = stats
-        best_stats['lr'] = '{0:.5f}'.format(learning_rate)
-        best_stats['epoch'] = best_epoch
         best_train_loss = train_obj
         best_train_acc = train_acc
       # else:
@@ -212,9 +219,10 @@ def main():
                   epoch, train_acc, stats['valid_acc'], train_obj, stats['valid_loss'], learning_rate, best_epoch, best_valid_acc)
       stats['train_acc'] = train_acc
       stats['train_loss'] = train_obj
-      epoch_stats += [stats]
+      epoch_stats += [copy.deepcopy(stats)]
       with open(args.epoch_stats_file, 'w') as f:
         json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
+      utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
 
     # get stats from best epoch including cifar10.1
     eval_stats = evaluate(args, cnn_model, weights_file, criterion, train_queue, valid_queue, test_queue)
