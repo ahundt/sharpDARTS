@@ -617,9 +617,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     stats = {}
     prefix = 'train_'
     utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
-                      batch_abs_cart_distance, args.abs_error_output_write)
+                      cart_error, args.abs_error_output_write)
     utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
-                      batch_abs_angle_distance, args.abs_error_output_write)
+                      angle_error, args.abs_error_output_write)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
@@ -725,9 +725,9 @@ def validate(val_loader, model, criterion, args):
     #       .format(combined_error=combined_error, top5=top5))
     prefix = 'val_'
     utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
-                      batch_abs_cart_distance, args.abs_error_output_write)
+                      cart_error, args.abs_error_output_write)
     utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
-                      batch_abs_angle_distance, args.abs_error_output_write)
+                      angle_error, args.abs_error_output_write)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
