@@ -49,7 +49,7 @@ except ImportError:
     ImportError('The costar dataset is not available. '
                 'See https://github.com/ahundt/costar_dataset for details')
 
-from model import NetworkCOSTAR as NetworkCOSTAR
+from model import NetworkImageNet
 from tqdm import tqdm
 import dataset
 import genotypes
@@ -237,7 +237,7 @@ def main():
     # get the number of output channels
     classes = dataset.costar_class_dict[args.feature_mode]
     # create the neural network
-    model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
+    model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -552,7 +552,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        abs_cart_f, abs_angle_f, grasp_acc_dict = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f = accuracy(output.data, target)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -600,14 +600,14 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                    data_time=data_time, loss=losses, abs_cart=abs_cart_m, abs_angle=abs_angle_m))
     stats = {}
     prefix = 'train_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed, grasp_acc_dict)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
         del progbar
     return stats
 
 
-def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle, losses, speed, grasp_acc_dict):
+def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle, losses, speed):
     stats = {}
     if progbar is not None:
         stats = utils.tqdm_stats(progbar, prefix=prefix)
@@ -620,7 +620,6 @@ def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle,
         prefix + 'loss': '{0:.4f}'.format(losses.avg),
         prefix + 'images_per_second': '{0:.4f}'.format(speed.avg),
     })
-    stats.update({prefix + metric_name: percentage for metric_name, percentage in grasp_acc_dict})
     return stats
 
 
@@ -661,7 +660,7 @@ def validate(val_loader, model, criterion, args):
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        abs_cart_f, abs_angle_f, grasp_acc_dict = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f = accuracy(output.data, target)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -701,7 +700,7 @@ def validate(val_loader, model, criterion, args):
     # logger.info(' * top1 {top1.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(top1=top1, top5=top5))
     prefix = 'val_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed, grasp_acc_dict)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
         del progbar
@@ -776,9 +775,8 @@ def accuracy(output, target):
 
     abs_cart_distance = costar_dataset.cart_error(target, output)
     abs_angle_distance = costar_dataset.angle_error(target, output)
-    grasp_acc_dict = costar_dataset.grasp_acc_in_bins_batch(target, output)
 
-    return np.mean(abs_cart_distance), np.mean(abs_angle_distance), grasp_acc_dict
+    return np.mean(abs_cart_distance), np.mean(abs_angle_distance)
 
 
 def reduce_tensor(tensor):
