@@ -151,10 +151,14 @@ parser.add_argument('--subset_name', type=str, default=None, required=True,
 parser.add_argument('--feature_mode', type=str, default='all_features',
                     help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward", '
                          'or the default "all_features"')
+parser.add_argument('--cart_weight', type=float, default=0.7,
+                    help='the weight for the cartesian error. In validation, the metric to determine whether a run is good is '
+                         'comparing the weighted sum of cart_weight*cart_error+(1-cart_weight)*angle_error. Defaults to 0.7 '
+                         'because translational error is more important than rotational error.')
 
 cudnn.benchmark = True
 
-best_top1 = 0
+best_combined_error = float('inf')
 args = parser.parse_args()
 logger = None
 
@@ -193,7 +197,7 @@ if args.deterministic:
 
 
 def main():
-    global best_top1, args, logger
+    global best_combined_error, args, logger
 
     args.distributed = False
     if 'WORLD_SIZE' in os.environ:
@@ -293,8 +297,8 @@ def main():
                 logger.info("=> loading checkpoint '{}'".format(args.resume))
                 checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu))
                 args.start_epoch = checkpoint['epoch']
-                if 'best_top1' in checkpoint:
-                    best_top1 = checkpoint['best_top1']
+                if 'best_combined_error' in checkpoint:
+                    best_combined_error = checkpoint['best_combined_error']
                 model.load_state_dict(checkpoint['state_dict'])
                 # An FP16_Optimizer instance's state dict internally stashes the master params.
                 optimizer.load_state_dict(checkpoint['optimizer'])
@@ -399,18 +403,18 @@ def main():
             if args.prof:
                 break
             # evaluate on validation set
-            top1, val_stats = validate(val_loader, model, criterion, args)
+            combined_error, val_stats = validate(val_loader, model, criterion, args)
             stats.update(train_stats)
             stats.update(val_stats)
             # stats['lr'] = '{0:.5f}'.format(scheduler.get_lr()[0])
             stats['lr'] = '{0:.5f}'.format(learning_rate)
             stats['epoch'] = epoch
 
-            # remember best top1 and save checkpoint
+            # remember best combined_error and save checkpoint
             if args.local_rank == 0:
-                is_best = top1 > best_top1
-                best_top1 = max(top1, best_top1)
-                stats['best_top1'] = '{0:.3f}'.format(best_top1)
+                is_best = combined_error < best_combined_error
+                best_combined_error = max(combined_error, best_combined_error)
+                stats['best_combined_error'] = '{0:.3f}'.format(best_combined_error)
                 if is_best:
                     best_epoch = epoch
                     best_stats = copy.deepcopy(stats)
@@ -422,15 +426,15 @@ def main():
                     'epoch': epoch,
                     'arch': args.arch,
                     'state_dict': model.state_dict(),
-                    'best_top1': best_top1,
+                    'best_combined_error': best_combined_error,
                     'optimizer': optimizer.state_dict(),
                     # 'lr_scheduler': scheduler.state_dict()
                     'lr_schedule': lr_schedule,
                     'stats': best_stats
                 }, is_best, path=args.save)
                 prog_epoch.set_description(
-                    'Overview ***** best_epoch: {0} best_valid_top1: {1:.2f} ***** Progress'
-                    .format(best_epoch, best_top1))
+                    'Overview ***** best_epoch: {0} best_valid_combined_error: {1:.2f} ***** Progress'
+                    .format(best_epoch, best_combined_error))
             epoch_stats += [copy.deepcopy(stats)]
             with open(args.epoch_stats_file, 'w') as f:
                 json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
@@ -697,14 +701,16 @@ def validate(val_loader, model, criterion, args):
 
         input, target = prefetcher.next()
 
-    # logger.info(' * top1 {top1.avg:.3f} top5 {top5.avg:.3f}'
-    #       .format(top1=top1, top5=top5))
+    # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'
+    #       .format(combined_error=combined_error, top5=top5))
     prefix = 'val_'
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
         del progbar
-    return abs_cart_m.avg, stats
+
+    # Return the weighted sum of absolute cartesian and angle errors as the metric
+    return (args.cart_weight * abs_cart_m.avg + (1-args.cart_weight) * abs_angle_m.avg), stats
 
 
 def save_checkpoint(state, is_best, path='', filename='checkpoint.pth.tar', best_filename='model_best.pth.tar'):
