@@ -89,7 +89,7 @@ parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=1
                          'the exponential more dominant, smaller make cosine more dominant.')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
-parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
+parser.add_argument('--weight_decay', '--wd', dest='weight_decay', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--print_freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
@@ -174,7 +174,7 @@ args.std = DATASET_STD
 
 def fast_collate(batch):
     imgs = [img[0] for img in batch]
-    targets = torch.tensor([target[1] for target in batch], dtype=torch.float)
+    targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
     w = imgs[0].shape[1]
     h = imgs[0].shape[2]
     tensor = torch.zeros((len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
@@ -372,7 +372,7 @@ def main():
         costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
 
     if args.evaluate:
-        validate(val_loader, model, criterion)
+        validate(val_loader, model, criterion, args)
         return
 
     lr_schedule = cosine_power_annealing(
