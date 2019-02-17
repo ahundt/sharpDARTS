@@ -186,6 +186,7 @@ def main():
       if args.multi_channel:
         optimal_path = nx.algorithms.dag.dag_longest_path(cnn_model.G)
         nx.write_gpickle(cnn_model.G, "network_graph_" + str(epoch) + ".graph")
+        logger.info("optimal_path  : %s", optimal_path)
 
       # for key in cnn_model.state_dict():
       #  updated_state_dict[key] = cnn_model.state_dict()[key].clone()
@@ -264,7 +265,6 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
     loss.backward()
     nn.utils.clip_grad_norm(cnn_model.parameters(), args.grad_clip)
     optimizer.step()
-    logger.info("optimal_path  : %s", optimal_path)
 
     prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
     objs.update(loss.data.item(), n)
