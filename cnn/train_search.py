@@ -7,6 +7,7 @@ import torch
 import utils
 import logging
 import argparse
+import copy
 import torch.nn as nn
 import torch.utils
 import torch.nn.functional as F
@@ -37,11 +38,17 @@ parser.add_argument('--dataset', type=str, default='cifar10',
 parser.add_argument('--batch_size', type=int, default=64, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
 parser.add_argument('--learning_rate_min', type=float, default=1e-4, help='min learning rate')
+parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=2,
+                    help='Cosine Power Annealing Schedule Base, larger numbers make '
+                         'the exponential more dominant, smaller make cosine more dominant, '
+                         '1 returns to standard cosine annealing.')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=50, help='num of training epochs')
+parser.add_argument('--start_epoch', default=1, type=int, metavar='N',
+                    help='manual epoch number (useful for restarts)')
 parser.add_argument('--warmup_epochs', type=int, default=5, help='num of warmup training epochs')
 parser.add_argument('--init_channels', type=int, default=16, help='num of init channels')
 parser.add_argument('--mid_channels', type=int, default=32, help='C_mid channels in choke SharpSepConv')
@@ -75,6 +82,9 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                     help='load command line args from a json file, this will override '
                          'all currently set args except for --evaluate, and arguments '
                          'that did not exist when the json file was originally saved out.')
+parser.add_argument('--weighting_algorithm', type=str, default='scalar',
+                    help='which operations to use, options are '
+                         '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
 args = parser.parse_args()
 
 args.arch = args.primitives + '-' + args.ops
@@ -115,11 +125,13 @@ def main():
   criterion = criterion.cuda()
   if args.multi_channel:
     cnn_model = model_search.MultiChannelNetwork(
-      args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells)
+      args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
+      weighting_algorithm=args.weighting_algorithm)
   else:
     cnn_model = model_search.Network(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      primitives=primitives, op_dict=op_dict, weights_are_parameters=args.no_architect, C_mid=args.mid_channels)
+      primitives=primitives, op_dict=op_dict, weights_are_parameters=args.no_architect, C_mid=args.mid_channels,
+      weighting_algorithm=args.weighting_algorithm)
   cnn_model = cnn_model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
@@ -137,10 +149,10 @@ def main():
     args.dataset, train_transform, valid_transform, args.data, args.batch_size, args.train_portion,
     search_architecture=True)
 
-  epochs = np.arange(1, args.epochs + 1)
   lr_schedule = cosine_power_annealing(
-    epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
-    warmup_epochs=args.warmup_epochs)
+    epochs=args.epochs, max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+    warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order)
+  epochs = np.arange(args.epochs) + args.start_epoch
   # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
   #       optimizer, float(args.epochs), eta_min=args.learning_rate_min)
 
@@ -151,6 +163,8 @@ def main():
 
   epoch_stats = []
 
+  stats_csv = args.epoch_stats_file
+  stats_csv = stats_csv.replace('.json', '.csv')
   with tqdm(epochs, dynamic_ncols=True) as prog_epoch:
     best_valid_acc = 0.0
     best_epoch = 0
@@ -183,6 +197,7 @@ def main():
 
       # training
       train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
+      
       if args.multi_channel:
         optimal_path = nx.algorithms.dag.dag_longest_path(cnn_model.G)
         nx.write_gpickle(cnn_model.G, "network_graph_" + str(epoch) + ".graph")
@@ -190,6 +205,7 @@ def main():
 
       # for key in cnn_model.state_dict():
       #  updated_state_dict[key] = cnn_model.state_dict()[key].clone()
+
 
       # logger.info("gradients computed")
       # for name, parameter in cnn_model.named_parameters():
@@ -212,6 +228,9 @@ def main():
         utils.save(cnn_model, weights_file)
         best_epoch = epoch
         best_valid_acc = valid_acc
+        prog_epoch.set_description(
+            'Overview ***** best_epoch: {0} best_valid_acc: {1:.2f} ***** Progress'
+            .format(best_epoch, best_valid_acc))
 
       logger.info('epoch, %d, train_acc, %f, valid_acc, %f, train_loss, %f, valid_loss, %f, lr, %e, best_epoch, %d, best_valid_acc, %f',
                   epoch, train_acc, valid_acc, train_obj, valid_obj, learning_rate, best_epoch, best_valid_acc)
@@ -226,9 +245,10 @@ def main():
         'best_valid_acc': best_valid_acc,
         'genotype': str(genotype),
         'arch_weights': str(cnn_model.arch_weights)}
-      epoch_stats += [stats]
+      epoch_stats += [copy.deepcopy(stats)]
       with open(args.epoch_stats_file, 'w') as f:
         json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
+      utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
 
   # print the final model
   genotype = cnn_model.genotype()

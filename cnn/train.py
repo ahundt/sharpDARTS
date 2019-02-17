@@ -14,7 +14,8 @@ import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
 
 from torch.autograd import Variable
-from model import NetworkCIFAR as Network
+from model import NetworkCIFAR
+from model import NetworkImageNet
 from tqdm import tqdm
 
 import genotypes
@@ -31,13 +32,19 @@ def main():
                       cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
   parser.add_argument('--batch_size', type=int, default=64, help='batch size')
   parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
-  parser.add_argument('--learning_rate_min', type=float, default=1e-5, help='min learning rate')
+  parser.add_argument('--learning_rate_min', type=float, default=1e-3, help='min learning rate')
+  parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=2,
+                      help='Cosine Power Annealing Schedule Base, larger numbers make '
+                           'the exponential more dominant, smaller make cosine more dominant, '
+                           '1 returns to standard cosine annealing.')
   parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
   parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
   parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
   parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
   parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
   parser.add_argument('--epochs', type=int, default=1000, help='num of training epochs')
+  parser.add_argument('--start_epoch', default=1, type=int, metavar='N',
+                      help='manual epoch number (useful for restarts)')
   parser.add_argument('--warmup_epochs', type=int, default=5, help='num of warmup training epochs')
   parser.add_argument('--warm_restarts', type=int, default=20, help='warm restarts of cosine annealing')
   parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
@@ -88,6 +95,12 @@ def main():
   logger.info('gpu device = %d' % args.gpu)
   logger.info("args = %s", args)
 
+  DATASET_CLASSES = dataset.class_dict[args.dataset]
+  DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
+  DATASET_MEAN = dataset.mean_dict[args.dataset]
+  DATASET_STD = dataset.std_dict[args.dataset]
+  logger.info('output channels: ' + str(DATASET_CLASSES))
+
   # # load the correct ops dictionary
   op_dict_to_load = "operations.%s" % args.ops
   logger.info('loading op dict: ' + str(op_dict_to_load))
@@ -99,15 +112,20 @@ def main():
   primitives = eval(primitives_to_load)
   logger.info('primitives: ' + str(primitives))
 
-  CIFAR_CLASSES = 10
-
   genotype = eval("genotypes.%s" % args.arch)
-  cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+  # create the neural network
+
+  if args.dataset == 'imagenet':
+      cnn_model = NetworkImageNet(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+      flops_shape = [1, 3, 224, 224]
+  else:
+      cnn_model = NetworkCIFAR(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+      flops_shape = [1, 3, 32, 32]
   cnn_model = cnn_model.cuda()
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
   if args.flops:
-    logger.info("flops = " + utils.count_model_flops(cnn_model))
+    logger.info("flops = " + utils.count_model_flops(cnn_model, data_shape=flops_shape))
     return
 
   criterion = nn.CrossEntropyLoss()
@@ -152,10 +170,10 @@ def main():
     logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
     return
 
-  epochs = np.arange(1, args.epochs + 1)
   lr_schedule = cosine_power_annealing(
-    epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
-    warmup_epochs=args.warmup_epochs)
+    epochs=args.epochs, max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+    warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order)
+  epochs = np.arange(args.epochs) + args.start_epoch
   # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
   epoch_stats = []
 

@@ -9,6 +9,11 @@
 #
 # # note that --nproc_per_node is NUM_GPUS.
 # # Can add --sync_bn to sync bachnorm values if batch size is "very small" but note this also reduces img/s by ~10%.
+#
+# Example cifar10 command:
+#
+#    # TODO(ahundt) verify these are the correct parameters
+#    export CUDA_VISIBLE_DEVICES="2" && python3 main_fp16_optimizer.py --autoaugment --auxiliary --cutout --batch_size 128 --epochs 2000 --save sharpDARTS_2k_`git rev-parse --short HEAD`_Cmid32 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --dataset cifar10
 
 import argparse
 import os
@@ -68,7 +73,7 @@ parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
 parser.add_argument('--epochs', default=300, type=int, metavar='N',
                     help='number of total epochs to run (default: 300)')
 parser.add_argument('--start_epoch', default=1, type=int, metavar='N',
-                    help='manual epoch number (useful on restarts)')
+                    help='manual epoch number (useful for restarts)')
 parser.add_argument('-b', '--batch_size', default=256, type=int,
                     metavar='N', help='mini-batch size per process (default: 256)')
 parser.add_argument('--lr', '--learning_rate', dest='learning_rate', default=0.1, type=float,
@@ -76,6 +81,9 @@ parser.add_argument('--lr', '--learning_rate', dest='learning_rate', default=0.1
 parser.add_argument('--learning_rate_min', type=float, default=0.00016, help='min learning rate')
 parser.add_argument('--warmup_epochs', default=10, type=int, help='number of epochs for warmup (default: 10)')
 parser.add_argument('--warmup_lr_divisor', default=10, type=int, help='factor by which to reduce lr at warmup start (default: 10)')
+parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=10,
+                    help='Cosine Power Annealing Schedule Base, larger numbers make '
+                         'the exponential more dominant, smaller make cosine more dominant.')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
@@ -84,6 +92,10 @@ parser.add_argument('--print_freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
+parser.add_argument('--restart_lr', action='store_true',
+                    help='Used in conjunction with --resume, '
+                         'this will restart the lr curve as if it was epoch 1, '
+                         'but otherwise retain your current epoch count.')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
 
@@ -262,7 +274,8 @@ def main():
                 logger.info("=> loading checkpoint '{}'".format(args.resume))
                 checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu))
                 args.start_epoch = checkpoint['epoch']
-                best_top1 = checkpoint['best_top1']
+                if 'best_top1' in checkpoint:
+                    best_top1 = checkpoint['best_top1']
                 model.load_state_dict(checkpoint['state_dict'])
                 # An FP16_Optimizer instance's state dict internally stashes the master params.
                 optimizer.load_state_dict(checkpoint['optimizer'])
@@ -335,10 +348,11 @@ def main():
         validate(val_loader, model, criterion)
         return
 
-    epochs = np.arange(args.start_epoch, args.epochs + 1)
     lr_schedule = cosine_power_annealing(
-        epochs.copy(), max_lr=args.learning_rate, min_lr=args.learning_rate_min,
-        warmup_epochs=args.warmup_epochs)
+        epochs=args.epochs, max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+        warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order,
+        restart_lr=args.restart_lr)
+    epochs = np.arange(args.epochs) + args.start_epoch
 
     stats_csv = args.epoch_stats_file
     stats_csv = stats_csv.replace('.json', '.csv')
@@ -392,7 +406,7 @@ def main():
                     'stats': best_stats
                 }, is_best, path=args.save)
                 prog_epoch.set_description(
-                    '***** best_epoch: {0} best_top1: {1:.2f} *****'
+                    'Overview ***** best_epoch: {0} best_valid_top1: {1:.2f} ***** Progress'
                     .format(best_epoch, best_top1))
             epoch_stats += [copy.deepcopy(stats)]
             with open(args.epoch_stats_file, 'w') as f:
@@ -483,7 +497,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     input, target = prefetcher.next()
     i = -1
     if args.local_rank == 0:
-        progbar = tqdm(total=len(train_loader), leave=False)
+        progbar = tqdm(total=len(train_loader), leave=False, dynamic_ncols=True)
     else:
         progbar = None
     while input is not None:
