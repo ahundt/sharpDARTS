@@ -21,6 +21,24 @@ PRIMITIVES = [
     'dil_choke_conv_3x3',
 ]
 
+MINIMAL_PRIMITIVES = [
+    'none',
+    'max_pool_3x3',
+    'avg_pool_3x3',
+    'skip_connect',
+    'sep_conv_3x3',
+    # 'sep_conv_5x5',
+    # 'dil_conv_3x3',
+    # 'dil_conv_5x5',
+    # 'nor_conv_3x3',
+    # 'nor_conv_5x5',
+    # 'nor_conv_7x7',
+    'flood_conv_3x3',
+    # 'dil_flood_conv_3x3',
+    # 'choke_conv_3x3',
+    # 'dil_choke_conv_3x3',
+]
+
 # Primitives for the original darts search space
 DARTS_PRIMITIVES = [
     'none',
@@ -240,3 +258,29 @@ Validation step: 41, loss:   0.24891, top 1: 93.40 top 5: 99.85 progress: 100%||
 
 """
 DARTS_PRIMITIVES_DIL_IS_SEPCONV = Genotype(normal=[('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('sep_conv_3x3', 2), ('skip_connect', 0), ('sep_conv_3x3', 1), ('skip_connect', 0), ('sep_conv_3x3', 1)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 3)], reduce_concat=range(2, 6))
+SHARPSEPCONV_DARTS = DARTS_PRIMITIVES_DIL_IS_SEPCONV
+
+"""
+
+andrew@ccvl16|~/src/darts/cnn on multi_channel_search
+± export CUDA_VISIBLE_DEVICES="3" && python3 train_search.py --dataset cifar10 --batch_size 64 --layers_of_cells 8 --layers_in_cells 4 --save max_w_SharpSepConvDARTS_SEARCH_`git rev-parse --short HEAD
+` --init_channels 16 --epochs 120 --cutout --autoaugment --seed 22 --weighting_algorithm max_w --primitives DARTS_PRIMITIVES
+dataset.py: The costar dataset is not available, so it is being skipped. See https://github.com/ahundt/costar_dataset for details
+Experiment dir : search-20190216-200519-max_w_SharpSepConvDARTS_SEARCH_9ed3751-cifar10-DARTS_PRIMITIVES-OPS-0
+2019_02_16_20_05_19 gpu device = 0
+2019_02_16_20_05_19 args = Namespace(arch='DARTS_PRIMITIVES-OPS', arch_learning_rate=0.0003, arch_weight_decay=0.001, autoaugment=True, batch_size=64, cutout=True, cutout_length=16, data='../data', da
+taset='cifar10', drop_path_prob=0.3, epoch_stats_file='search-20190216-200519-max_w_SharpSepConvDARTS_SEARCH_9ed3751-cifar10-DARTS_PRIMITIVES-OPS-0/eval-epoch-stats-20190216-200519.json', epochs=120,
+evaluate='', gpu=0, grad_clip=5, init_channels=16, layers_in_cells=4, layers_of_cells=8, learning_rate=0.025, learning_rate_min=0.0001, load='', load_args='', log_file_path='search-20190216-200519-max
+_w_SharpSepConvDARTS_SEARCH_9ed3751-cifar10-DARTS_PRIMITIVES-OPS-0/log.txt', lr_power_annealing_exponent_order=2, mid_channels=32, model_path='saved_models', momentum=0.9, multi_channel=False, no_arch
+itect=False, ops='OPS', primitives='DARTS_PRIMITIVES', random_eraser=False, report_freq=50, save='search-20190216-200519-max_w_SharpSepConvDARTS_SEARCH_9ed3751-cifar10-DARTS_PRIMITIVES-OPS-0', seed=22
+, start_epoch=1, stats_file='search-20190216-200519-max_w_SharpSepConvDARTS_SEARCH_9ed3751-cifar10-DARTS_PRIMITIVES-OPS-0/eval-stats-20190216-200519.json', train_portion=0.5, unrolled=False, warmup_ep
+ochs=5, weight_decay=0.0003, weighting_algorithm='max_w')
+2019_02_16_20_05_19 loading op dict: operations.OPS
+2019_02_16_20_05_19 loading primitives:genotypes.DARTS_PRIMITIVES
+2019_02_16_20_05_19 primitives: ['none', 'max_pool_3x3', 'avg_pool_3x3', 'skip_connect', 'sep_conv_3x3', 'sep_conv_5x5', 'dil_conv_3x3', 'dil_conv_5x5']
+2019_02_17_19_43_41 epoch, 58, train_acc, 79.292000, valid_acc, 77.264000, train_loss, 0.594283, valid_loss, 0.661238, lr, 1.194268e-02, best_epoch, 58, best_valid_acc, 77.264000
+2019_02_17_19_43_42 genotype = Genotype(normal=[('dil_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 2), ('skip_connect', 0), ('avg_pool_3x3', 2), ('dil_conv_3x3', 1), ('avg_pool_3x3', 4), ('max
+_pool_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('sep_conv_5x5', 2), ('sep_conv_3x3', 0), ('dil_conv_5x5', 0), ('dil_conv_3x3', 3), ('sep_conv_3x3', 3), (
+'sep_conv_5x5', 0)], reduce_concat=range(2, 6))
+"""
+SHARPSEPCONV_DARTS_MAX_W = Genotype(normal=[('dil_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 2), ('skip_connect', 0), ('avg_pool_3x3', 2), ('dil_conv_3x3', 1), ('avg_pool_3x3', 4), ('max_pool_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('sep_conv_5x5', 2), ('sep_conv_3x3', 0), ('dil_conv_5x5', 0), ('dil_conv_3x3', 3), ('sep_conv_3x3', 3), ('sep_conv_5x5', 0)], reduce_concat=range(2, 6))
