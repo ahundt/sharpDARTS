@@ -421,7 +421,7 @@ def main():
             # remember best combined_error and save checkpoint
             if args.local_rank == 0:
                 is_best = combined_error < best_combined_error
-                best_combined_error = max(combined_error, best_combined_error)
+                best_combined_error = min(combined_error, best_combined_error)
                 stats['best_combined_error'] = '{0:.3f}'.format(best_combined_error)
                 if is_best:
                     best_epoch = epoch
@@ -567,8 +567,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # measure accuracy and record loss
         batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
         abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
-        cart_error.append(batch_abs_cart_distance)
-        angle_error.append(batch_abs_angle_distance)
+        cart_error.extend(batch_abs_cart_distance)
+        angle_error.extend(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -683,8 +683,8 @@ def validate(val_loader, model, criterion, args):
         # measure accuracy and record loss
         batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
         abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
-        cart_error.append(batch_abs_cart_distance)
-        angle_error.append(batch_abs_angle_distance)
+        cart_error.extend(batch_abs_cart_distance)
+        angle_error.extend(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)

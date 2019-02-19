@@ -98,7 +98,7 @@ def list_to_csv(filename, l, write=False):
     if not write:
         print('list_to_csv: Output list of length {} to file {}. Set `write` to True to actually write to file.'.format(len(l), filename))
     else:
-        with open(filename, 'w') as f:
+        with open(filename, 'a') as f:
             w = csv.writer(f)
             w.writerow(l)
 
