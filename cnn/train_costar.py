@@ -182,7 +182,7 @@ args.std = DATASET_STD
 
 def fast_collate(batch):
     imgs = [img[0] for img in batch]
-    targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
+    targets = torch.tensor([target[1] for target in batch], dtype=torch.float)
     w = imgs[0].shape[1]
     h = imgs[0].shape[2]
     tensor = torch.zeros((len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
