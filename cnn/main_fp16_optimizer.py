@@ -236,7 +236,7 @@ def main():
 
     if args.flops:
         logger.info("flops_shape = " + str(flops_shape))
-        logger.info("flops = " + utils.count_model_flops(cnn_model, data_shape=flops_shape))
+        logger.info("flops = " + utils.count_model_flops(model, data_shape=flops_shape))
         return
 
     if args.sync_bn:
