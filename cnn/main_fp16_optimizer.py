@@ -235,6 +235,7 @@ def main():
     #     model = models.__dict__[args.arch]()
 
     if args.flops:
+        model = model.cuda()
         logger.info("flops_shape = " + str(flops_shape))
         logger.info("flops = " + utils.count_model_flops(model, data_shape=flops_shape))
         return
