@@ -135,6 +135,7 @@ parser.add_argument('--cutout_length', type=int, default=112, help='cutout lengt
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
                     help='evaluate model at specified path on training, test, and validation datasets')
+parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
 parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
 parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                     help='load command line args from a json file, this will override '
@@ -221,8 +222,10 @@ def main():
     # create the neural network
     if args.dataset == 'imagenet':
         model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+        flops_shape = [1, 3, 224, 224]
     else:
         model = NetworkCIFAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+        flops_shape = [1, 3, 32, 32]
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -230,6 +233,11 @@ def main():
     # else:
     #     logger.info("=> creating model '{}'".format(args.arch))
     #     model = models.__dict__[args.arch]()
+
+    if args.flops:
+        logger.info("flops_shape = " + str(flops_shape))
+        logger.info("flops = " + utils.count_model_flops(cnn_model, data_shape=flops_shape))
+        return
 
     if args.sync_bn:
         import apex
