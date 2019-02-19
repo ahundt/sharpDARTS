@@ -126,6 +126,7 @@ def main():
 
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
   if args.flops:
+    logger.info('flops_shape = ' + str(flops_shape))
     logger.info("flops = " + utils.count_model_flops(cnn_model, data_shape=flops_shape))
     return
 
