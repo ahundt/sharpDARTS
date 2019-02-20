@@ -93,7 +93,7 @@ COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only'
 
 def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=1.0, search_architecture=False,
                         costar_version='v0.4', costar_set_name=None, costar_subset_name=None, costar_feature_mode=None, costar_output_shape=(224, 224, 3),
-                        costar_random_augmentation=None, costar_one_hot_encoding=True, distributed=False, num_workers=12,
+                        costar_random_augmentation=None, costar_one_hot_encoding=True, costar_num_images_per_example=200, distributed=False, num_workers=12,
                         collate_fn=torch.utils.data.dataloader.default_collate, verbose=0):
   print("Getting " + dataset_name + " data")
   if dataset_name == 'imagenet':
@@ -147,12 +147,12 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
     if costar_subset_name is None or costar_subset_name not in COSTAR_SUBSET_NAMES:
       raise ValueError("Specify costar_subset_name as one of {'success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure'}")
 
-    train_data = costar_dataset.CostarBlockStackingDataset.from_parameters(
+    train_data = costar_dataset.CostarBlockStackingDataset.from_standard_txt(
                       root=dataset_location,
                       version=costar_version, set_name=costar_set_name, subset_name=costar_subset_name,
                       split='train', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
                       random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
-                      verbose=verbose)
+                      verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=True)
 
   else:
     assert False, "Cannot get training queue for dataset"
@@ -203,12 +203,12 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
         # Ensure dataset is present in the directory args.data. Does not support auto download
         valid_data = dset.ImageFolder(root=dataset_location, transform=valid_transform, loader = grey_pil_loader)
     elif dataset_name == 'stacking':
-        valid_data = costar_dataset.CostarBlockStackingDataset.from_parameters(
+        valid_data = costar_dataset.CostarBlockStackingDataset.from_standard_txt(
                           root=dataset_location,
                           version=costar_version, set_name=costar_set_name, subset_name=costar_subset_name,
                           split='val', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
                           random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
-                          verbose=verbose)
+                          verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=False)
     else:
         assert False, "Cannot get training queue for dataset"
 
@@ -257,7 +257,7 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
 
 
 def get_costar_test_queue(dataset_location, costar_set_name, costar_subset_name, costar_version='v0.4', costar_feature_mode=None, costar_output_shape=(224, 224, 3),
-                          costar_random_augmentation=None, costar_one_hot_encoding=True, batch_size=32, verbose=0):
+                          costar_random_augmentation=None, costar_one_hot_encoding=True, costar_num_images_per_example=200, batch_size=32, verbose=0):
   # Support for costar block stacking generator implemented by Chia-Hung Lin (rexxarchl)
   # sites.google.com/costardataset
   # https://github.com/ahundt/costar_dataset
@@ -273,12 +273,12 @@ def get_costar_test_queue(dataset_location, costar_set_name, costar_subset_name,
   if costar_subset_name not in COSTAR_SUBSET_NAMES:
     raise ValueError("Specify costar_subset_name as one of {'success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure'}")
 
-  test_data = costar_dataset.CostarBlockStackingDataset.from_parameters(
+  test_data = costar_dataset.CostarBlockStackingDataset.from_standard_txt(
                   root=dataset_location,
                   version=costar_version, set_name=costar_set_name, subset_name=costar_subset_name,
                   split='test', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
                   random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
-                  verbose=verbose)
+                  verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=False)
 
   test_queue = torch.utils.data.DataLoader(
       test_data, batch_size=batch_size,
