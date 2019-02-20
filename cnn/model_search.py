@@ -232,11 +232,12 @@ class MultiChannelNetwork(nn.Module):
 
   def __init__(self, C=32, num_classes=10, layers=6, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
                in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False,
-               weighting_algorithm=None):
+               weighting_algorithm=None, final_path=None):
     """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
     """
     super(MultiChannelNetwork, self).__init__()
     self._C = C
+    self.final_path = final_path
     self._num_classes = num_classes
     if layers % 2 == 1:
       raise ValueError('MultiChannelNetwork layers option must be even, got ' + str(layers))
@@ -277,84 +278,111 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]]
     self.op_types = [operations.SharpSepConv, operations.ResizablePool]
-    self.stem = nn.ModuleList()
-    self.G = nx.DiGraph()
-    for i, c in enumerate(self.Cs):
-      s = nn.Sequential(
-        nn.Conv2d(int(in_channels), int(c), 3, padding=1, bias=False),
-        nn.BatchNorm2d(c)
-      )
-      self.G.add_node("Conv3x3_"+str(i))
-      self.G.add_node("BatchNorm_"+str(i))
-      self.G.add_edge("Conv3x3_"+str(i), "BatchNorm_"+str(i))
-      self.stem.append(s)
-    for layer_idx in range(self._layers):
+    if self.final_path is not None:
+        model = self.final_path[np.flatnonzero(np.core.defchararray.find(model, 'add') == -1)]
+        root_ch = self.Cs[int(model[0][-1])]
+        self.stem = nn.ModuleList()
+        s = nn.Sequential(
+            nn.Conv2d(int(in_channels), root_ch, 3, padding=1, bias=False),
+            nn.BatchNorm2d(root_ch))
+        self.stem.append(s)
+        self.op_grid = nn.ModuleList()
+        c_out = 0
+        ops = {'SharpSepConv': 0, 'ResizablePool': 1}
+        for layers in model[2:-4]:
+            layer = layers.split("_")
+            OpType = self.op_types[ops[layer[-1]]]
+            stride = layer[3]
+            c_in = layer[6]
+            c_out = layer[9]
+            op_grid.append(OpType(int(c_in), int(c_out), kernel_size=3, stride=int(stride)))
+        self.base = nn.ModuleList()
+        self.base.append(operations.SharpSepConv(int(c_out), int(final_linear_filters), 3))
+
+
+    else:
+        self.stem = nn.ModuleList()
+        self.G = nx.DiGraph()
+        for i, c in enumerate(self.Cs):
+          s = nn.Sequential(
+            nn.Conv2d(int(in_channels), int(c), 3, padding=1, bias=False),
+            nn.BatchNorm2d(c)
+          )
+          self.G.add_node("Conv3x3_"+str(i))
+          self.G.add_node("BatchNorm_"+str(i))
+          self.G.add_edge("Conv3x3_"+str(i), "BatchNorm_"+str(i))
+          self.stem.append(s)
+        for layer_idx in range(self._layers):
+            for C_out_idx in range(self.C_size):
+                out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(self.Cs[C_out_idx])
+                self.G.add_node(out_node)
+        self.op_grid = nn.ModuleList()
+        for layer_idx in range(self._layers):
+          stride_modules = nn.ModuleList()
+          for stride_idx in self.strides:
+            in_modules = nn.ModuleList()
+            for C_in_idx in range(self.C_size):
+              out_modules = nn.ModuleList()
+              # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
+              for C_out_idx in range(self.C_size):
+                out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(self.Cs[C_out_idx])
+                type_modules = nn.ModuleList()
+                for OpType in self.op_types:
+                  cin = C_in[C_in_idx][C_out_idx]
+                  cout = C_out[C_in_idx][C_out_idx]
+                  # print('cin: ' + str(cin) + ' cout: ' + str(cout))
+                  name = 'layer_' + str(layer_idx) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(self.Cs[C_in_idx]) + '_c_out_' + str(self.Cs[C_out_idx]) + '_op_type_' + str(OpType.__name__)
+                  self.G.add_node(name)
+                  if layer_idx == 0:
+                    self.G.add_edge("BatchNorm_"+str(C_in_idx), name)
+                  else:
+                    self.G.add_edge('layer_' + str(layer_idx-1)+' add ' + 'c_out'+str(self.Cs[C_in_idx]), name)
+                  self.G.add_edge(name, out_node)
+                  op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
+                  type_modules.append(op)
+                out_modules.append(type_modules)
+              in_modules.append(out_modules)
+            # op grid is stride_modules
+            stride_modules.append(in_modules)
+          self.op_grid.append(stride_modules)
+          self.global_pooling = nn.AdaptiveAvgPool2d(1)
+          self.classifier = nn.Linear(final_linear_filters, num_classes)
+
+        self.base = nn.ModuleList()
+        self.G.add_node("Add-SharpSep")
         for C_out_idx in range(self.C_size):
-            out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(self.Cs[C_out_idx])
-            self.G.add_node(out_node)
-    self.op_grid = nn.ModuleList()
-    for layer_idx in range(self._layers):
-      stride_modules = nn.ModuleList()
-      for stride_idx in self.strides:
-        in_modules = nn.ModuleList()
-        for C_in_idx in range(self.C_size):
-          out_modules = nn.ModuleList()
-          # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
-          for C_out_idx in range(self.C_size):
-            out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(self.Cs[C_out_idx])
-            type_modules = nn.ModuleList()
-            for OpType in self.op_types:
-              cin = C_in[C_in_idx][C_out_idx]
-              cout = C_out[C_in_idx][C_out_idx]
-              # print('cin: ' + str(cin) + ' cout: ' + str(cout))
-              name = 'layer_' + str(layer_idx) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(self.Cs[C_in_idx]) + '_c_out_' + str(self.Cs[C_out_idx]) + '_op_type_' + str(OpType.__name__)
-              self.G.add_node(name)
-              if layer_idx == 0:
-                self.G.add_edge("BatchNorm_"+str(C_in_idx), name)
-              else:
-                self.G.add_edge('layer_' + str(layer_idx-1)+' add ' + 'c_out'+str(self.Cs[C_in_idx]), name)
-              self.G.add_edge(name, out_node)
-              op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
-              type_modules.append(op)
-            out_modules.append(type_modules)
-          in_modules.append(out_modules)
-        # op grid is stride_modules
-        stride_modules.append(in_modules)
-      self.op_grid.append(stride_modules)
+            self.G.add_edge('layer_'+str(self._layers-1)+' add '+'c_out'+str(self.Cs[C_out_idx]), "Add-SharpSep")
+        for c in self.Cs:
+          self.G.add_node("SharpSepConv" + str(c))
+          out_node = 'layer_'+str(self._layers-1)+' add '+'c_out'+str(c)
+          self.G.add_edge("SharpSepConv" + str(c), "Add-SharpSep")
+          self.G.add_edge(out_node, "SharpSepConv" + str(c))
+          self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
+        # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
+        # C_in will be defined by the previous layer's c_out
+        self.arch_weights_shape = [len(self.strides), self._layers, self.C_size, self.C_size, len(self.op_types)]
+        # number of weights total
+        self.weight_count = np.prod(self.arch_weights_shape)
+        # number of weights in a softmax call
+        self.softmax_weight_count = np.prod(self.arch_weights_shape[2:])
+        # minimum score for a layer to continue being trained
+        self.min_score = float(1 / (self.softmax_weight_count * self.softmax_weight_count))
 
-    self.base = nn.ModuleList()
-    self.G.add_node("Add-SharpSep")
-    for C_out_idx in range(self.C_size):
-        self.G.add_edge('layer_'+str(self._layers-1)+' add '+'c_out'+str(self.Cs[C_out_idx]), "Add-SharpSep")
-    for c in self.Cs:
-      self.G.add_node("SharpSepConv" + str(c))
-      self.G.add_edge("SharpSepConv" + str(c), "Add-SharpSep")
-      self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
-    # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
-    # C_in will be defined by the previous layer's c_out
-    self.arch_weights_shape = [len(self.strides), self._layers, self.C_size, self.C_size, len(self.op_types)]
-    # number of weights total
-    self.weight_count = np.prod(self.arch_weights_shape)
-    # number of weights in a softmax call
-    self.softmax_weight_count = np.prod(self.arch_weights_shape[2:])
-    # minimum score for a layer to continue being trained
-    self.min_score = float(1 / (self.softmax_weight_count * self.softmax_weight_count))
+        self.global_pooling = nn.AdaptiveAvgPool2d(1)
+        self.classifier = nn.Linear(final_linear_filters, num_classes)
+        self.G.add_node("global_pooling")
+        self.G.add_edge("add-SharpSep", "global_pooling")
+        self.G.add_node("Linear")
+        self.G.add_edge("global_pooling", "Linear")
+        print("Nodes in graph")
+        print(self.G.nodes())
+        print("Edges in graph")
+        print(self.G.edges())
+        print("Saving graph...")
+        nx.write_gpickle(self.G, "network_test.graph")
 
-    self.global_pooling = nn.AdaptiveAvgPool2d(1)
-    self.classifier = nn.Linear(final_linear_filters, num_classes)
-    self.G.add_node("global_pooling")
-    self.G.add_edge("Add-SharpSep", "global_pooling")
-    self.G.add_node("Linear")
-    self.G.add_edge("global_pooling", "Linear")
-    print("Nodes in graph")
-    print(self.G.nodes())
-    print("Edges in graph")
-    print(self.G.edges())
-    print("Saving graph...")
-    nx.write_gpickle(self.G, "network_test.graph")
-
-    if not self._visualization:
-      self._initialize_alphas()
+        if not self._visualization:
+          self._initialize_alphas()
 
   def new(self):
     model_new = Network(self._C, self._num_classes, self._layers, self._criterion).cuda()
@@ -364,6 +392,16 @@ class MultiChannelNetwork(nn.Module):
 
   def forward(self, input_batch):
     # [in, normal_out, reduce_out]
+    if self.final_path is not None:
+        x = input_batch
+        for i in range(len(self.stem)):
+            x = self.stem[i](x)
+        for i in range(len(self.op_grid)):
+            x = self.op_grid[i](x)
+        out = self.global_pooling(x)
+        logits = self.classifier(out.view(out.size(0), -1))
+        return logits
+
     self.C_size = len(self.Cs)
     s0s = [[], [None] * self.C_size, [None] * self.C_size]
     for i, C_in in enumerate(self.Cs):
