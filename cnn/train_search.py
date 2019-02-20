@@ -85,6 +85,7 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
 parser.add_argument('--weighting_algorithm', type=str, default='scalar',
                     help='which operations to use, options are '
                          '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
+parser.add_argument('--final_path', type=str, default=None, help='path for final model')
 args = parser.parse_args()
 
 args.arch = args.primitives + '-' + args.ops
@@ -124,9 +125,13 @@ def main():
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
   if args.multi_channel:
+    final_path = None
+    if args.final_path is not None:
+      final_path = np.load(args.final_path)
+
     cnn_model = model_search.MultiChannelNetwork(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      weighting_algorithm=args.weighting_algorithm)
+      weighting_algorithm=args.weighting_algorithm, final_path=final_path)
   else:
     cnn_model = model_search.Network(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
@@ -185,9 +190,10 @@ def main():
       # lr = scheduler.get_lr()[0]
       for param_group in optimizer.param_groups:
         param_group['lr'] = learning_rate
-
-      genotype = cnn_model.genotype()
-      logger.info('genotype = %s', genotype)
+      genotype = None
+      if args.final_path is None:
+        genotype = cnn_model.genotype()
+        logger.info('genotype = %s', genotype)
 
       if not args.multi_channel:
         # the genotype is the alphas in the multi-channel case
@@ -200,6 +206,7 @@ def main():
       
       if args.multi_channel:
         optimal_path = nx.algorithms.dag.dag_longest_path(cnn_model.G)
+        np.save('optimal_path_obj', optimal_path)
         nx.write_gpickle(cnn_model.G, "network_graph_" + str(epoch) + ".graph")
         logger.info("optimal_path  : %s", optimal_path)
 
@@ -251,8 +258,9 @@ def main():
       utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
 
   # print the final model
-  genotype = cnn_model.genotype()
-  logger.info('genotype = %s', genotype)
+  if args.final_path is None:
+    genotype = cnn_model.genotype()
+    logger.info('genotype = %s', genotype)
   logger.info('Search for Model Complete! Save dir: ' + str(args.save))
 
 
