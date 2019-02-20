@@ -151,6 +151,10 @@ parser.add_argument('--subset_name', type=str, default=None, required=True,
 parser.add_argument('--feature_mode', type=str, default='all_features',
                     help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward", '
                          'or the default "all_features"')
+parser.add_argument('--num_images_per_example', type=int, default=200,
+                    help='Number of times an example is visited per epoch. Default value is 200. Since the image for each visit to an '
+                         'example is randomly chosen, and since the number of images in an example is different, we simply visit each '
+                         'example multiple times according to this number to ensure most images are visited.')
 parser.add_argument('--cart_weight', type=float, default=0.7,
                     help='the weight for the cartesian error. In validation, the metric to determine whether a run is good is '
                          'comparing the weighted sum of cart_weight*cart_error+(1-cart_weight)*angle_error. Defaults to 0.7 '
@@ -376,7 +380,7 @@ def main():
         collate_fn=fast_collate, distributed=args.distributed,
         num_workers=args.workers,
         costar_set_name=args.set_name, costar_subset_name=args.subset_name,
-        costar_feature_mode=args.feature_mode, costar_version=args.version,
+        costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
         costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
 
     if args.evaluate:
@@ -503,8 +507,10 @@ class data_prefetcher():
             self.next_target = self.next_target.cuda(non_blocking=True)
             if args.fp16:
                 self.next_input = self.next_input.half()
+                self.next_target = self.next_target.half()
             else:
                 self.next_input = self.next_input.float()
+                self.next_target = self.next_target.float()
             self.next_input = self.next_input.sub_(self.mean).div_(self.std)
             if self.cutout is not None:
                 # TODO(ahundt) Fix performance of this cutout call, it makes batch loading time go from 0.001 seconds to 0.05 seconds.
