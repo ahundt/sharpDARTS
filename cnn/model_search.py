@@ -349,13 +349,13 @@ class MultiChannelNetwork(nn.Module):
           self.classifier = nn.Linear(final_linear_filters, num_classes)
 
         self.base = nn.ModuleList()
-        self.G.add_node("Add-SharpSep")
+        self.G.add_node("add-SharpSep")
         for C_out_idx in range(self.C_size):
             self.G.add_edge('layer_'+str(self._layers-1)+' add '+'c_out'+str(self.Cs[C_out_idx]), "Add-SharpSep")
         for c in self.Cs:
           self.G.add_node("SharpSepConv" + str(c))
           out_node = 'layer_'+str(self._layers-1)+' add '+'c_out'+str(c)
-          self.G.add_edge("SharpSepConv" + str(c), "Add-SharpSep")
+          self.G.add_edge("SharpSepConv" + str(c), "add-SharpSep")
           self.G.add_edge(out_node, "SharpSepConv" + str(c))
           self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
         # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
@@ -374,10 +374,10 @@ class MultiChannelNetwork(nn.Module):
         self.G.add_edge("add-SharpSep", "global_pooling")
         self.G.add_node("Linear")
         self.G.add_edge("global_pooling", "Linear")
-        print("Nodes in graph")
-        print(self.G.nodes())
-        print("Edges in graph")
-        print(self.G.edges())
+        # print("Nodes in graph")
+        # print(self.G.nodes())
+        # print("Edges in graph")
+        # print(self.G.edges())
         print("Saving graph...")
         nx.write_gpickle(self.G, "network_test.graph")
 
