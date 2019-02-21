@@ -295,7 +295,7 @@ class MultiChannelNetwork(nn.Module):
             stride = layer[3]
             c_in = layer[6]
             c_out = layer[9]
-            op_grid.append(OpType(int(c_in), int(c_out), kernel_size=3, stride=int(stride)))
+            self.op_grid.append(OpType(int(c_in), int(c_out), kernel_size=3, stride=int(stride)))
         self.base = nn.ModuleList()
         self.base.append(operations.SharpSepConv(int(c_out), int(final_linear_filters), 3))
 
