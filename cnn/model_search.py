@@ -279,7 +279,7 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]]
     self.op_types = [operations.SharpSepConv, operations.ResizablePool]
     if self.final_path is not None:
-        model = self.final_path[np.flatnonzero(np.core.defchararray.find(model, 'add') == -1)]
+        model = self.final_path[np.flatnonzero(np.core.defchararray.find(self.final_path, 'add') == -1)]
         root_ch = self.Cs[int(model[0][-1])]
         self.stem = nn.ModuleList()
         s = nn.Sequential(
