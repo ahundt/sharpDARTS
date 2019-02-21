@@ -398,7 +398,7 @@ class MultiChannelNetwork(nn.Module):
             x = self.stem[i](x)
         for i in range(len(self.op_grid)):
             x = self.op_grid[i](x)
-        out = self.global_pooling(self.base(x))
+        out = self.global_pooling(self.base[0](x))
         logits = self.classifier(out.view(out.size(0), -1))
         return logits
 
