@@ -204,7 +204,7 @@ def main():
       # training
       train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
       
-      if args.multi_channel:
+      if args.multi_channel and args.final_path is None:
         optimal_path = nx.algorithms.dag.dag_longest_path(cnn_model.G)
         logger.info("Saving path object...")
         np.save('optimal_path_obj', optimal_path)
