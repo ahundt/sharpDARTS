@@ -13,6 +13,7 @@ import torch.utils
 import torch.nn.functional as F
 import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
+import networkx as nx
 
 from torch.autograd import Variable
 import model_search
@@ -84,6 +85,7 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
 parser.add_argument('--weighting_algorithm', type=str, default='scalar',
                     help='which operations to use, options are '
                          '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
+parser.add_argument('--final_path', type=str, default=None, help='path for final model')
 args = parser.parse_args()
 
 args.arch = args.primitives + '-' + args.ops
@@ -123,9 +125,13 @@ def main():
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
   if args.multi_channel:
+    final_path = None
+    if args.final_path is not None:
+      final_path = np.load(args.final_path)
+
     cnn_model = model_search.MultiChannelNetwork(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      weighting_algorithm=args.weighting_algorithm)
+      weighting_algorithm=args.weighting_algorithm, final_path=final_path)
   else:
     cnn_model = model_search.Network(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
@@ -184,9 +190,10 @@ def main():
       # lr = scheduler.get_lr()[0]
       for param_group in optimizer.param_groups:
         param_group['lr'] = learning_rate
-
-      genotype = cnn_model.genotype()
-      logger.info('genotype = %s', genotype)
+      genotype = None
+      if args.final_path is None:
+        genotype = cnn_model.genotype()
+        logger.info('genotype = %s', genotype)
 
       if not args.multi_channel:
         # the genotype is the alphas in the multi-channel case
@@ -196,9 +203,18 @@ def main():
 
       # training
       train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
+      
+      if args.multi_channel and args.final_path is None:
+        optimal_path = nx.algorithms.dag.dag_longest_path(cnn_model.G)
+        logger.info("Saving path object...")
+        np.save('optimal_path_obj', optimal_path)
+        logger.info("Saving updated graph...")
+        nx.write_gpickle(cnn_model.G, "network_graph_" + str(epoch) + ".graph")
+        logger.info("optimal_path  : %s", optimal_path)
 
       # for key in cnn_model.state_dict():
-      #   updated_state_dict[key] = cnn_model.state_dict()[key].clone()
+      #  updated_state_dict[key] = cnn_model.state_dict()[key].clone()
+
 
       # logger.info("gradients computed")
       # for name, parameter in cnn_model.named_parameters():
@@ -244,8 +260,9 @@ def main():
       utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
 
   # print the final model
-  genotype = cnn_model.genotype()
-  logger.info('genotype = %s', genotype)
+  if args.final_path is None:
+    genotype = cnn_model.genotype()
+    logger.info('genotype = %s', genotype)
   logger.info('Search for Model Complete! Save dir: ' + str(args.save))
 
 
