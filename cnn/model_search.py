@@ -298,6 +298,8 @@ class MultiChannelNetwork(nn.Module):
             self.op_grid.append(OpType(int(c_in), int(c_out), kernel_size=3, stride=int(stride)))
         self.base = nn.ModuleList()
         self.base.append(operations.SharpSepConv(int(c_out), int(final_linear_filters), 3))
+        self.global_pooling = nn.AdaptiveAvgPool2d(1)
+        self.classifier = nn.Linear(final_linear_filters, num_classes)
 
 
     else:
@@ -345,8 +347,6 @@ class MultiChannelNetwork(nn.Module):
             # op grid is stride_modules
             stride_modules.append(in_modules)
           self.op_grid.append(stride_modules)
-          self.global_pooling = nn.AdaptiveAvgPool2d(1)
-          self.classifier = nn.Linear(final_linear_filters, num_classes)
 
         self.base = nn.ModuleList()
         self.G.add_node("add-SharpSep")
