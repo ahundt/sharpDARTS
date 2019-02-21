@@ -213,9 +213,11 @@ def main():
         # TODO(ahundt) remove final path and switch back to genotype, and save out raw weights plus optimal path
         optimal_path = nx.algorithms.dag.dag_longest_path(cnn_model.G)
         logger.info("Saving path object...")
-        np.save('optimal_path_obj', optimal_path)
+        optimal_path_filename = os.path.join(args.save, 'optimal_path_obj')
+        np.save(optimal_path_filename, optimal_path)
+        graph_filename = os.path.join(args.save, 'network_graph_' + str(epoch) + '.graph')
         logger.info("Saving updated graph...")
-        nx.write_gpickle(cnn_model.G, "network_graph_" + str(epoch) + ".graph")
+        nx.write_gpickle(cnn_model.G, graph_filename)
         logger.info("optimal_path  : %s", optimal_path)
 
       # for key in cnn_model.state_dict():
