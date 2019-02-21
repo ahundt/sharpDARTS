@@ -55,6 +55,8 @@ import operations
 import utils
 import warmup_scheduler
 from cosine_power_annealing import cosine_power_annealing
+from train import evaluate
+import cifar10_1
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -86,7 +88,7 @@ parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=1
                          'the exponential more dominant, smaller make cosine more dominant.')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
-parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
+parser.add_argument('--weight_decay', '--wd', dest='weight_decay', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--print_freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
@@ -133,6 +135,7 @@ parser.add_argument('--cutout_length', type=int, default=112, help='cutout lengt
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
                     help='evaluate model at specified path on training, test, and validation datasets')
+parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
 parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
 parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                     help='load command line args from a json file, this will override '
@@ -219,8 +222,10 @@ def main():
     # create the neural network
     if args.dataset == 'imagenet':
         model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+        flops_shape = [1, 3, 224, 224]
     else:
         model = NetworkCIFAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
+        flops_shape = [1, 3, 32, 32]
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -228,6 +233,13 @@ def main():
     # else:
     #     logger.info("=> creating model '{}'".format(args.arch))
     #     model = models.__dict__[args.arch]()
+
+    if args.flops:
+        model = model.cuda()
+        logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
+        logger.info("flops_shape = " + str(flops_shape))
+        logger.info("flops = " + utils.count_model_flops(model, data_shape=flops_shape))
+        return
 
     if args.sync_bn:
         import apex
@@ -345,7 +357,31 @@ def main():
         num_workers=args.workers)
 
     if args.evaluate:
-        validate(val_loader, model, criterion)
+        if args.dataset == 'cifar10':
+            # evaluate best model weights on cifar 10.1
+            # https://github.com/modestyachts/CIFAR-10.1
+            train_transform, valid_transform = utils.get_data_transforms(args)
+            # Get the training queue, select training and validation from training set
+            # Get the training queue, use full training and test set
+            train_queue, valid_queue = dataset.get_training_queues(
+              args.dataset, train_transform, valid_transform, args.data, args.batch_size,
+              train_proportion=1.0, search_architecture=False)
+            test_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
+            test_queue = torch.utils.data.DataLoader(
+                test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=args.workers)
+            eval_stats = evaluate(args, model, criterion, train_queue=train_queue,
+                                  valid_queue=valid_queue, test_queue=test_queue)
+            with open(args.stats_file, 'w') as f:
+                # TODO(ahundt) fix "TypeError: 1869 is not JSON serializable" to include arg info, see train.py
+                # arg_dict = vars(args)
+                # arg_dict.update(eval_stats)
+                # json.dump(arg_dict, f)
+                json.dump(eval_stats, f)
+            logger.info("flops = " + utils.count_model_flops(model))
+            logger.info(utils.dict_to_log_string(eval_stats))
+            logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
+        else:
+            validate(val_loader, model, criterion, args)
         return
 
     lr_schedule = cosine_power_annealing(

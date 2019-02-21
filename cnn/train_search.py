@@ -140,6 +140,10 @@ def main():
   cnn_model = cnn_model.cuda()
   logger.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
 
+  if args.load:
+    logger.info('loading weights from: ' + args.load)
+    utils.load(cnn_model, args.load)
+
   optimizer = torch.optim.SGD(
       cnn_model.parameters(),
       args.learning_rate,
