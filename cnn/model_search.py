@@ -8,6 +8,8 @@ from torch.autograd import Variable
 from genotypes import PRIMITIVES
 from genotypes import Genotype
 import networkx as nx
+from networkx.readwrite import json_graph
+import json
 
 
 class MixedOp(nn.Module):
@@ -226,7 +228,8 @@ class Network(nn.Module):
     concat = range(2+self._steps-self._multiplier, self._steps+2)
     genotype = Genotype(
       normal=gene_normal, normal_concat=concat,
-      reduce=gene_reduce, reduce_concat=concat
+      reduce=gene_reduce, reduce_concat=concat,
+      layout='cell',
     )
     return genotype
 
@@ -235,12 +238,12 @@ class MultiChannelNetwork(nn.Module):
 
   def __init__(self, C=32, num_classes=10, layers=6, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
                in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False,
-               weighting_algorithm=None, final_path=None):
+               weighting_algorithm=None, genotype=None):
     """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
     """
     super(MultiChannelNetwork, self).__init__()
     self._C = C
-    self.final_path = final_path
+    self.genotype = genotype
     self._num_classes = num_classes
     if layers % 2 == 1:
       raise ValueError('MultiChannelNetwork layers option must be even, got ' + str(layers))
@@ -281,8 +284,8 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]]
     self.op_types = [operations.SharpSepConv, operations.ResizablePool]
-    if self.final_path is not None:
-        model = self.final_path[np.flatnonzero(np.core.defchararray.find(self.final_path, 'add') == -1)]
+    if self.genotype is not None:
+        model = self.genotype[np.flatnonzero(np.core.defchararray.find(self.genotype, 'add') == -1)]
         root_ch = self.Cs[int(model[0][-1])]
         self.stem = nn.ModuleList()
         s = nn.Sequential(
@@ -291,6 +294,7 @@ class MultiChannelNetwork(nn.Module):
         self.stem.append(s)
         self.op_grid = nn.ModuleList()
         c_out = 0
+        # TODO(ahundt) switch back to primitives parameter and ops dict like in Network
         ops = {'SharpSepConv': 0, 'ResizablePool': 1}
         for layers in model[2:-4]:
             layer = layers.split("_")
@@ -395,7 +399,7 @@ class MultiChannelNetwork(nn.Module):
 
   def forward(self, input_batch):
     # [in, normal_out, reduce_out]
-    if self.final_path is not None:
+    if self.genotype is not None:
         x = input_batch
         for i in range(len(self.stem)):
             x = self.stem[i](x)
@@ -444,8 +448,8 @@ class MultiChannelNetwork(nn.Module):
               name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(OpType.__name__)
               if not self._visualization:
                 w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
-              # self.G.add_edge(name, out_node, {weight: w})
-              self.G[name][out_node]["weight"] = w
+                # self.G.add_edge(name, out_node, {weight: w})
+                self.G[name][out_node]["weight"] = w
               # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
@@ -526,13 +530,30 @@ class MultiChannelNetwork(nn.Module):
     '''
     return [self._arch_parameters]
 
-  def genotype(self):
-    # TODO(ahundt) switch from raw weights to a simpler representation for genotype?
-    gene_normal = np.array(self.arch_weights(0).data.cpu().numpy()).tolist()
-    gene_reduce = np.array(self.arch_weights(1).data.cpu().numpy()).tolist()
+  def genotype(self, layout='raw_weights'):
+        """
+        layout options: raw_weights, longest_path, graph
+        """
+    if layout == 'raw_weights':
+      # TODO(ahundt) switch from raw weights to a simpler representation for genotype?
+      gene_normal = np.array(self.arch_weights(0).data.cpu().numpy()).tolist()
+      gene_reduce = np.array(self.arch_weights(1).data.cpu().numpy()).tolist()
+    elif layout == 'longest_path':
+      # TODO(ahundt) make into a list of the layer strings to be included.
+      optimal_path = nx.algorithms.dag.dag_longest_path(self.G)
+      data = json_graph.node_link_data(optimal_path)
+    elif layout == 'graph':
+      optimal_path = self.G
+    else:
+      raise ValueError('unsupported layout: ' + str(layout))
+
+    if layout == 'longest_path' or layout == 'graph':
+      gene_normal = [json.dumps(data)]
+      gene_reduce = []
 
     genotype = Genotype(
       normal=gene_normal, normal_concat=[],
-      reduce=gene_reduce, reduce_concat=[]
+      reduce=gene_reduce, reduce_concat=[],
+      layout=layout
     )
     return genotype

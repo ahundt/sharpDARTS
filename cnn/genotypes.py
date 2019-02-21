@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
+Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat layout')
 
 # Primitives for the dilation, sep_conv, flood, and choke 3x3 only search space
 PRIMITIVES = [
@@ -60,6 +60,7 @@ NASNet = Genotype(
     ('max_pool_3x3', 1),
   ],
   reduce_concat = [4, 5, 6],
+  layout='cell',
 )
 
 AmoebaNet = Genotype(
@@ -88,7 +89,8 @@ AmoebaNet = Genotype(
     ('conv_7x1_1x7', 0),
     ('sep_conv_3x3', 5),
   ],
-  reduce_concat = [3, 4, 6]
+  reduce_concat = [3, 4, 6],
+  layout='cell',
 )
 
 '''
@@ -144,11 +146,11 @@ imizer='sgd', partial=0.125, primitives='PRIMITIVES', random_eraser=False, repor
 2019_01_25_20_26_22 best_epoch, 988, best_train_acc, 95.852000, best_valid_acc, 97.890000, best_train_loss, 0.196667, best_valid_loss, 0.076396, lr, 8.881592e-06, best_epoch, 988, best_valid_acc, 97.890000 cifar10.1_valid_acc, 93.750000, cifar10.1_valid_loss, 0.218554
 2019_01_25_20_26_22 Training of Final Model Complete! Save dir: eval-20190121-232159-AUTOAUGMENT_V2_KEY_PADDING_d5dda02_BUGFIX-cifar10-DARTS
 '''
-CHOKE_FLOOD_DIL_IS_SEP_CONV = Genotype(normal=[('choke_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('skip_connect', 1), ('skip_connect', 0), ('skip_connect', 1)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('max_pool_3x3', 0), ('skip_connect', 2), ('max_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 2), ('flood_conv_3x3', 0)], reduce_concat=range(2, 6))
+CHOKE_FLOOD_DIL_IS_SEP_CONV = Genotype(normal=[('choke_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('skip_connect', 1), ('skip_connect', 0), ('skip_connect', 1)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('max_pool_3x3', 0), ('skip_connect', 2), ('max_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 2), ('flood_conv_3x3', 0)], reduce_concat=range(2, 6), layout='cell')
 SHARP_DARTS = CHOKE_FLOOD_DIL_IS_SEP_CONV
 
-DARTS_V1 = Genotype(normal=[('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 0), ('sep_conv_3x3', 1), ('skip_connect', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 2)], normal_concat=[2, 3, 4, 5], reduce=[('max_pool_3x3', 0), ('max_pool_3x3', 1), ('skip_connect', 2), ('max_pool_3x3', 0), ('max_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 2), ('avg_pool_3x3', 0)], reduce_concat=[2, 3, 4, 5])
-DARTS_V2 = Genotype(normal=[('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 1), ('skip_connect', 0), ('skip_connect', 0), ('dil_conv_3x3', 2)], normal_concat=[2, 3, 4, 5], reduce=[('max_pool_3x3', 0), ('max_pool_3x3', 1), ('skip_connect', 2), ('max_pool_3x3', 1), ('max_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 2), ('max_pool_3x3', 1)], reduce_concat=[2, 3, 4, 5])
+DARTS_V1 = Genotype(normal=[('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 0), ('sep_conv_3x3', 1), ('skip_connect', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 2)], normal_concat=[2, 3, 4, 5], reduce=[('max_pool_3x3', 0), ('max_pool_3x3', 1), ('skip_connect', 2), ('max_pool_3x3', 0), ('max_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 2), ('avg_pool_3x3', 0)], reduce_concat=[2, 3, 4, 5], layout='cell')
+DARTS_V2 = Genotype(normal=[('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 1), ('skip_connect', 0), ('skip_connect', 0), ('dil_conv_3x3', 2)], normal_concat=[2, 3, 4, 5], reduce=[('max_pool_3x3', 0), ('max_pool_3x3', 1), ('skip_connect', 2), ('max_pool_3x3', 1), ('max_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 2), ('max_pool_3x3', 1)], reduce_concat=[2, 3, 4, 5], layout='cell')
 
 DARTS = DARTS_V2
 
@@ -239,5 +241,5 @@ Validation step: 41, loss:   0.24891, top 1: 93.40 top 5: 99.85 progress: 100%||
 
 
 """
-DARTS_PRIMITIVES_DIL_IS_SEPCONV = Genotype(normal=[('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('sep_conv_3x3', 2), ('skip_connect', 0), ('sep_conv_3x3', 1), ('skip_connect', 0), ('sep_conv_3x3', 1)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 3)], reduce_concat=range(2, 6))
+DARTS_PRIMITIVES_DIL_IS_SEPCONV = Genotype(normal=[('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('sep_conv_3x3', 2), ('skip_connect', 0), ('sep_conv_3x3', 1), ('skip_connect', 0), ('sep_conv_3x3', 1)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2), ('avg_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
 SHARPSEPCONV_DARTS = DARTS_PRIMITIVES_DIL_IS_SEPCONV

@@ -85,6 +85,7 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
 parser.add_argument('--weighting_algorithm', type=str, default='scalar',
                     help='which operations to use, options are '
                          '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
+# TODO(ahundt) remove final path and switch back to genotype
 parser.add_argument('--final_path', type=str, default=None, help='path for final model')
 args = parser.parse_args()
 
@@ -207,8 +208,9 @@ def main():
 
       # training
       train_acc, train_obj = train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, learning_rate)
-      
+
       if args.multi_channel and args.final_path is None:
+        # TODO(ahundt) remove final path and switch back to genotype, and save out raw weights plus optimal path
         optimal_path = nx.algorithms.dag.dag_longest_path(cnn_model.G)
         logger.info("Saving path object...")
         np.save('optimal_path_obj', optimal_path)
