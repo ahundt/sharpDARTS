@@ -58,6 +58,7 @@ import operations
 import utils
 import warmup_scheduler
 from cosine_power_annealing import cosine_power_annealing
+from costar_baseline_model import NetworkResNetCOSTAR
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -237,7 +238,7 @@ def main():
     if args.static_loss_scale != 1.0:
         if not args.fp16:
             logger.info("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
-
+    
     # # load the correct ops dictionary
     op_dict_to_load = "operations.%s" % args.ops
     logger.info('loading op dict: ' + str(op_dict_to_load))
@@ -248,12 +249,18 @@ def main():
     logger.info('loading primitives:' + primitives_to_load)
     primitives = eval(primitives_to_load)
     logger.info('primitives: ' + str(primitives))
-    # create model
-    genotype = eval("genotypes.%s" % args.arch)
     # get the number of output channels
     classes = dataset.costar_class_dict[args.feature_mode]
-    # create the neural network
-    model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
+
+    if args.arch == 'NetworkResNetCOSTAR':
+        # baseline model for comparison
+        model = NetworkResNetCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, None, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
+    else:
+        # create model
+        genotype = eval("genotypes.%s" % args.arch)
+        # create the neural network
+        model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
+    
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -562,19 +569,29 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # compute output
         # output = model(input)
         # loss = criterion(output, target)
-
+        # logger.info('>>>>> forward <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+        # logger.info('>>>>> forward <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
         # note here the term output is equivalent to logits
         output, logits_aux = model(input)
+        # logger.info('>>>>>>> output_presigmoid: ' + str(output.data) + ' target: ' + str(target.data))
+        # logger.info('>>>>>>> output_presigmoid: ' + str(output.data) + ' target: ' + str(target.data))
+        output = torch.nn.functional.sigmoid(output)
         loss = criterion(output, target)
         if logits_aux is not None and args.auxiliary:
+            logits_aux = torch.nn.functional.sigmoid(logits_aux)
             loss_aux = criterion(logits_aux, target)
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
-        abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
-        cart_error.extend(batch_abs_cart_distance)
-        angle_error.extend(batch_abs_angle_distance)
+        with torch.no_grad():
+            output_np = output.cpu().detach().numpy()
+            target_np = target.cpu().detach().numpy()
+            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
+            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
+            batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output_np, target_np)
+            abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+            cart_error.extend(batch_abs_cart_distance)
+            angle_error.extend(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
