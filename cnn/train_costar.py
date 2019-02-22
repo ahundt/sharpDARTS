@@ -12,7 +12,7 @@
 #
 # Example command:
 #
-#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --set_name blocks_only --subset_name success_only --feature_mode all_features --data ~/.keras/datasets/costar_block_stacking_dataset_v0.4 --abs_error_output_write
+#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --data ~/.keras/datasets/costar_block_stacking_dataset_v0.4
 import argparse
 import os
 import shutil
@@ -142,12 +142,13 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                          'that did not exist when the json file was originally saved out.')
 # CoSTAR BSD specific arguments
 parser.add_argument('--dataset', type=str, default='stacking', help='which dataset, only option is stacking')
-parser.add_argument('--version', type=str, default='v0.4', help='the CoSTAR BSD version to use')
-parser.add_argument('--set_name', type=str, default=None, required=True,
-                    help='which set to use in the CoSTAR BSD. Options are "blocks_only" or "blocks_with_plush_toy"')
-parser.add_argument('--subset_name', type=str, default=None, required=True,
+parser.add_argument('--version', type=str, default='v0.4', help='the CoSTAR BSD version to use. Defaults to "v0.4"')
+parser.add_argument('--set_name', type=str, default='blocks_only',
+                    help='which set to use in the CoSTAR BSD. Options are "blocks_only" or "blocks_with_plush_toy". '
+                         'Defaults to "blocks_only"')
+parser.add_argument('--subset_name', type=str, default='success_only',
                     help='which subset to use in the CoSTAR BSD. Options are "success_only", '
-                         '"error_failure_only", "task_failure_only", or "task_and_error_failure"')
+                         '"error_failure_only", "task_failure_only", or "task_and_error_failure". Defaults to "success_only"')
 parser.add_argument('--feature_mode', type=str, default='all_features',
                     help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward", '
                          'or the default "all_features"')
@@ -165,8 +166,6 @@ parser.add_argument('--abs_cart_error_output_csv_name', type=str, default='abs_c
 parser.add_argument('--abs_angle_error_output_csv_name', type=str, default='abs_angle_error.csv',
                     help='the output csv file name for the absolute cartesian error of ALL samples in ALL epochs. '
                          'Actual output file will have train_/val_/test_ prefix')
-parser.add_argument('--abs_error_output_write', action='store_true', default=False,
-                    help='use this flag to actually output the error csv files for ALL samples in ALL epoches.')
 
 cudnn.benchmark = True
 
@@ -624,10 +623,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     prefix = 'train_'
     if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
-                          cart_error, args.abs_error_output_write)
+                          cart_error)
     if args.feature_mode != 'translation_only':  # rotation_only or all_features: save angle csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
-                          angle_error, args.abs_error_output_write)
+                          angle_error)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
@@ -734,10 +733,10 @@ def validate(val_loader, model, criterion, args):
     prefix = 'val_'
     if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
-                          cart_error, args.abs_error_output_write)
+                          cart_error)
     if args.feature_mode != 'translation_only':  # rotation_only or all_features: save angle csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
-                          angle_error, args.abs_error_output_write)
+                          angle_error)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
