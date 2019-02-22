@@ -5,16 +5,14 @@
 # pip3 install --user --upgrade -e . --global-option="build_ext" --global-option="--cpp_ext" --global-option="--cuda_ext"
 #
 # ### Multi-process training with FP16_Optimizer, dynamic loss scaling
-#     $ python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 256 --save `git rev-parse --short HEAD` --epochs 300 --dynamic-loss-scale --workers 14 --data /home/costar/datasets/imagenet/
+#     $ python3 -m torch.distributed.launch --nproc_per_node=2 train_costar.py --fp16 --b 256 --save `git rev-parse --short HEAD` --epochs 300 --dynamic-loss-scale --workers 14 --data ~/.keras/datasets/costar_block_stacking_dataset_v0.4
 #
 # # note that --nproc_per_node is NUM_GPUS.
 # # Can add --sync_bn to sync bachnorm values if batch size is "very small" but note this also reduces img/s by ~10%.
 #
-# Example cifar10 command:
+# Example command:
 #
-#    # TODO(ahundt) verify these are the correct parameters
-#    export CUDA_VISIBLE_DEVICES="2" && python3 main_fp16_optimizer.py --autoaugment --auxiliary --cutout --batch_size 128 --epochs 2000 --save sharpDARTS_2k_`git rev-parse --short HEAD`_Cmid32 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --dataset cifar10
-
+#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --set_name blocks_only --subset_name success_only --feature_mode all_features --data ~/.keras/datasets/costar_block_stacking_dataset_v0.4 --abs_error_output_write
 import argparse
 import os
 import shutil
@@ -45,8 +43,13 @@ try:
 except ImportError:
     raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
-from model import NetworkImageNet as NetworkImageNet
-from model import NetworkCIFAR as NetworkCIFAR
+try:
+    import costar_dataset
+except ImportError:
+    ImportError('The costar dataset is not available. '
+                'See https://github.com/ahundt/costar_dataset for details')
+
+from model import NetworkImageNet
 from tqdm import tqdm
 import dataset
 import genotypes
@@ -55,8 +58,6 @@ import operations
 import utils
 import warmup_scheduler
 from cosine_power_annealing import cosine_power_annealing
-from train import evaluate
-import cifar10_1
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -124,7 +125,6 @@ parser.add_argument('--primitives', type=str, default='PRIMITIVES',
 parser.add_argument('--save', type=str, default='EXP', help='experiment name')
 parser.add_argument('--mid_channels', type=int, default=96, help='C_mid channels in choke SharpSepConv')
 parser.add_argument('--layers', type=int, default=14, help='total number of layers')
-parser.add_argument('--dataset', type=str, default='imagenet', help='which dataset, only option is imagenet')
 parser.add_argument('--init_channels', type=int, default=48, help='num of init channels')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
@@ -135,48 +135,81 @@ parser.add_argument('--cutout_length', type=int, default=112, help='cutout lengt
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
                     help='evaluate model at specified path on training, test, and validation datasets')
-parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
 parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
 parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                     help='load command line args from a json file, this will override '
                          'all currently set args except for --evaluate, and arguments '
                          'that did not exist when the json file was originally saved out.')
+# CoSTAR BSD specific arguments
+parser.add_argument('--dataset', type=str, default='stacking', help='which dataset, only option is stacking')
+parser.add_argument('--version', type=str, default='v0.4', help='the CoSTAR BSD version to use')
+parser.add_argument('--set_name', type=str, default=None, required=True,
+                    help='which set to use in the CoSTAR BSD. Options are "blocks_only" or "blocks_with_plush_toy"')
+parser.add_argument('--subset_name', type=str, default=None, required=True,
+                    help='which subset to use in the CoSTAR BSD. Options are "success_only", '
+                         '"error_failure_only", "task_failure_only", or "task_and_error_failure"')
+parser.add_argument('--feature_mode', type=str, default='all_features',
+                    help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward", '
+                         'or the default "all_features"')
+parser.add_argument('--num_images_per_example', type=int, default=200,
+                    help='Number of times an example is visited per epoch. Default value is 200. Since the image for each visit to an '
+                         'example is randomly chosen, and since the number of images in an example is different, we simply visit each '
+                         'example multiple times according to this number to ensure most images are visited.')
+parser.add_argument('--cart_weight', type=float, default=0.7,
+                    help='the weight for the cartesian error. In validation, the metric to determine whether a run is good is '
+                         'comparing the weighted sum of cart_weight*cart_error+(1-cart_weight)*angle_error. Defaults to 0.7 '
+                         'because translational error is more important than rotational error.')
+parser.add_argument('--abs_cart_error_output_csv_name', type=str, default='abs_cart_error.csv',
+                    help='the output csv file name for the absolute cartesian error of ALL samples in ALL epochs. '
+                         'Actual output file will have train_/val_/test_ prefix')
+parser.add_argument('--abs_angle_error_output_csv_name', type=str, default='abs_angle_error.csv',
+                    help='the output csv file name for the absolute cartesian error of ALL samples in ALL epochs. '
+                         'Actual output file will have train_/val_/test_ prefix')
+parser.add_argument('--abs_error_output_write', action='store_true', default=False,
+                    help='use this flag to actually output the error csv files for ALL samples in ALL epoches.')
 
 cudnn.benchmark = True
 
-best_top1 = 0
+best_combined_error = float('inf')
 args = parser.parse_args()
 logger = None
-DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
-DATASET_MEAN = dataset.mean_dict[args.dataset]
-DATASET_STD = dataset.std_dict[args.dataset]
+
+DATASET_CHANNELS = dataset.costar_inp_channel_dict[args.feature_mode]
+
+# TODO(rexxarchl): Use mean and std from imagenet, for now
+DATASET_MEAN = dataset.mean_dict['imagenet']
+DATASET_STD = dataset.std_dict['imagenet']
+args.mean = DATASET_MEAN
+args.std = DATASET_STD
 # print('>>>>>>>DATASET_CHANNELS: ' + str(DATASET_CHANNELS))
+
 
 def fast_collate(batch):
     imgs = [img[0] for img in batch]
-    targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
-    w = imgs[0].size[0]
-    h = imgs[0].size[1]
+    targets = torch.tensor([target[1] for target in batch], dtype=torch.float)
+    w = imgs[0].shape[1]
+    h = imgs[0].shape[2]
     tensor = torch.zeros((len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
     for i, img in enumerate(imgs):
         nump_array = np.asarray(img, dtype=np.uint8)
         # tens = torch.from_numpy(nump_array)
         if(nump_array.ndim < 3):
             nump_array = np.expand_dims(nump_array, axis=-1)
-        nump_array = np.rollaxis(nump_array, 2)
-
+        # nump_array = np.rollaxis(nump_array, 2)
         tensor[i] += torch.from_numpy(nump_array)
     return tensor, targets
 
 # CLASSES = 1000
+
 
 if args.deterministic:
     cudnn.benchmark = False
     cudnn.deterministic = True
     torch.manual_seed(args.local_rank)
 
+
 def main():
-    global best_top1, args, logger
+    global best_combined_error, args, logger
 
     args.distributed = False
     if 'WORLD_SIZE' in os.environ:
@@ -218,14 +251,9 @@ def main():
     # create model
     genotype = eval("genotypes.%s" % args.arch)
     # get the number of output channels
-    classes = dataset.class_dict[args.dataset]
+    classes = dataset.costar_class_dict[args.feature_mode]
     # create the neural network
-    if args.dataset == 'imagenet':
-        model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
-        flops_shape = [1, 3, 224, 224]
-    else:
-        model = NetworkCIFAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
-        flops_shape = [1, 3, 32, 32]
+    model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -233,13 +261,6 @@ def main():
     # else:
     #     logger.info("=> creating model '{}'".format(args.arch))
     #     model = models.__dict__[args.arch]()
-
-    if args.flops:
-        model = model.cuda()
-        logger.info("param size = %fMB", utils.count_parameters_in_MB(model))
-        logger.info("flops_shape = " + str(flops_shape))
-        logger.info("flops = " + utils.count_model_flops(model, data_shape=flops_shape))
-        return
 
     if args.sync_bn:
         import apex
@@ -257,7 +278,9 @@ def main():
         model = DDP(model, delay_allreduce=True)
 
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda()
+    criterion = nn.MSELoss().cuda()
+    # NOTE(rexxarchl): MSLE loss, indicated as better for rotation in costar_hyper/costar_block_stacking_train_regression.py
+    #                  is not available in PyTorch by default
 
     # Scale learning rate based on global batch size
     args.learning_rate = args.learning_rate * float(args.batch_size * args.world_size)/256.
@@ -286,8 +309,8 @@ def main():
                 logger.info("=> loading checkpoint '{}'".format(args.resume))
                 checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu))
                 args.start_epoch = checkpoint['epoch']
-                if 'best_top1' in checkpoint:
-                    best_top1 = checkpoint['best_top1']
+                if 'best_combined_error' in checkpoint:
+                    best_combined_error = checkpoint['best_combined_error']
                 model.load_state_dict(checkpoint['state_dict'])
                 # An FP16_Optimizer instance's state dict internally stashes the master params.
                 optimizer.load_state_dict(checkpoint['optimizer'])
@@ -348,40 +371,20 @@ def main():
     # normalize_as_tensor = False because we normalize and convert to a
     # tensor in our custom prefetching function, rather than as part of
     # the transform preprocessing list.
-    train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
+    # train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
+    train_transform = valid_transform = None  # NOTE(rexxarchl): data transforms are not applicable for CoSTAR BSD at the moment
     # Get the training queue, select training and validation from training set
     train_loader, val_loader = dataset.get_training_queues(
         args.dataset, train_transform, valid_transform, args.data,
         args.batch_size, train_proportion=1.0,
         collate_fn=fast_collate, distributed=args.distributed,
-        num_workers=args.workers)
+        num_workers=args.workers,
+        costar_set_name=args.set_name, costar_subset_name=args.subset_name,
+        costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
+        costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
 
     if args.evaluate:
-        if args.dataset == 'cifar10':
-            # evaluate best model weights on cifar 10.1
-            # https://github.com/modestyachts/CIFAR-10.1
-            train_transform, valid_transform = utils.get_data_transforms(args)
-            # Get the training queue, select training and validation from training set
-            # Get the training queue, use full training and test set
-            train_queue, valid_queue = dataset.get_training_queues(
-              args.dataset, train_transform, valid_transform, args.data, args.batch_size,
-              train_proportion=1.0, search_architecture=False)
-            test_data = cifar10_1.CIFAR10_1(root=args.data, download=True, transform=valid_transform)
-            test_queue = torch.utils.data.DataLoader(
-                test_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=args.workers)
-            eval_stats = evaluate(args, model, criterion, train_queue=train_queue,
-                                  valid_queue=valid_queue, test_queue=test_queue)
-            with open(args.stats_file, 'w') as f:
-                # TODO(ahundt) fix "TypeError: 1869 is not JSON serializable" to include arg info, see train.py
-                # arg_dict = vars(args)
-                # arg_dict.update(eval_stats)
-                # json.dump(arg_dict, f)
-                json.dump(eval_stats, f)
-            logger.info("flops = " + utils.count_model_flops(model))
-            logger.info(utils.dict_to_log_string(eval_stats))
-            logger.info('\nEvaluation of Loaded Model Complete! Save dir: ' + str(args.save))
-        else:
-            validate(val_loader, model, criterion, args)
+        validate(val_loader, model, criterion, args)
         return
 
     lr_schedule = cosine_power_annealing(
@@ -412,18 +415,18 @@ def main():
             if args.prof:
                 break
             # evaluate on validation set
-            top1, val_stats = validate(val_loader, model, criterion, args)
+            combined_error, val_stats = validate(val_loader, model, criterion, args)
             stats.update(train_stats)
             stats.update(val_stats)
             # stats['lr'] = '{0:.5f}'.format(scheduler.get_lr()[0])
             stats['lr'] = '{0:.5f}'.format(learning_rate)
             stats['epoch'] = epoch
 
-            # remember best top1 and save checkpoint
+            # remember best combined_error and save checkpoint
             if args.local_rank == 0:
-                is_best = top1 > best_top1
-                best_top1 = max(top1, best_top1)
-                stats['best_top1'] = '{0:.3f}'.format(best_top1)
+                is_best = combined_error < best_combined_error
+                best_combined_error = min(combined_error, best_combined_error)
+                stats['best_combined_error'] = '{0:.3f}'.format(best_combined_error)
                 if is_best:
                     best_epoch = epoch
                     best_stats = copy.deepcopy(stats)
@@ -435,15 +438,15 @@ def main():
                     'epoch': epoch,
                     'arch': args.arch,
                     'state_dict': model.state_dict(),
-                    'best_top1': best_top1,
+                    'best_combined_error': best_combined_error,
                     'optimizer': optimizer.state_dict(),
                     # 'lr_scheduler': scheduler.state_dict()
                     'lr_schedule': lr_schedule,
                     'stats': best_stats
                 }, is_best, path=args.save)
                 prog_epoch.set_description(
-                    'Overview ***** best_epoch: {0} best_valid_top1: {1:.2f} ***** Progress'
-                    .format(best_epoch, best_top1))
+                    'Overview ***** best_epoch: {0} best_valid_combined_error: {1:.2f} ***** Progress'
+                    .format(best_epoch, best_combined_error))
             epoch_stats += [copy.deepcopy(stats)]
             with open(args.epoch_stats_file, 'w') as f:
                 json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
@@ -461,17 +464,23 @@ def main():
 
 
 class data_prefetcher():
-    def __init__(self, loader, mean=None, std=None, cutout=False, cutout_length=112, cutout_cuts=2):
+    def __init__(self, loader, in_channels, mean=None, std=None, cutout=False, cutout_length=112, cutout_cuts=2):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
         if mean is None:
             mean = [0.485, 0.456, 0.406]
         if std is None:
             std = [0.229, 0.224, 0.225]
-        mean = np.array(mean) * 255
-        std = np.array(std) * 255
-        self.mean = torch.tensor(mean).cuda().view(1,3,1,1)
-        self.std = torch.tensor(std).cuda().view(1,3,1,1)
+
+        # The first 6 channels are first and last images of a session
+        # Subtract std and mean from these two images, while leaving others intact
+        padded_mean, padded_std = np.zeros(in_channels), np.zeros(in_channels)
+        padded_mean[:3], padded_mean[3:6] = mean, mean
+        padded_std[:3], padded_std[3:6] = std, std
+        mean = np.array(padded_mean) * 255
+        std = np.array(padded_std) * 255
+        self.mean = torch.tensor(mean).cuda().view(1, in_channels, 1, 1)
+        self.std = torch.tensor(std).cuda().view(1, in_channels, 1, 1)
         cutout_dtype = np.float32
         if args.fp16:
             self.mean = self.mean.half()
@@ -498,8 +507,10 @@ class data_prefetcher():
             self.next_target = self.next_target.cuda(non_blocking=True)
             if args.fp16:
                 self.next_input = self.next_input.half()
+                self.next_target = self.next_target.half()
             else:
                 self.next_input = self.next_input.float()
+                self.next_target = self.next_target.float()
             self.next_input = self.next_input.sub_(self.mean).div_(self.std)
             if self.cutout is not None:
                 # TODO(ahundt) Fix performance of this cutout call, it makes batch loading time go from 0.001 seconds to 0.05 seconds.
@@ -522,14 +533,15 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     data_time = AverageMeter()
     speed = AverageMeter()
     losses = AverageMeter()
-    top1m = AverageMeter()
-    top5m = AverageMeter()
+    abs_cart_m = AverageMeter()
+    abs_angle_m = AverageMeter()
 
     # switch to train mode
     model.train()
     end = time.time()
-    prefetcher = data_prefetcher(train_loader, mean=args.mean, std=args.std, cutout=args.cutout, cutout_length=args.cutout_length)
+    prefetcher = data_prefetcher(train_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std, cutout=args.cutout, cutout_length=args.cutout_length)
 
+    cart_error, angle_error = [], []
     input, target = prefetcher.next()
     i = -1
     if args.local_rank == 0:
@@ -559,18 +571,21 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        top1f, top5f = accuracy(output.data, target, topk=(1, 5))
+        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+        cart_error.extend(batch_abs_cart_distance)
+        angle_error.extend(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
-            top1f = reduce_tensor(top1f)
-            top5f = reduce_tensor(top5f)
+            abs_cart_f = reduce_tensor(abs_cart_f)
+            abs_angle_f = reduce_tensor(abs_angle_f)
         else:
             reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
-        top1m.update(to_python_float(top1f), input.size(0))
-        top5m.update(to_python_float(top5f), input.size(0))
+        abs_cart_m.update(to_python_float(abs_cart_f), input.size(0))
+        abs_angle_m.update(to_python_float(abs_angle_f), input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -598,22 +613,29 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                   'img/s: {0:.1f}/{1:.1f}  '
                   'load_t: {data_time.val:.3f}/{data_time.avg:.3f}, '
                   'loss: {loss.val:.4f}/{loss.avg:.4f}, '
-                  'top1: {top1.val:.2f}/{top1.avg:.2f}, '
-                  'top5: {top5.val:.2f}/{top5.avg:.2f}, prog'.format(
+                  'cart: {abs_cart.val:.2f}/{abs_cart.avg:.2f}, '
+                  'angle: {abs_angle.val:.2f}/{abs_angle.avg:.2f}, prog'.format(
                 #    epoch, i, len(train_loader),
                    speed.val,
                    speed.avg,
                    batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1m, top5=top5m))
+                   data_time=data_time, loss=losses, abs_cart=abs_cart_m, abs_angle=abs_angle_m))
     stats = {}
     prefix = 'train_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, top1m, top5m, losses, speed)
+    if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
+        utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
+                          cart_error, args.abs_error_output_write)
+    if args.feature_mode != 'translation_only':  # rotation_only or all_features: save angle csv
+        utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
+                          angle_error, args.abs_error_output_write)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
         del progbar
     return stats
 
-def get_stats(progbar, prefix, args, batch_time, data_time, top1, top5, losses, speed):
+
+def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle, losses, speed):
     stats = {}
     if progbar is not None:
         stats = utils.tqdm_stats(progbar, prefix=prefix)
@@ -621,8 +643,8 @@ def get_stats(progbar, prefix, args, batch_time, data_time, top1, top5, losses, 
         prefix + 'time_step_wall': '{0:.3f}'.format(args.world_size * args.batch_size / batch_time.avg),
         prefix + 'batch_time_one_gpu': '{0:.3f}'.format(batch_time.avg),
         prefix + 'data_time': '{0:.3f}'.format(data_time.avg),
-        prefix + 'top1': '{0:.3f}'.format(top1.avg),
-        prefix + 'top5': '{0:.3f}'.format(top5.avg),
+        prefix + 'abs_cart': '{0:.3f}'.format(abs_cart.avg),
+        prefix + 'abs_angle': '{0:.3f}'.format(abs_angle.avg),
         prefix + 'loss': '{0:.4f}'.format(losses.avg),
         prefix + 'images_per_second': '{0:.4f}'.format(speed.avg),
     })
@@ -637,15 +659,16 @@ def validate(val_loader, model, criterion, args):
     data_time = AverageMeter()
     speed = AverageMeter()
     losses = AverageMeter()
-    top1m = AverageMeter()
-    top5m = AverageMeter()
+    abs_cart_m = AverageMeter()
+    abs_angle_m = AverageMeter()
 
     # switch to evaluate mode
     model.eval()
 
     end = time.time()
 
-    prefetcher = data_prefetcher(val_loader, mean=args.mean, std=args.std)
+    cart_error, angle_error = [], []
+    prefetcher = data_prefetcher(val_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std)
     input, target = prefetcher.next()
     i = -1
     if args.local_rank == 0:
@@ -666,18 +689,21 @@ def validate(val_loader, model, criterion, args):
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        top1f, top5f = accuracy(output.data, target, topk=(1, 5))
+        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+        cart_error.extend(batch_abs_cart_distance)
+        angle_error.extend(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
-            top1f = reduce_tensor(top1f)
-            top5f = reduce_tensor(top5f)
+            abs_cart_f = reduce_tensor(abs_cart_f)
+            abs_angle_f = reduce_tensor(abs_angle_f)
         else:
             reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
-        top1m.update(to_python_float(top1f), input.size(0))
-        top5m.update(to_python_float(top5f), input.size(0))
+        abs_cart_m.update(to_python_float(abs_cart_f), input.size(0))
+        abs_angle_m.update(to_python_float(abs_angle_f), input.size(0))
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -693,24 +719,32 @@ def validate(val_loader, model, criterion, args):
                   'batch_t: {batch_time.val:.3f}/{batch_time.avg:.3f}, '
                   'img/s: {0:.1f}/{1:.1f}, '
                   'loss: {loss.val:.4f}/{loss.avg:.4f}, '
-                  'top1: {top1.val:.2f}/{top1.avg:.2f}, '
-                  'top5: {top5.val:.2f}/{top5.avg:.2f}, prog'.format(
+                  'abs_cart: {abs_cart.val:.2f}/{abs_cart.avg:.2f}, '
+                  'abs_angle: {abs_angle.val:.2f}/{abs_angle.avg:.2f}, prog'.format(
                 #    i, len(val_loader),
                    speed.val,
                    speed.avg,
                    batch_time=batch_time, loss=losses,
-                   top1=top1m, top5=top5m))
+                   abs_cart=abs_cart_m, abs_angle=abs_angle_m))
 
         input, target = prefetcher.next()
 
-    # logger.info(' * top1 {top1.avg:.3f} top5 {top5.avg:.3f}'
-    #       .format(top1=top1, top5=top5))
+    # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'
+    #       .format(combined_error=combined_error, top5=top5))
     prefix = 'val_'
-    stats = get_stats(progbar, prefix, args, batch_time, data_time, top1m, top5m, losses, speed)
+    if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
+        utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
+                          cart_error, args.abs_error_output_write)
+    if args.feature_mode != 'translation_only':  # rotation_only or all_features: save angle csv
+        utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
+                          angle_error, args.abs_error_output_write)
+    stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
         del progbar
-    return top1m.avg, stats
+
+    # Return the weighted sum of absolute cartesian and angle errors as the metric
+    return (args.cart_weight * abs_cart_m.avg + (1-args.cart_weight) * abs_angle_m.avg), stats
 
 
 def save_checkpoint(state, is_best, path='', filename='checkpoint.pth.tar', best_filename='model_best.pth.tar'):
@@ -758,20 +792,35 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
         param_group['lr'] = lr
 
 
-def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
-    maxk = max(topk)
-    batch_size = target.size(0)
+def accuracy(output, target):
+    """Computes the absolute cartesian and angle distance between output and target"""
+    batch_size, out_channels = target.shape
 
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
+    # TODO(rexxarchl): test if this padding process is really necessary, as hypertree_pose_metrics
+    #                  also detects the length and pad accordingly
+    if out_channels == 3:  # xyz
+        # Format into [batch, 8] by adding fake rotations
+        fake_rotation = torch.zeros([batch_size, 5], dtype=torch.float).cuda()
+        if args.fp16:
+            fake_rotation = fake_rotation.half()
+        target = torch.cat((target, fake_rotation), 1)
+        output = torch.cat((output, fake_rotation), 1)
+    elif out_channels == 5:  # aaxyz_nsc
+        # Format into [batch, 8] by adding fake translations
+        fake_translation = torch.zeros([batch_size, 3], dtype=torch.float).cuda()
+        if args.fp16:
+            fake_translation = fake_translation.half()
+        target = torch.cat((fake_translation, target), 1)
+        output = torch.cat((fake_translation, output), 1)
+    elif out_channels == 8:  # xyz + aaxyz_nsc
+        pass  # Do nothing
+    else:
+        raise ValueError("accuracy: unknown number of output channels: {}".format(out_channels))
 
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
-        res.append(correct_k.mul_(100.0 / batch_size))
-    return res
+    abs_cart_distance = costar_dataset.cart_error(target, output)
+    abs_angle_distance = costar_dataset.angle_error(target, output)
+
+    return abs_cart_distance, abs_angle_distance
 
 
 def reduce_tensor(tensor):
@@ -779,6 +828,7 @@ def reduce_tensor(tensor):
     dist.all_reduce(rt, op=dist.reduce_op.SUM)
     rt /= args.world_size
     return rt
+
 
 if __name__ == '__main__':
     main()
