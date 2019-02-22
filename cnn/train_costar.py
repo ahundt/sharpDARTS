@@ -12,7 +12,7 @@
 #
 # Example command:
 #
-#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --data ~/.keras/datasets/costar_block_stacking_dataset_v0.4
+#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05
 import argparse
 import os
 import shutil
@@ -65,7 +65,8 @@ model_names = sorted(name for name in models.__dict__
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 # parser.add_argument('data', metavar='DIR', help='path to dataset')
-parser.add_argument('--data', type=str, default='../data', help='path to dataset', metavar='DIR')
+parser.add_argument('--data', type=str, default='~/.keras/datasets/costar_block_stacking_dataset_v0.4',
+                    help='path to dataset', metavar='DIR')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='SHARP_DARTS',
                     # choices=model_names,
                     help='model architecture: ' +
