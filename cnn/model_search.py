@@ -540,16 +540,14 @@ class MultiChannelNetwork(nn.Module):
       gene_reduce = np.array(self.arch_weights(1).data.cpu().numpy()).tolist()
     elif layout == 'longest_path':
       # TODO(ahundt) make into a list of the layer strings to be included.
-      optimal_path = nx.algorithms.dag.dag_longest_path(self.G)
-      data = json_graph.node_link_data(optimal_path)
+      gene_normal = nx.algorithms.dag.dag_longest_path(self.G)
+      gene_reduce = []
     elif layout == 'graph':
-      optimal_path = self.G
+      data = json_graph.node_link_data(self.G)
+      gene_normal = json.dumps(data)
+      gene_reduce = []
     else:
       raise ValueError('unsupported layout: ' + str(layout))
-
-    if layout == 'longest_path' or layout == 'graph':
-      gene_normal = [json.dumps(data)]
-      gene_reduce = []
 
     genotype = Genotype(
       normal=gene_normal, normal_concat=[],
