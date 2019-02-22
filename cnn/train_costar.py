@@ -12,7 +12,7 @@
 #
 # Example command:
 #
-#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --set_name blocks_only --subset_name success_only --feature_mode all_features --data ~/.keras/datasets/costar_block_stacking_dataset_v0.4
+#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05 --set_name blocks_only --subset_name success_only --feature_mode all_features --data ~/.keras/datasets/costar_block_stacking_dataset_v0.4 --abs_error_output_write
 import argparse
 import os
 import shutil
@@ -622,10 +622,12 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                    data_time=data_time, loss=losses, abs_cart=abs_cart_m, abs_angle=abs_angle_m))
     stats = {}
     prefix = 'train_'
-    utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
-                      cart_error, args.abs_error_output_write)
-    utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
-                      angle_error, args.abs_error_output_write)
+    if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
+        utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
+                          cart_error, args.abs_error_output_write)
+    if args.feature_mode != 'translation_only':  # rotation_only or all_features: save angle csv
+        utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
+                          angle_error, args.abs_error_output_write)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
@@ -730,10 +732,12 @@ def validate(val_loader, model, criterion, args):
     # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(combined_error=combined_error, top5=top5))
     prefix = 'val_'
-    utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
-                      cart_error, args.abs_error_output_write)
-    utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
-                      angle_error, args.abs_error_output_write)
+    if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
+        utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
+                          cart_error, args.abs_error_output_write)
+    if args.feature_mode != 'translation_only':  # rotation_only or all_features: save angle csv
+        utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
+                          angle_error, args.abs_error_output_write)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
     if progbar is not None:
         progbar.close()
