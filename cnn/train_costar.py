@@ -800,12 +800,16 @@ def accuracy(output, target):
     #                  also detects the length and pad accordingly
     if out_channels == 3:  # xyz
         # Format into [batch, 8] by adding fake rotations
-        fake_rotation = torch.zeros([batch_size, 5], dtype=target.dtype).cuda()
+        fake_rotation = torch.zeros([batch_size, 5], dtype=torch.float).cuda()
+        if args.fp16:
+            fake_rotation = fake_rotation.half()
         target = torch.cat((target, fake_rotation), 1)
         output = torch.cat((output, fake_rotation), 1)
     elif out_channels == 5:  # aaxyz_nsc
         # Format into [batch, 8] by adding fake translations
-        fake_translation = torch.zeros([batch_size, 3], dtype=target.dtype).cuda()
+        fake_translation = torch.zeros([batch_size, 3], dtype=torch.float).cuda()
+        if args.fp16:
+            fake_translation = fake_translation.half()
         target = torch.cat((fake_translation, target), 1)
         output = torch.cat((fake_translation, output), 1)
     elif out_channels == 8:  # xyz + aaxyz_nsc
