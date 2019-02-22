@@ -79,15 +79,22 @@ inp_channel_dict = {'cifar10': 3,
                     'svhn': 3,
                     'stl10': 3,
                     'devanagari' : 1,
-                    'imagenet': 3,}
+                    'imagenet': 3}
+
+costar_class_dict = {'translation_only': 3,
+                     'rotation_only': 5,
+                     'all_features': 8}
+costar_inp_channel_dict = {'translation_only': 52,
+                           'rotation_only': 55,
+                           'all_features': 57}
 
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
 
 def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=1.0, search_architecture=False,
                         costar_version='v0.4', costar_set_name=None, costar_subset_name=None, costar_feature_mode=None, costar_output_shape=(224, 224, 3),
-                        costar_random_augmentation=None, costar_one_hot_encoding=True, distributed=False, num_workers=12,
-                        collate_fn=torch.utils.data.dataloader.default_collate):
+                        costar_random_augmentation=None, costar_one_hot_encoding=True, costar_num_images_per_example=200, distributed=False, num_workers=12,
+                        collate_fn=torch.utils.data.dataloader.default_collate, verbose=0):
   print("Getting " + dataset_name + " data")
   if dataset_name == 'imagenet':
     print("Using IMAGENET training set")
@@ -140,33 +147,12 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
     if costar_subset_name is None or costar_subset_name not in COSTAR_SUBSET_NAMES:
       raise ValueError("Specify costar_subset_name as one of {'success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure'}")
 
-    txt_filename = 'costar_block_stacking_dataset_{0}_{1}_{2}_train_files.txt'.format(costar_version, costar_set_name, costar_subset_name)
-    txt_filename = os.path.expanduser(os.path.join(dataset_location, costar_set_name, txt_filename))
-    print("Loading train filenames from txt files: \n\t{}".format(txt_filename))
-    with open(txt_filename, 'r') as f:
-      train_filenames = f.read().splitlines()
-
-    if costar_feature_mode is None:
-      print("Using the original input block as the features")
-      data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_nxygrid_17']
-      label_features = ['grasp_goal_xyz_aaxyz_nsc_8']
-    else:
-      print("Using feature mode: " + costar_feature_mode)
-      if costar_feature_mode == 'translation_only':
-        data_features = ['image_0_image_n_vec_xyz_nxygrid_12']
-        label_features = ['grasp_goal_xyz_3']
-      elif costar_feature_mode == 'rotation_only':
-        data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_15']
-        label_features = ['grasp_goal_aaxyz_nsc_5']
-      elif costar_feature_mode == 'stacking_reward':
-        data_features = ['image_0_image_n_vec_0_vec_n_xyz_aaxyz_nsc_nxygrid_25']
-        label_features = ['stacking_reward']
-
-    train_data = costar_dataset.CostarBlockStackingDataset(
-        train_filenames, verbose=0,
-        label_features_to_extract=label_features,
-        data_features_to_extract=data_features, output_shape=costar_output_shape,
-        random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding)
+    train_data = costar_dataset.CostarBlockStackingDataset.from_standard_txt(
+                      root=dataset_location,
+                      version=costar_version, set_name=costar_set_name, subset_name=costar_subset_name,
+                      split='train', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
+                      random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
+                      verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=True)
 
   else:
     assert False, "Cannot get training queue for dataset"
@@ -217,33 +203,12 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
         # Ensure dataset is present in the directory args.data. Does not support auto download
         valid_data = dset.ImageFolder(root=dataset_location, transform=valid_transform, loader = grey_pil_loader)
     elif dataset_name == 'stacking':
-        txt_filename = 'costar_block_stacking_dataset_{0}_{1}_{2}_val_files.txt'.format(costar_version, costar_set_name, costar_subset_name)
-        txt_filename = os.path.expanduser(os.path.join(dataset_location, costar_set_name, txt_filename))
-        print("Loading validation filenames from txt files: \n\t{}".format(txt_filename))
-        with open(txt_filename, 'r') as f:
-            valid_filenames = f.read().splitlines()
-
-        if costar_feature_mode is None:
-            print("Using the original input block as the features")
-            data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_nxygrid_17']
-            label_features = ['grasp_goal_xyz_aaxyz_nsc_8']
-        else:
-            print("Using feature mode: " + costar_feature_mode)
-            if costar_feature_mode == 'translation_only':
-                data_features = ['image_0_image_n_vec_xyz_nxygrid_12']
-                label_features = ['grasp_goal_xyz_3']
-            elif costar_feature_mode == 'rotation_only':
-                data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_15']
-                label_features = ['grasp_goal_aaxyz_nsc_5']
-            elif costar_feature_mode == 'stacking_reward':
-                data_features = ['image_0_image_n_vec_0_vec_n_xyz_aaxyz_nsc_nxygrid_25']
-                label_features = ['stacking_reward']
-
-        valid_data = costar_dataset.CostarBlockStackingDataset(
-                valid_filenames, verbose=0,
-                label_features_to_extract=label_features,
-                data_features_to_extract=data_features, output_shape=costar_output_shape,
-                random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding)
+        valid_data = costar_dataset.CostarBlockStackingDataset.from_standard_txt(
+                          root=dataset_location,
+                          version=costar_version, set_name=costar_set_name, subset_name=costar_subset_name,
+                          split='val', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
+                          random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
+                          verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=False)
     else:
         assert False, "Cannot get training queue for dataset"
 
@@ -292,7 +257,7 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
 
 
 def get_costar_test_queue(dataset_location, costar_set_name, costar_subset_name, costar_version='v0.4', costar_feature_mode=None, costar_output_shape=(224, 224, 3),
-                          costar_random_augmentation=None, costar_one_hot_encoding=True, batch_size=32, verbose=0):
+                          costar_random_augmentation=None, costar_one_hot_encoding=True, costar_num_images_per_example=200, batch_size=32, verbose=0):
   # Support for costar block stacking generator implemented by Chia-Hung Lin (rexxarchl)
   # sites.google.com/costardataset
   # https://github.com/ahundt/costar_dataset
@@ -308,39 +273,12 @@ def get_costar_test_queue(dataset_location, costar_set_name, costar_subset_name,
   if costar_subset_name not in COSTAR_SUBSET_NAMES:
     raise ValueError("Specify costar_subset_name as one of {'success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure'}")
 
-  txt_filename = 'costar_block_stacking_dataset_{0}_{1}_{2}_test_files.txt'.format(costar_version, costar_set_name, costar_subset_name)
-  txt_filename = os.path.expanduser(os.path.join(dataset_location, costar_set_name, txt_filename))
-
-  if verbose > 0:
-    print("Loading train filenames from txt files: \n\t{}".format(txt_filename))
-  with open(txt_filename, 'r') as f:
-    test_filenames = f.read().splitlines()
-
-  if costar_feature_mode is None:
-    if verbose > 0:
-      print("Using the original input block as the features")
-
-    data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_nxygrid_17']
-    label_features = ['grasp_goal_xyz_aaxyz_nsc_8']
-  else:
-    if verbose > 0:
-      print("Using feature mode: " + costar_feature_mode)
-
-    if costar_feature_mode == 'translation_only':
-      data_features = ['image_0_image_n_vec_xyz_nxygrid_12']
-      label_features = ['grasp_goal_xyz_3']
-    elif costar_feature_mode == 'rotation_only':
-      data_features = ['image_0_image_n_vec_xyz_aaxyz_nsc_15']
-      label_features = ['grasp_goal_aaxyz_nsc_5']
-    elif costar_feature_mode == 'stacking_reward':
-      data_features = ['image_0_image_n_vec_0_vec_n_xyz_aaxyz_nsc_nxygrid_25']
-      label_features = ['stacking_reward']
-
-  test_data = costar_dataset.CostarBlockStackingDataset(
-      test_filenames, verbose=verbose,
-      label_features_to_extract=label_features,
-      data_features_to_extract=data_features, output_shape=costar_output_shape,
-      random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding)
+  test_data = costar_dataset.CostarBlockStackingDataset.from_standard_txt(
+                  root=dataset_location,
+                  version=costar_version, set_name=costar_set_name, subset_name=costar_subset_name,
+                  split='test', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
+                  random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
+                  verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=False)
 
   test_queue = torch.utils.data.DataLoader(
       test_data, batch_size=batch_size,
