@@ -389,7 +389,7 @@ class MultiChannelNetwork(nn.Module):
         nx.write_gpickle(self.G, "network_test.graph")
 
         if not self._visualization:
-          self._initialize_alphas()
+          self._initialize_alphas(genotype)
 
   def new(self):
     model_new = Network(self._C, self._num_classes, self._layers, self._criterion).cuda()
@@ -519,11 +519,19 @@ class MultiChannelNetwork(nn.Module):
     logits = self(input_batch)
     return self._criterion(logits, target)
 
-  def _initialize_alphas(self):
-    if torch.cuda.is_available():
-      self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape).cuda(), requires_grad=True)
+  def _initialize_alphas(self, genotype=None):
+    
+    if genotype is None:
+        init_alpha = 1e-3*torch.randn(self.arch_weights_shape)
     else:
-      self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape), requires_grad=True)
+        init_alpha = []
+        init_alpha.append(genotype[0])
+        init_alpha.append(genotype[2])
+        init_alpha = torch.from_numpy(np.array(init_alpha))
+    if torch.cuda.is_available():
+      self._arch_parameters = Variable(init_alpha.cuda(), requires_grad=True)
+    else:
+      self._arch_parameters = Variable(init_alpha, requires_grad=True)
 
   def arch_parameters(self):
     ''' Get list of architecture parameters
