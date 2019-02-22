@@ -544,7 +544,7 @@ class MultiChannelNetwork(nn.Module):
       gene_reduce = []
     elif layout == 'graph':
       data = json_graph.node_link_data(self.G)
-      gene_normal = json.dumps(data)
+      gene_normal = [json.dumps(data)]
       gene_reduce = []
     else:
       raise ValueError('unsupported layout: ' + str(layout))
