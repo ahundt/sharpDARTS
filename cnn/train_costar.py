@@ -404,7 +404,11 @@ def main():
         costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
 
     if args.evaluate:
-        validate(val_loader, model, criterion, args)
+        test_loader = dataset.get_costar_test_queue(
+                args.data, costar_set_name=args.set_name, costar_subset_name=args.subset_name,
+                costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
+                costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
+        validate(test_loader, model, criterion, args, prefix='test_')
         return
 
     lr_schedule = cosine_power_annealing(
@@ -684,7 +688,7 @@ def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle,
     return stats
 
 
-def validate(val_loader, model, criterion, args):
+def validate(val_loader, model, criterion, args, prefix='val_'):
     loader_len = len(val_loader)
     if loader_len < 2:
         raise ValueError('val_loader only supports 2 or more batches and loader_len: ' + str(loader_len))
@@ -764,7 +768,6 @@ def validate(val_loader, model, criterion, args):
 
     # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(combined_error=combined_error, top5=top5))
-    prefix = 'val_'
     if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
                           cart_error)
