@@ -177,14 +177,6 @@ logger = None
 
 DATASET_CHANNELS = dataset.costar_inp_channel_dict[args.feature_mode]
 
-# TODO(rexxarchl): Use mean and std from imagenet, for now
-DATASET_MEAN = dataset.mean_dict['imagenet']
-DATASET_STD = dataset.std_dict['imagenet']
-args.mean = DATASET_MEAN
-args.std = DATASET_STD
-# print('>>>>>>>DATASET_CHANNELS: ' + str(DATASET_CHANNELS))
-
-
 def fast_collate(batch):
     # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
     imgs = [img[0] for img in batch]
@@ -489,33 +481,11 @@ def main():
 
 
 class data_prefetcher():
-    def __init__(self, loader, in_channels, mean=None, std=None, cutout=False, cutout_length=112, cutout_cuts=2):
+    def __init__(self, loader, in_channels, cutout=False, cutout_length=112, cutout_cuts=2):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
-        # if mean is None:
-        #     mean = [0.485, 0.456, 0.406]
-        # if std is None:
-        #     std = [0.229, 0.224, 0.225]
 
-        # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
-        # The first 6 channels are first and last images of a session
-        # Subtract std and mean from these two images, while leaving others intact
-        # padded_mean, padded_std = np.zeros(in_channels), np.zeros(in_channels)
-        # padded_mean[:3], padded_mean[3:6] = mean, mean
-        # padded_std[:3], padded_std[3:6] = std, std
-        # Remap Imagenet mean and std from [0, 1] to [-1, 1]
-        # mean = np.array(padded_mean) * 2 - 1.0
-        # std = np.array(padded_std) * 2 - 1.0
-        # self.mean = torch.tensor(mean).cuda().view(1, in_channels, 1, 1)
-        # self.std = torch.tensor(std).cuda().view(1, in_channels, 1, 1)
-        cutout_dtype = np.float32
-        if args.fp16:
-            # self.mean = self.mean.half()
-            # self.std = self.std.half()
-            cutout_dtype = np.float16
-        # else:
-        #     self.mean = self.mean.float()
-        #     self.std = self.std.float()
+        cutout_dtype = np.float16 if args.fp16 else np.float32
 
         self.cutout = None
         if cutout:
@@ -538,8 +508,6 @@ class data_prefetcher():
             else:
                 self.next_input = self.next_input.float()
                 self.next_target = self.next_target.float()
-            # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
-            # self.next_input = self.next_input.sub_(self.mean).div_(self.std)
             if self.cutout is not None:
                 # TODO(ahundt) Fix performance of this cutout call, it makes batch loading time go from 0.001 seconds to 0.05 seconds.
                 self.next_input = self.cutout(self.next_input)
@@ -568,7 +536,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
     end = time.time()
-    prefetcher = data_prefetcher(train_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std, cutout=args.cutout, cutout_length=args.cutout_length)
+    prefetcher = data_prefetcher(train_loader, in_channels=DATASET_CHANNELS, cutout=args.cutout, cutout_length=args.cutout_length)
 
     cart_error, angle_error = [], []
     input, target = prefetcher.next()
@@ -707,7 +675,7 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
     end = time.time()
 
     cart_error, angle_error = [], []
-    prefetcher = data_prefetcher(val_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std)
+    prefetcher = data_prefetcher(val_loader, in_channels=DATASET_CHANNELS)
     input, target = prefetcher.next()
     i = -1
     if args.local_rank == 0:
