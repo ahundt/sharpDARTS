@@ -79,10 +79,10 @@ def main():
                       help='load command line args from a json file, this will override '
                            'all currently set args except for --evaluate, and arguments '
                            'that did not exist when the json file was originally saved out.')
-parser.add_argument('--layers_of_cells', type=int, default=8, help='total number of cells in the whole network, default is 8 cells')
-parser.add_argument('--layers_in_cells', type=int, default=4,
-                    help='Total number of nodes in each cell, aka number of steps,'
-                         ' default is 4 nodes, which implies 8 ops')
+  parser.add_argument('--layers_of_cells', type=int, default=8, help='total number of cells in the whole network, default is 8 cells')
+  parser.add_argument('--layers_in_cells', type=int, default=4,
+                      help='Total number of nodes in each cell, aka number of steps,'
+                           ' default is 4 nodes, which implies 8 ops')
   # TODO(ahundt) remove final path and switch back to genotype
   parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
   args = parser.parse_args()
