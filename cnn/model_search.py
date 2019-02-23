@@ -243,7 +243,7 @@ class MultiChannelNetwork(nn.Module):
     """
     super(MultiChannelNetwork, self).__init__()
     self._C = C
-    self.genotype = genotype
+    self._genotype = genotype
     self._num_classes = num_classes
     if layers % 2 == 1:
       raise ValueError('MultiChannelNetwork layers option must be even, got ' + str(layers))
@@ -284,8 +284,8 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]]
     self.op_types = [operations.SharpSepConv, operations.ResizablePool]
-    if self.genotype is not None and type(self.genotype[0]) is str:
-        model = self.genotype[np.flatnonzero(np.core.defchararray.find(self.genotype, 'add') == -1)]
+    if self._genotype is not None and type(self._genotype[0]) is str:
+        model = self._genotype[np.flatnonzero(np.core.defchararray.find(self._genotype, 'add') == -1)]
         root_ch = self.Cs[int(model[0][-1])]
         self.stem = nn.ModuleList()
         s = nn.Sequential(
@@ -399,7 +399,7 @@ class MultiChannelNetwork(nn.Module):
 
   def forward(self, input_batch):
     # [in, normal_out, reduce_out]
-    if self.genotype is not None:
+    if self._genotype is not None and type(self._genotype[0] is str):
         x = input_batch
         for i in range(len(self.stem)):
             x = self.stem[i](x)
