@@ -399,7 +399,7 @@ class MultiChannelNetwork(nn.Module):
 
   def forward(self, input_batch):
     # [in, normal_out, reduce_out]
-    if self._genotype is not None and type(self._genotype[0] is str):
+    if self._genotype is not None and type(self._genotype[0]) is str:
         x = input_batch
         for i in range(len(self.stem)):
             x = self.stem[i](x)
@@ -524,6 +524,7 @@ class MultiChannelNetwork(nn.Module):
     if genotype is None:
         init_alpha = 1e-3*torch.randn(self.arch_weights_shape)
     else:
+        print("_initialize_alphas with preconfigured weights", genotype[0][0][0][0])
         init_alpha = []
         init_alpha.append(genotype[0])
         init_alpha.append(genotype[2])
