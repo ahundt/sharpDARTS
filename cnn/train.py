@@ -286,7 +286,10 @@ def train(args, train_queue, cnn_model, criterion, optimizer):
       target = Variable(target).cuda(non_blocking=True)
 
       optimizer.zero_grad()
-      logits, logits_aux = cnn_model(input_batch)
+      if args.auxiliary:
+        logits, logits_aux = cnn_model(input_batch)
+      else: 
+         logits = cnn_model(input_batch)
       loss = criterion(logits, target)
       if logits_aux is not None and args.auxiliary:
         loss_aux = criterion(logits_aux, target)
@@ -322,7 +325,10 @@ def infer(args, valid_queue, cnn_model, criterion, prefix='valid_', desc='Runnin
         input_batch = Variable(input_batch).cuda(non_blocking=True)
         target = Variable(target).cuda(non_blocking=True)
 
-        logits, _ = cnn_model(input_batch)
+        if args.auxiliary:
+          logits, _ = cnn_model(input_batch)
+        else:
+          logits = cnn_model(input_batch)
         loss = criterion(logits, target)
 
         prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
