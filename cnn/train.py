@@ -74,12 +74,13 @@ def main():
   parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
   parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
                       help='evaluate model at specified path on training, test, and validation datasets')
+  parser.add_argument('--multi_channel', action='store_true', default=False, help='perform multi channel search, a completely separate search space')
   parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                       help='load command line args from a json file, this will override '
                            'all currently set args except for --evaluate, and arguments '
                            'that did not exist when the json file was originally saved out.')
   # TODO(ahundt) remove final path and switch back to genotype
-  parser.add_argument('--load_genotype', type=str, default=None, help='path for final model')
+  parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
   args = parser.parse_args()
 
   args = utils.initialize_files_and_args(args)
