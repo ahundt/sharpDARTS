@@ -94,7 +94,7 @@ def list_of_dicts_to_csv(filename, list_of_dicts):
         w.writerow(d)
 
 
-def list_to_csv(filename, l, write=False):
+def list_to_csv(filename, l, write=True):
     if not write:
         print('list_to_csv: Output list of length {} to file {}. Set `write` to True to actually write to file.'.format(len(l), filename))
     else:
