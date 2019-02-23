@@ -528,7 +528,7 @@ class MultiChannelNetwork(nn.Module):
         init_alpha = []
         init_alpha.append(genotype[0])
         init_alpha.append(genotype[2])
-        init_alpha = torch.from_numpy(np.array(init_alpha))
+        init_alpha = torch.from_numpy(np.array(init_alpha)).double()
     if torch.cuda.is_available():
       self._arch_parameters = Variable(init_alpha.cuda(), requires_grad=True)
     else:
