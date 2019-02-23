@@ -288,7 +288,7 @@ def train(args, train_queue, cnn_model, criterion, optimizer):
       optimizer.zero_grad()
       if args.auxiliary:
         logits, logits_aux = cnn_model(input_batch)
-      else: 
+      else:
          logits = cnn_model(input_batch)
          logits_aux = None
       loss = criterion(logits, target)
