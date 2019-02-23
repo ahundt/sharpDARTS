@@ -397,7 +397,8 @@ def main():
     train_loader, val_loader = dataset.get_training_queues(
         args.dataset, train_transform, valid_transform, args.data,
         args.batch_size, train_proportion=1.0,
-        collate_fn=fast_collate, distributed=args.distributed,
+        # collate_fn=fast_collate, 
+        distributed=args.distributed,
         num_workers=args.workers,
         costar_set_name=args.set_name, costar_subset_name=args.subset_name,
         costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
@@ -491,29 +492,30 @@ class data_prefetcher():
     def __init__(self, loader, in_channels, mean=None, std=None, cutout=False, cutout_length=112, cutout_cuts=2):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
-        if mean is None:
-            mean = [0.485, 0.456, 0.406]
-        if std is None:
-            std = [0.229, 0.224, 0.225]
+        # if mean is None:
+        #     mean = [0.485, 0.456, 0.406]
+        # if std is None:
+        #     std = [0.229, 0.224, 0.225]
 
         # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
         # The first 6 channels are first and last images of a session
         # Subtract std and mean from these two images, while leaving others intact
-        padded_mean, padded_std = np.zeros(in_channels), np.zeros(in_channels)
-        padded_mean[:3], padded_mean[3:6] = mean, mean
-        padded_std[:3], padded_std[3:6] = std, std
-        mean = np.array(padded_mean) * 255
-        std = np.array(padded_std) * 255
-        self.mean = torch.tensor(mean).cuda().view(1, in_channels, 1, 1)
-        self.std = torch.tensor(std).cuda().view(1, in_channels, 1, 1)
+        # padded_mean, padded_std = np.zeros(in_channels), np.zeros(in_channels)
+        # padded_mean[:3], padded_mean[3:6] = mean, mean
+        # padded_std[:3], padded_std[3:6] = std, std
+        # Remap Imagenet mean and std from [0, 1] to [-1, 1]
+        # mean = np.array(padded_mean) * 2 - 1.0
+        # std = np.array(padded_std) * 2 - 1.0
+        # self.mean = torch.tensor(mean).cuda().view(1, in_channels, 1, 1)
+        # self.std = torch.tensor(std).cuda().view(1, in_channels, 1, 1)
         cutout_dtype = np.float32
         if args.fp16:
-            self.mean = self.mean.half()
-            self.std = self.std.half()
+            # self.mean = self.mean.half()
+            # self.std = self.std.half()
             cutout_dtype = np.float16
-        else:
-            self.mean = self.mean.float()
-            self.std = self.std.float()
+        # else:
+        #     self.mean = self.mean.float()
+        #     self.std = self.std.float()
 
         self.cutout = None
         if cutout:
@@ -537,7 +539,7 @@ class data_prefetcher():
                 self.next_input = self.next_input.float()
                 self.next_target = self.next_target.float()
             # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
-            self.next_input = self.next_input.sub_(self.mean).div_(self.std)
+            # self.next_input = self.next_input.sub_(self.mean).div_(self.std)
             if self.cutout is not None:
                 # TODO(ahundt) Fix performance of this cutout call, it makes batch loading time go from 0.001 seconds to 0.05 seconds.
                 self.next_input = self.cutout(self.next_input)
