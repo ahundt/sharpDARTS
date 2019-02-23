@@ -12,7 +12,7 @@
 #
 # Example command:
 #
-#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05
+#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05
 import argparse
 import os
 import shutil
@@ -188,9 +188,17 @@ args.std = DATASET_STD
 def fast_collate(batch):
     # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
     imgs = [img[0] for img in batch]
-    [print(img[0].shape) for img in batch]
-    [print(img[1].shape) for img in batch]
-    print('len(imgs):' + str(len(imgs)))
+    # [print(img[0].shape) for img in batch]
+    # [print(img[1].shape) for img in batch]
+    # print('len(imgs):' + str(len(imgs)))
+    # print(imgs[0].shape)
+
+    # for i in range(len(imgs)):
+    #     img = imgs[i]
+    #     # print(img.shape)
+    #     assert np.all(imgs[i][:6, :, :] <= 1) and np.all(imgs[i][:6, :, :] >= -1), "img assertion failed for i={}".format(i)
+    #     assert not np.any(np.isnan(img[6:, :, :])), "vector assertion failed for i={}".format(i)
+    # assert np.all([np.all(imgs[i][:6, :, :] <= 1) and np.all(imgs[i][:6, :, :] >= -1) and not np.any(np.isnan(imgs[i][6:, :, :])) for i in range(len(imgs))])
     imgs = torch.tensor(imgs, dtype=torch.float)
     targets = torch.tensor([target[1] for target in batch], dtype=torch.float)
     # w = imgs[0].shape[1]
@@ -549,6 +557,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     losses = AverageMeter()
     abs_cart_m = AverageMeter()
     abs_angle_m = AverageMeter()
+    sigmoid = torch.nn.Sigmoid()
 
     # switch to train mode
     model.train()
@@ -582,23 +591,23 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         output, logits_aux = model(input)
         # logger.info('>>>>>>> output_presigmoid: ' + str(output.data) + ' target: ' + str(target.data))
         # logger.info('>>>>>>> output_presigmoid: ' + str(output.data) + ' target: ' + str(target.data))
-        output = torch.nn.functional.sigmoid(output)
+        output = sigmoid(output)
         loss = criterion(output, target)
         if logits_aux is not None and args.auxiliary:
-            logits_aux = torch.nn.functional.sigmoid(logits_aux)
+            logits_aux = sigmoid(logits_aux)
             loss_aux = criterion(logits_aux, target)
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        with torch.no_grad():
-            output_np = output.cpu().detach().numpy()
-            target_np = target.cpu().detach().numpy()
-            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
-            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
-            batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output_np, target_np)
-            abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
-            cart_error.extend(batch_abs_cart_distance)
-            angle_error.extend(batch_abs_angle_distance)
+        # with torch.no_grad():
+        #     output_np = output.cpu().detach().numpy()
+        #     target_np = target.cpu().detach().numpy()
+        #     # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
+        #     # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
+        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+        cart_error.extend(batch_abs_cart_distance)
+        angle_error.extend(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
