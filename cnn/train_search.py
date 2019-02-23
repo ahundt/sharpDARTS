@@ -87,6 +87,7 @@ parser.add_argument('--weighting_algorithm', type=str, default='scalar',
                          '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
 # TODO(ahundt) remove final path and switch back to genotype
 parser.add_argument('--final_path', type=str, default=None, help='path for final model')
+parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
 args = parser.parse_args()
 
 args.arch = args.primitives + '-' + args.ops
@@ -130,9 +131,12 @@ def main():
     if args.final_path is not None:
       final_path = np.load(args.final_path)
 
+    genotype = None
+    if args.load_genotype is not None:
+      genotype = getattr(genotypes, args.load_genotype)
     cnn_model = model_search.MultiChannelNetwork(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      weighting_algorithm=args.weighting_algorithm, final_path=final_path)
+      weighting_algorithm=args.weighting_algorithm, genotype=genotype)
   else:
     cnn_model = model_search.Network(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,

@@ -74,12 +74,20 @@ def main():
   parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
   parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
                       help='evaluate model at specified path on training, test, and validation datasets')
+  parser.add_argument('--multi_channel', action='store_true', default=False, help='perform multi channel search, a completely separate search space')
   parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                       help='load command line args from a json file, this will override '
                            'all currently set args except for --evaluate, and arguments '
                            'that did not exist when the json file was originally saved out.')
+  parser.add_argument('--layers_of_cells', type=int, default=8, help='total number of cells in the whole network, default is 8 cells')
+  parser.add_argument('--layers_in_cells', type=int, default=4,
+                      help='Total number of nodes in each cell, aka number of steps,'
+                           ' default is 4 nodes, which implies 8 ops')
+  parser.add_argument('--weighting_algorithm', type=str, default='scalar',
+                    help='which operations to use, options are '
+                         '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
   # TODO(ahundt) remove final path and switch back to genotype
-  parser.add_argument('--final_path', type=str, default=None, help='path for final model')
+  parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
   args = parser.parse_args()
 
   args = utils.initialize_files_and_args(args)
@@ -119,14 +127,19 @@ def main():
   genotype = eval("genotypes.%s" % args.arch)
   # create the neural network
 
+  criterion = nn.CrossEntropyLoss()
+  criterion = criterion.cuda()
   if args.multi_channel:
     final_path = None
-    if args.final_path is not None:
-      final_path = np.load(args.final_path)
+    if args.load_genotype is not None:
+      genotype = getattr(genotypes, args.load_genotype)
+      print(genotype)
+      if type(genotype[0]) is str:
+        logger.info('Path :%s', genotype)
     # TODO(ahundt) remove final path and switch back to genotype
     cnn_model = MultiChannelNetwork(
       args.init_channels, DATASET_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      weighting_algorithm=args.weighting_algorithm, final_path=final_path)
+      weighting_algorithm=args.weighting_algorithm, genotype=genotype)
   elif args.dataset == 'imagenet':
       cnn_model = NetworkImageNet(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
       flops_shape = [1, 3, 224, 224]
@@ -141,8 +154,6 @@ def main():
     logger.info("flops = " + utils.count_model_flops(cnn_model, data_shape=flops_shape))
     return
 
-  criterion = nn.CrossEntropyLoss()
-  criterion = criterion.cuda()
   optimizer = torch.optim.SGD(
       cnn_model.parameters(),
       args.learning_rate,
@@ -275,7 +286,11 @@ def train(args, train_queue, cnn_model, criterion, optimizer):
       target = Variable(target).cuda(non_blocking=True)
 
       optimizer.zero_grad()
-      logits, logits_aux = cnn_model(input_batch)
+      if args.auxiliary:
+        logits, logits_aux = cnn_model(input_batch)
+      else:
+         logits = cnn_model(input_batch)
+         logits_aux = None
       loss = criterion(logits, target)
       if logits_aux is not None and args.auxiliary:
         loss_aux = criterion(logits_aux, target)
@@ -311,7 +326,10 @@ def infer(args, valid_queue, cnn_model, criterion, prefix='valid_', desc='Runnin
         input_batch = Variable(input_batch).cuda(non_blocking=True)
         target = Variable(target).cuda(non_blocking=True)
 
-        logits, _ = cnn_model(input_batch)
+        if args.auxiliary:
+          logits, _ = cnn_model(input_batch)
+        else:
+          logits = cnn_model(input_batch)
         loss = criterion(logits, target)
 
         prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))

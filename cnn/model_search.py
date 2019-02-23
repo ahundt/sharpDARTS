@@ -243,7 +243,7 @@ class MultiChannelNetwork(nn.Module):
     """
     super(MultiChannelNetwork, self).__init__()
     self._C = C
-    self.genotype = genotype
+    self._genotype = np.array(genotype)
     self._num_classes = num_classes
     if layers % 2 == 1:
       raise ValueError('MultiChannelNetwork layers option must be even, got ' + str(layers))
@@ -284,8 +284,8 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]]
     self.op_types = [operations.SharpSepConv, operations.ResizablePool]
-    if self.genotype is not None:
-        model = self.genotype[np.flatnonzero(np.core.defchararray.find(self.genotype, 'add') == -1)]
+    if self._genotype is not None and type(self._genotype[0]) is np.str_:
+        model = self._genotype[np.flatnonzero(np.core.defchararray.find(self._genotype, 'add') == -1)]
         root_ch = self.Cs[int(model[0][-1])]
         self.stem = nn.ModuleList()
         s = nn.Sequential(
@@ -389,7 +389,7 @@ class MultiChannelNetwork(nn.Module):
         nx.write_gpickle(self.G, "network_test.graph")
 
         if not self._visualization:
-          self._initialize_alphas()
+          self._initialize_alphas(genotype)
 
   def new(self):
     model_new = Network(self._C, self._num_classes, self._layers, self._criterion).cuda()
@@ -399,7 +399,7 @@ class MultiChannelNetwork(nn.Module):
 
   def forward(self, input_batch):
     # [in, normal_out, reduce_out]
-    if self.genotype is not None:
+    if self._genotype is not None and type(self._genotype[0]) is np.str_:
         x = input_batch
         for i in range(len(self.stem)):
             x = self.stem[i](x)
@@ -519,11 +519,20 @@ class MultiChannelNetwork(nn.Module):
     logits = self(input_batch)
     return self._criterion(logits, target)
 
-  def _initialize_alphas(self):
-    if torch.cuda.is_available():
-      self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape).cuda(), requires_grad=True)
+  def _initialize_alphas(self, genotype=None):
+    
+    if genotype is None or type(genotype[0]) is not np.str_:
+        init_alpha = 1e-3*torch.randn(self.arch_weights_shape)
     else:
-      self._arch_parameters = Variable(1e-3*torch.randn(self.arch_weights_shape), requires_grad=True)
+        print("_initialize_alphas with preconfigured weights", genotype[0][0][0][0])
+        init_alpha = []
+        init_alpha.append(genotype[0])
+        init_alpha.append(genotype[2])
+        init_alpha = torch.from_numpy(np.array(init_alpha, dtype=double)).double()
+    if torch.cuda.is_available():
+      self._arch_parameters = Variable(init_alpha.cuda(), requires_grad=True)
+    else:
+      self._arch_parameters = Variable(init_alpha, requires_grad=True)
 
   def arch_parameters(self):
     ''' Get list of architecture parameters
@@ -531,9 +540,9 @@ class MultiChannelNetwork(nn.Module):
     return [self._arch_parameters]
 
   def genotype(self, layout='raw_weights'):
-        """
-        layout options: raw_weights, longest_path, graph
-        """
+    """
+    layout options: raw_weights, longest_path, graph
+    """
     if layout == 'raw_weights':
       # TODO(ahundt) switch from raw weights to a simpler representation for genotype?
       gene_normal = np.array(self.arch_weights(0).data.cpu().numpy()).tolist()
