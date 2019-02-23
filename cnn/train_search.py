@@ -131,10 +131,12 @@ def main():
     if args.final_path is not None:
       final_path = np.load(args.final_path)
 
-    genotype = getattr(genotypes, args.load_genotype)
+    genotype = None
+    if args.load_genotype is not None:
+      genotype = getattr(genotypes, args.load_genotype)
     cnn_model = model_search.MultiChannelNetwork(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      weighting_algorithm=args.weighting_algorithm, final_path=final_path, genotype=genotype)
+      weighting_algorithm=args.weighting_algorithm, genotype=genotype)
   else:
     cnn_model = model_search.Network(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
