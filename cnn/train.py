@@ -124,6 +124,8 @@ def main():
     final_path = None
     if args.load_genotype is not None:
       genotype = getattr(genotypes, args.load_genotype)
+      if type(genotype[0]) is str:
+        logger.info('Path :%s', genotype)
     # TODO(ahundt) remove final path and switch back to genotype
     cnn_model = MultiChannelNetwork(
       args.init_channels, DATASET_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
