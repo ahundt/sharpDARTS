@@ -539,9 +539,9 @@ class MultiChannelNetwork(nn.Module):
     return [self._arch_parameters]
 
   def genotype(self, layout='raw_weights'):
-        """
-        layout options: raw_weights, longest_path, graph
-        """
+    """
+    layout options: raw_weights, longest_path, graph
+    """
     if layout == 'raw_weights':
       # TODO(ahundt) switch from raw weights to a simpler representation for genotype?
       gene_normal = np.array(self.arch_weights(0).data.cpu().numpy()).tolist()
