@@ -284,7 +284,7 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]]
     self.op_types = [operations.SharpSepConv, operations.ResizablePool]
-    if self.genotype is not None:
+    if self.genotype is not None and type(self.genotype[0]) is str:
         model = self.genotype[np.flatnonzero(np.core.defchararray.find(self.genotype, 'add') == -1)]
         root_ch = self.Cs[int(model[0][-1])]
         self.stem = nn.ModuleList()
