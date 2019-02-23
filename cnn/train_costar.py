@@ -12,7 +12,7 @@
 #
 # Example command:
 #
-#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --epochs 300 --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05
+#    export CUDA_VISIBLE_DEVICES="2" && python3 train_costar.py --auxiliary --cutout --batch_size 128 --epochs 200 --save `git rev-parse --short HEAD` --arch SHARP_DARTS --mid_channels 32 --init_channels 36 --wd 0.0003 --lr_power_annealing_exponent_order 2 --learning_rate_min 0.0005 --learning_rate 0.05
 import argparse
 import os
 import shutil
@@ -177,20 +177,20 @@ logger = None
 
 DATASET_CHANNELS = dataset.costar_inp_channel_dict[args.feature_mode]
 
-# TODO(rexxarchl): Use mean and std from imagenet, for now
-DATASET_MEAN = dataset.mean_dict['imagenet']
-DATASET_STD = dataset.std_dict['imagenet']
-args.mean = DATASET_MEAN
-args.std = DATASET_STD
-# print('>>>>>>>DATASET_CHANNELS: ' + str(DATASET_CHANNELS))
-
-
 def fast_collate(batch):
     # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
     imgs = [img[0] for img in batch]
-    [print(img[0].shape) for img in batch]
-    [print(img[1].shape) for img in batch]
-    print('len(imgs):' + str(len(imgs)))
+    # [print(img[0].shape) for img in batch]
+    # [print(img[1].shape) for img in batch]
+    # print('len(imgs):' + str(len(imgs)))
+    # print(imgs[0].shape)
+
+    # for i in range(len(imgs)):
+    #     img = imgs[i]
+    #     # print(img.shape)
+    #     assert np.all(imgs[i][:6, :, :] <= 1) and np.all(imgs[i][:6, :, :] >= -1), "img assertion failed for i={}".format(i)
+    #     assert not np.any(np.isnan(img[6:, :, :])), "vector assertion failed for i={}".format(i)
+    # assert np.all([np.all(imgs[i][:6, :, :] <= 1) and np.all(imgs[i][:6, :, :] >= -1) and not np.any(np.isnan(imgs[i][6:, :, :])) for i in range(len(imgs))])
     imgs = torch.tensor(imgs, dtype=torch.float)
     targets = torch.tensor([target[1] for target in batch], dtype=torch.float)
     # w = imgs[0].shape[1]
@@ -389,14 +389,19 @@ def main():
     train_loader, val_loader = dataset.get_training_queues(
         args.dataset, train_transform, valid_transform, args.data,
         args.batch_size, train_proportion=1.0,
-        collate_fn=fast_collate, distributed=args.distributed,
+        # collate_fn=fast_collate, 
+        distributed=args.distributed,
         num_workers=args.workers,
         costar_set_name=args.set_name, costar_subset_name=args.subset_name,
         costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
         costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
 
     if args.evaluate:
-        validate(val_loader, model, criterion, args)
+        test_loader = dataset.get_costar_test_queue(
+                args.data, costar_set_name=args.set_name, costar_subset_name=args.subset_name,
+                costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
+                costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
+        validate(test_loader, model, criterion, args, prefix='test_')
         return
 
     lr_schedule = cosine_power_annealing(
@@ -476,32 +481,11 @@ def main():
 
 
 class data_prefetcher():
-    def __init__(self, loader, in_channels, mean=None, std=None, cutout=False, cutout_length=112, cutout_cuts=2):
+    def __init__(self, loader, in_channels, cutout=False, cutout_length=112, cutout_cuts=2):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
-        if mean is None:
-            mean = [0.485, 0.456, 0.406]
-        if std is None:
-            std = [0.229, 0.224, 0.225]
 
-        # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
-        # The first 6 channels are first and last images of a session
-        # Subtract std and mean from these two images, while leaving others intact
-        padded_mean, padded_std = np.zeros(in_channels), np.zeros(in_channels)
-        padded_mean[:3], padded_mean[3:6] = mean, mean
-        padded_std[:3], padded_std[3:6] = std, std
-        mean = np.array(padded_mean) * 255
-        std = np.array(padded_std) * 255
-        self.mean = torch.tensor(mean).cuda().view(1, in_channels, 1, 1)
-        self.std = torch.tensor(std).cuda().view(1, in_channels, 1, 1)
-        cutout_dtype = np.float32
-        if args.fp16:
-            self.mean = self.mean.half()
-            self.std = self.std.half()
-            cutout_dtype = np.float16
-        else:
-            self.mean = self.mean.float()
-            self.std = self.std.float()
+        cutout_dtype = np.float16 if args.fp16 else np.float32
 
         self.cutout = None
         if cutout:
@@ -524,8 +508,6 @@ class data_prefetcher():
             else:
                 self.next_input = self.next_input.float()
                 self.next_target = self.next_target.float()
-            # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
-            self.next_input = self.next_input.sub_(self.mean).div_(self.std)
             if self.cutout is not None:
                 # TODO(ahundt) Fix performance of this cutout call, it makes batch loading time go from 0.001 seconds to 0.05 seconds.
                 self.next_input = self.cutout(self.next_input)
@@ -549,11 +531,12 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     losses = AverageMeter()
     abs_cart_m = AverageMeter()
     abs_angle_m = AverageMeter()
+    sigmoid = torch.nn.Sigmoid()
 
     # switch to train mode
     model.train()
     end = time.time()
-    prefetcher = data_prefetcher(train_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std, cutout=args.cutout, cutout_length=args.cutout_length)
+    prefetcher = data_prefetcher(train_loader, in_channels=DATASET_CHANNELS, cutout=args.cutout, cutout_length=args.cutout_length)
 
     cart_error, angle_error = [], []
     input, target = prefetcher.next()
@@ -582,23 +565,23 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         output, logits_aux = model(input)
         # logger.info('>>>>>>> output_presigmoid: ' + str(output.data) + ' target: ' + str(target.data))
         # logger.info('>>>>>>> output_presigmoid: ' + str(output.data) + ' target: ' + str(target.data))
-        output = torch.nn.functional.sigmoid(output)
+        output = sigmoid(output)
         loss = criterion(output, target)
         if logits_aux is not None and args.auxiliary:
-            logits_aux = torch.nn.functional.sigmoid(logits_aux)
+            logits_aux = sigmoid(logits_aux)
             loss_aux = criterion(logits_aux, target)
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        with torch.no_grad():
-            output_np = output.cpu().detach().numpy()
-            target_np = target.cpu().detach().numpy()
-            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
-            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
-            batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output_np, target_np)
-            abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
-            cart_error.extend(batch_abs_cart_distance)
-            angle_error.extend(batch_abs_angle_distance)
+        # with torch.no_grad():
+        #     output_np = output.cpu().detach().numpy()
+        #     target_np = target.cpu().detach().numpy()
+        #     # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
+        #     # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
+        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
+        abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+        cart_error.extend(batch_abs_cart_distance)
+        angle_error.extend(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -675,7 +658,7 @@ def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle,
     return stats
 
 
-def validate(val_loader, model, criterion, args):
+def validate(val_loader, model, criterion, args, prefix='val_'):
     loader_len = len(val_loader)
     if loader_len < 2:
         raise ValueError('val_loader only supports 2 or more batches and loader_len: ' + str(loader_len))
@@ -692,7 +675,7 @@ def validate(val_loader, model, criterion, args):
     end = time.time()
 
     cart_error, angle_error = [], []
-    prefetcher = data_prefetcher(val_loader, in_channels=DATASET_CHANNELS, mean=args.mean, std=args.std)
+    prefetcher = data_prefetcher(val_loader, in_channels=DATASET_CHANNELS)
     input, target = prefetcher.next()
     i = -1
     if args.local_rank == 0:
@@ -755,7 +738,6 @@ def validate(val_loader, model, criterion, args):
 
     # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(combined_error=combined_error, top5=top5))
-    prefix = 'val_'
     if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
                           cart_error)
