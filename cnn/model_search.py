@@ -521,7 +521,7 @@ class MultiChannelNetwork(nn.Module):
 
   def _initialize_alphas(self, genotype=None):
     
-    if genotype is None:
+    if genotype is None or type(genotype[0]) is not str:
         init_alpha = 1e-3*torch.randn(self.arch_weights_shape)
     else:
         print("_initialize_alphas with preconfigured weights", genotype[0][0][0][0])
