@@ -186,19 +186,24 @@ args.std = DATASET_STD
 
 
 def fast_collate(batch):
+    # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
     imgs = [img[0] for img in batch]
+    [print(img[0].shape) for img in batch]
+    [print(img[1].shape) for img in batch]
+    print('len(imgs):' + str(len(imgs)))
+    imgs = torch.tensor(imgs, dtype=torch.float)
     targets = torch.tensor([target[1] for target in batch], dtype=torch.float)
-    w = imgs[0].shape[1]
-    h = imgs[0].shape[2]
-    tensor = torch.zeros((len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
-    for i, img in enumerate(imgs):
-        nump_array = np.asarray(img, dtype=np.uint8)
-        # tens = torch.from_numpy(nump_array)
-        if(nump_array.ndim < 3):
-            nump_array = np.expand_dims(nump_array, axis=-1)
-        # nump_array = np.rollaxis(nump_array, 2)
-        tensor[i] += torch.from_numpy(nump_array)
-    return tensor, targets
+    # w = imgs[0].shape[1]
+    # h = imgs[0].shape[2]
+    # tensor = torch.zeros((len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
+    # for i, img in enumerate(imgs):
+    #     nump_array = np.asarray(img, dtype=np.uint8)
+    #     # tens = torch.from_numpy(nump_array)
+    #     if(nump_array.ndim < 3):
+    #         nump_array = np.expand_dims(nump_array, axis=-1)
+    #     # nump_array = np.rollaxis(nump_array, 2)
+    #     tensor[i] += torch.from_numpy(nump_array)
+    return imgs, targets
 
 # CLASSES = 1000
 
@@ -479,6 +484,7 @@ class data_prefetcher():
         if std is None:
             std = [0.229, 0.224, 0.225]
 
+        # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
         # The first 6 channels are first and last images of a session
         # Subtract std and mean from these two images, while leaving others intact
         padded_mean, padded_std = np.zeros(in_channels), np.zeros(in_channels)
@@ -518,6 +524,7 @@ class data_prefetcher():
             else:
                 self.next_input = self.next_input.float()
                 self.next_target = self.next_target.float()
+            # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
             self.next_input = self.next_input.sub_(self.mean).div_(self.std)
             if self.cutout is not None:
                 # TODO(ahundt) Fix performance of this cutout call, it makes batch loading time go from 0.001 seconds to 0.05 seconds.
