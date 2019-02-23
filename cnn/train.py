@@ -290,6 +290,7 @@ def train(args, train_queue, cnn_model, criterion, optimizer):
         logits, logits_aux = cnn_model(input_batch)
       else: 
          logits = cnn_model(input_batch)
+         logits_aux = None
       loss = criterion(logits, target)
       if logits_aux is not None and args.auxiliary:
         loss_aux = criterion(logits_aux, target)
