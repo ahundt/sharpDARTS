@@ -83,6 +83,9 @@ def main():
   parser.add_argument('--layers_in_cells', type=int, default=4,
                       help='Total number of nodes in each cell, aka number of steps,'
                            ' default is 4 nodes, which implies 8 ops')
+  parser.add_argument('--weighting_algorithm', type=str, default='scalar',
+                    help='which operations to use, options are '
+                         '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
   # TODO(ahundt) remove final path and switch back to genotype
   parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
   args = parser.parse_args()
