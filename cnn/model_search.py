@@ -243,7 +243,7 @@ class MultiChannelNetwork(nn.Module):
     """
     super(MultiChannelNetwork, self).__init__()
     self._C = C
-    self._genotype = genotype
+    self._genotype = np.array(genotype)
     self._num_classes = num_classes
     if layers % 2 == 1:
       raise ValueError('MultiChannelNetwork layers option must be even, got ' + str(layers))
