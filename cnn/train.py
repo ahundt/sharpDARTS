@@ -124,6 +124,8 @@ def main():
   genotype = eval("genotypes.%s" % args.arch)
   # create the neural network
 
+  criterion = nn.CrossEntropyLoss()
+  criterion = criterion.cuda()
   if args.multi_channel:
     final_path = None
     if args.load_genotype is not None:
@@ -149,8 +151,6 @@ def main():
     logger.info("flops = " + utils.count_model_flops(cnn_model, data_shape=flops_shape))
     return
 
-  criterion = nn.CrossEntropyLoss()
-  criterion = criterion.cuda()
   optimizer = torch.optim.SGD(
       cnn_model.parameters(),
       args.learning_rate,
