@@ -79,7 +79,7 @@ def main():
                            'all currently set args except for --evaluate, and arguments '
                            'that did not exist when the json file was originally saved out.')
   # TODO(ahundt) remove final path and switch back to genotype
-  parser.add_argument('--final_path', type=str, default=None, help='path for final model')
+  parser.add_argument('--load_genotype', type=str, default=None, help='path for final model')
   args = parser.parse_args()
 
   args = utils.initialize_files_and_args(args)
@@ -121,12 +121,12 @@ def main():
 
   if args.multi_channel:
     final_path = None
-    if args.final_path is not None:
-      final_path = np.load(args.final_path)
+    if args.load_genotype is not None:
+      genotype = getattr(genotypes, args.load_genotype)
     # TODO(ahundt) remove final path and switch back to genotype
     cnn_model = MultiChannelNetwork(
       args.init_channels, DATASET_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      weighting_algorithm=args.weighting_algorithm, final_path=final_path)
+      weighting_algorithm=args.weighting_algorithm, genotype=genotype)
   elif args.dataset == 'imagenet':
       cnn_model = NetworkImageNet(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
       flops_shape = [1, 3, 224, 224]
