@@ -803,19 +803,19 @@ def accuracy(output, target):
     batch_size, out_channels = target.shape
 
     if args.fp16:  # Convert back to float32 from float16 for accuracy calculation
-        output = output.float()
-        target = target.float()
+        output = output.astype(np.float32)
+        target = target.astype(np.float32)
 
     if out_channels == 3:  # xyz
         # Format into [batch, 8] by adding fake rotations
-        fake_rotation = torch.zeros([batch_size, 5], dtype=torch.float).cuda()
-        target = torch.cat((target, fake_rotation), 1)
-        output = torch.cat((output, fake_rotation), 1)
+        fake_rotation = np.zeros([batch_size, 5], dtype=np.float32)
+        target = np.concatenate((target, fake_rotation), 1)
+        output = np.concatenate((output, fake_rotation), 1)
     elif out_channels == 5:  # aaxyz_nsc
         # Format into [batch, 8] by adding fake translations
-        fake_translation = torch.zeros([batch_size, 3], dtype=torch.float).cuda()
-        target = torch.cat((fake_translation, target), 1)
-        output = torch.cat((fake_translation, output), 1)
+        fake_translation = torch.zeros([batch_size, 3], dtype=np.float32)
+        target = np.concatenate((fake_translation, target), 1)
+        output = np.concatenate((fake_translation, output), 1)
     elif out_channels == 8:  # xyz + aaxyz_nsc
         pass  # Do nothing
     else:
