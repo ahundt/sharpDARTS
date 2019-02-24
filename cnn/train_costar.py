@@ -573,15 +573,15 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        # with torch.no_grad():
-        #     output_np = output.cpu().detach().numpy()
-        #     target_np = target.cpu().detach().numpy()
-        #     # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
-        #     # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
-        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
-        abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
-        cart_error.extend(batch_abs_cart_distance)
-        angle_error.extend(batch_abs_angle_distance)
+        with torch.no_grad():
+            output_np = output.cpu().detach().numpy()
+            target_np = target.cpu().detach().numpy()
+            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
+            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
+            batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output_np, target_np)
+            abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+            cart_error.extend(batch_abs_cart_distance)
+            angle_error.extend(batch_abs_angle_distance)
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -696,7 +696,7 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data, target)
+        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data.cpu().numpy(), target.data.cpu().numpy())
         abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
         cart_error.extend(batch_abs_cart_distance)
         angle_error.extend(batch_abs_angle_distance)
