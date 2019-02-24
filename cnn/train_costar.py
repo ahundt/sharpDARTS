@@ -802,20 +802,18 @@ def accuracy(output, target):
     """Computes the absolute cartesian and angle distance between output and target"""
     batch_size, out_channels = target.shape
 
-    # TODO(rexxarchl): test if this padding process is really necessary, as hypertree_pose_metrics
-    #                  also detects the length and pad accordingly
+    if args.fp16:  # Convert back to float32 from float16 for accuracy calculation
+        output = output.float()
+        target = target.float()
+
     if out_channels == 3:  # xyz
         # Format into [batch, 8] by adding fake rotations
         fake_rotation = torch.zeros([batch_size, 5], dtype=torch.float).cuda()
-        if args.fp16:
-            fake_rotation = fake_rotation.half()
         target = torch.cat((target, fake_rotation), 1)
         output = torch.cat((output, fake_rotation), 1)
     elif out_channels == 5:  # aaxyz_nsc
         # Format into [batch, 8] by adding fake translations
         fake_translation = torch.zeros([batch_size, 3], dtype=torch.float).cuda()
-        if args.fp16:
-            fake_translation = fake_translation.half()
         target = torch.cat((fake_translation, target), 1)
         output = torch.cat((fake_translation, output), 1)
     elif out_channels == 8:  # xyz + aaxyz_nsc
