@@ -39,7 +39,6 @@ import random
 
 try:
     from apex.parallel import DistributedDataParallel as DDP
-    from apex.fp16_utils import *
 except ImportError:
     raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
@@ -49,7 +48,6 @@ except ImportError:
     ImportError('The costar dataset is not available. '
                 'See https://github.com/ahundt/costar_dataset for details')
 
-from model import NetworkImageNet
 from tqdm import tqdm
 import dataset
 import genotypes
@@ -58,7 +56,7 @@ import operations
 import utils
 import warmup_scheduler
 from cosine_power_annealing import cosine_power_annealing
-from costar_baseline_model import NetworkResNetCOSTAR
+from costar_baseline_model import NetworkResNetCOSTAR, NetworkCOSTAR
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -104,10 +102,6 @@ parser.add_argument('--restart_lr', action='store_true',
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
 
-parser.add_argument('--fp16', action='store_true',
-                    help='Run model fp16 mode.')
-parser.add_argument('--static-loss-scale', type=float, default=1,
-                    help='Static loss scale, positive power of 2 values can improve fp16 convergence.')
 parser.add_argument('--dynamic-loss-scale', action='store_true',
                     help='Use dynamic loss scaling.  If supplied, this argument supersedes ' +
                     '--static-loss-scale.')
@@ -176,36 +170,17 @@ args = parser.parse_args()
 logger = None
 
 DATASET_CHANNELS = dataset.costar_inp_channel_dict[args.feature_mode]
+VECTOR_SIZE = dataset.costar_vec_size_dict[args.feature_mode]
+
 
 def fast_collate(batch):
-    # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
-    imgs = [img[0] for img in batch]
-    # [print(img[0].shape) for img in batch]
-    # [print(img[1].shape) for img in batch]
-    # print('len(imgs):' + str(len(imgs)))
-    # print(imgs[0].shape)
+    data, targets = zip(*batch)
 
-    # for i in range(len(imgs)):
-    #     img = imgs[i]
-    #     # print(img.shape)
-    #     assert np.all(imgs[i][:6, :, :] <= 1) and np.all(imgs[i][:6, :, :] >= -1), "img assertion failed for i={}".format(i)
-    #     assert not np.any(np.isnan(img[6:, :, :])), "vector assertion failed for i={}".format(i)
-    # assert np.all([np.all(imgs[i][:6, :, :] <= 1) and np.all(imgs[i][:6, :, :] >= -1) and not np.any(np.isnan(imgs[i][6:, :, :])) for i in range(len(imgs))])
-    imgs = torch.tensor(imgs, dtype=torch.float)
-    targets = torch.tensor([target[1] for target in batch], dtype=torch.float)
-    # w = imgs[0].shape[1]
-    # h = imgs[0].shape[2]
-    # tensor = torch.zeros((len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
-    # for i, img in enumerate(imgs):
-    #     nump_array = np.asarray(img, dtype=np.uint8)
-    #     # tens = torch.from_numpy(nump_array)
-    #     if(nump_array.ndim < 3):
-    #         nump_array = np.expand_dims(nump_array, axis=-1)
-    #     # nump_array = np.rollaxis(nump_array, 2)
-    #     tensor[i] += torch.from_numpy(nump_array)
-    return imgs, targets
+    image_0 = torch.tensor([img[0] for img in data])
+    image_n = torch.tensor([img[1] for img in data])
+    vector = torch.tensor([img[2] for img in data])
 
-# CLASSES = 1000
+    return torch.cat((image_0, image_n), dim=1), vector, torch.tensor(targets)
 
 
 if args.deterministic:
@@ -237,13 +212,6 @@ def main():
     args = utils.initialize_files_and_args(args)
     logger = utils.logging_setup(args.log_file_path)
 
-    if args.fp16:
-        assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
-
-    if args.static_loss_scale != 1.0:
-        if not args.fp16:
-            logger.info("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
-    
     # # load the correct ops dictionary
     op_dict_to_load = "operations.%s" % args.ops
     logger.info('loading op dict: ' + str(op_dict_to_load))
@@ -259,13 +227,14 @@ def main():
 
     if args.arch == 'NetworkResNetCOSTAR':
         # baseline model for comparison
-        model = NetworkResNetCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, None, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
+        model = NetworkResNetCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, None, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
     else:
         # create model
         genotype = eval("genotypes.%s" % args.arch)
         # create the neural network
-        model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
-    
+        # model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
+        model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
+
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -280,8 +249,6 @@ def main():
         model = apex.parallel.convert_syncbn_model(model)
 
     model = model.cuda()
-    if args.fp16:
-        model = network_to_half(model)
     if args.distributed:
         # By default, apex.parallel.DistributedDataParallel overlaps communication with
         # computation in the backward pass.
@@ -306,11 +273,6 @@ def main():
     # scheduler = warmup_scheduler.GradualWarmupScheduler(
     #     optimizer, args.warmup_lr_divisor, args.warmup_epochs, scheduler)
 
-    if args.fp16:
-        optimizer = FP16_Optimizer(optimizer,
-                                   static_loss_scale=args.static_loss_scale,
-                                   dynamic_loss_scale=args.dynamic_loss_scale)
-
     # Optionally resume from a checkpoint
     if args.resume or args.evaluate:
         if args.evaluate:
@@ -324,7 +286,6 @@ def main():
                 if 'best_combined_error' in checkpoint:
                     best_combined_error = checkpoint['best_combined_error']
                 model.load_state_dict(checkpoint['state_dict'])
-                # An FP16_Optimizer instance's state dict internally stashes the master params.
                 optimizer.load_state_dict(checkpoint['optimizer'])
                 # TODO(ahundt) make sure scheduler loading isn't broken
                 if 'lr_scheduler' in checkpoint:
@@ -337,48 +298,6 @@ def main():
                 logger.info("=> no checkpoint found at '{}'".format(args.resume))
         resume()
 
-    # # Data loading code
-    # traindir = os.path.join(args.data, 'train')
-    # valdir = os.path.join(args.data, 'val')
-
-    # if(args.arch == "inception_v3"):
-    #     crop_size = 299
-    #     val_size = 320 # I chose this value arbitrarily, we can adjust.
-    # else:
-    #     crop_size = 224
-    #     val_size = 256
-
-    # train_dataset = datasets.ImageFolder(
-    #     traindir,
-    #     transforms.Compose([
-    #         transforms.RandomResizedCrop(crop_size),
-    #         transforms.RandomHorizontalFlip(),
-    #         autoaugment.ImageNetPolicy(),
-    #         # transforms.ToTensor(),  # Too slow, moved to data_prefetcher()
-    #         # normalize,
-    #     ]))
-    # val_dataset = datasets.ImageFolder(valdir, transforms.Compose([
-    #         transforms.Resize(val_size),
-    #         transforms.CenterCrop(crop_size)
-    #     ]))
-
-    # train_sampler = None
-    # val_sampler = None
-    # if args.distributed:
-    #     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    #     val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset)
-
-    # train_loader = torch.utils.data.DataLoader(
-    #     train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
-    #     num_workers=args.workers, pin_memory=True, sampler=train_sampler, collate_fn=fast_collate)
-
-    # val_loader = torch.utils.data.DataLoader(
-    #     val_dataset,
-    #     batch_size=args.batch_size, shuffle=False,
-    #     num_workers=args.workers, pin_memory=True,
-    #     sampler=val_sampler,
-    #     collate_fn=fast_collate)
-
     # Get preprocessing functions (i.e. transforms) to apply on data
     # normalize_as_tensor = False because we normalize and convert to a
     # tensor in our custom prefetching function, rather than as part of
@@ -389,7 +308,7 @@ def main():
     train_loader, val_loader = dataset.get_training_queues(
         args.dataset, train_transform, valid_transform, args.data,
         args.batch_size, train_proportion=1.0,
-        # collate_fn=fast_collate, 
+        collate_fn=fast_collate,
         distributed=args.distributed,
         num_workers=args.workers,
         costar_set_name=args.set_name, costar_subset_name=args.subset_name,
@@ -485,7 +404,7 @@ class data_prefetcher():
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
 
-        cutout_dtype = np.float16 if args.fp16 else np.float32
+        cutout_dtype = np.float32
 
         self.cutout = None
         if cutout:
@@ -494,30 +413,26 @@ class data_prefetcher():
 
     def preload(self):
         try:
-            self.next_input, self.next_target = next(self.loader)
+            self.next_input_img, self.next_input_vec, self.next_target = next(self.loader)
         except StopIteration:
-            self.next_input = None
+            self.next_input_img = None
             self.next_target = None
             return
         with torch.cuda.stream(self.stream):
-            self.next_input = self.next_input.cuda(non_blocking=True)
-            self.next_target = self.next_target.cuda(non_blocking=True)
-            if args.fp16:
-                self.next_input = self.next_input.half()
-                self.next_target = self.next_target.half()
-            else:
-                self.next_input = self.next_input.float()
-                self.next_target = self.next_target.float()
+            self.next_input_img = self.next_input_img.cuda(non_blocking=True).float()
+            self.next_input_vec = self.next_input_vec.cuda(non_blocking=True).float()
+            self.next_target = self.next_target.cuda(non_blocking=True).float()
             if self.cutout is not None:
                 # TODO(ahundt) Fix performance of this cutout call, it makes batch loading time go from 0.001 seconds to 0.05 seconds.
-                self.next_input = self.cutout(self.next_input)
+                self.next_input_img = self.cutout(self.next_input_img)
 
     def next(self):
         torch.cuda.current_stream().wait_stream(self.stream)
-        input = self.next_input
+        input_img = self.next_input_img
+        input_vec = self.next_input_vec
         target = self.next_target
         self.preload()
-        return input, target
+        return input_img, input_vec, target
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
@@ -539,13 +454,14 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     prefetcher = data_prefetcher(train_loader, in_channels=DATASET_CHANNELS, cutout=args.cutout, cutout_length=args.cutout_length)
 
     cart_error, angle_error = [], []
-    input, target = prefetcher.next()
+    input_img, input_vec, target = prefetcher.next()
+    batch_size = input_img.size(0)
     i = -1
     if args.local_rank == 0:
         progbar = tqdm(total=len(train_loader), leave=False, dynamic_ncols=True)
     else:
         progbar = None
-    while input is not None:
+    while input_img is not None:
         i += 1
         # scheduler in main now adjusts the lr
         # adjust_learning_rate(optimizer, epoch, i, len(train_loader))
@@ -557,14 +473,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         data_time.update(time.time() - end)
 
         # compute output
-        # output = model(input)
-        # loss = criterion(output, target)
-        # logger.info('>>>>> forward <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
-        # logger.info('>>>>> forward <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
         # note here the term output is equivalent to logits
-        output, logits_aux = model(input)
-        # logger.info('>>>>>>> output_presigmoid: ' + str(output.data) + ' target: ' + str(target.data))
-        # logger.info('>>>>>>> output_presigmoid: ' + str(output.data) + ' target: ' + str(target.data))
+        output, logits_aux = model(input_img, input_vec)
         output = sigmoid(output)
         loss = criterion(output, target)
         if logits_aux is not None and args.auxiliary:
@@ -576,8 +486,6 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         with torch.no_grad():
             output_np = output.cpu().detach().numpy()
             target_np = target.cpu().detach().numpy()
-            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
-            # logger.info('>>>>>>> output_np: ' + str(output_np) + ' target_np: ' + str(target_np))
             batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output_np, target_np)
             abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
             cart_error.extend(batch_abs_cart_distance)
@@ -590,16 +498,13 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         else:
             reduced_loss = loss.data
 
-        losses.update(to_python_float(reduced_loss), input.size(0))
-        abs_cart_m.update(to_python_float(abs_cart_f), input.size(0))
-        abs_angle_m.update(to_python_float(abs_angle_f), input.size(0))
+        losses.update(reduced_loss, batch_size)
+        abs_cart_m.update(abs_cart_f, batch_size)
+        abs_angle_m.update(abs_angle_f, batch_size)
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
-        if args.fp16:
-            optimizer.backward(loss)
-        else:
-            loss.backward()
+        loss.backward()
         optimizer.step()
 
         torch.cuda.synchronize()
@@ -607,7 +512,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         batch_time.update(time.time() - end)
 
         end = time.time()
-        input, target = prefetcher.next()
+        input_img, input_vec, target = prefetcher.next()
 
         if args.local_rank == 0:
             progbar.update()
@@ -676,13 +581,14 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
 
     cart_error, angle_error = [], []
     prefetcher = data_prefetcher(val_loader, in_channels=DATASET_CHANNELS)
-    input, target = prefetcher.next()
+    input_img, input_vec, target = prefetcher.next()
+    batch_size = input_img.size(0)
     i = -1
     if args.local_rank == 0:
         progbar = tqdm(total=loader_len)
     else:
         progbar = None
-    while input is not None:
+    while input_img is not None:
         i += 1
         # measure data loading time
         data_time.update(time.time() - end)
@@ -692,7 +598,7 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
             # output = model(input)
             # loss = criterion(output, target)
             # note here the term output is equivalent to logits
-            output, _ = model(input)
+            output, _ = model(input_img, input_vec)
             loss = criterion(output, target)
 
         # measure accuracy and record loss
@@ -708,9 +614,9 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
         else:
             reduced_loss = loss.data
 
-        losses.update(to_python_float(reduced_loss), input.size(0))
-        abs_cart_m.update(to_python_float(abs_cart_f), input.size(0))
-        abs_angle_m.update(to_python_float(abs_angle_f), input.size(0))
+        losses.update(reduced_loss, batch_size)
+        abs_cart_m.update(abs_cart_f, batch_size)
+        abs_angle_m.update(abs_angle_f, batch_size)
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -734,7 +640,7 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
                    batch_time=batch_time, loss=losses,
                    abs_cart=abs_cart_m, abs_angle=abs_angle_m))
 
-        input, target = prefetcher.next()
+        input_img, input_vec, target = prefetcher.next()
 
     # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(combined_error=combined_error, top5=top5))
@@ -801,10 +707,6 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
 def accuracy(output, target):
     """Computes the absolute cartesian and angle distance between output and target"""
     batch_size, out_channels = target.shape
-
-    if args.fp16:  # Convert back to float32 from float16 for accuracy calculation
-        output = output.astype(np.float32)
-        target = target.astype(np.float32)
 
     if out_channels == 3:  # xyz
         # Format into [batch, 8] by adding fake rotations
