@@ -172,13 +172,9 @@ logger = None
 VECTOR_SIZE = dataset.costar_vec_size_dict[args.feature_mode]
 
 def fast_collate(batch):
-    data, targets = zip(*batch)
-
-    image_0 = torch.tensor([img[0] for img in data])
-    image_n = torch.tensor([img[1] for img in data])
-    vector = torch.tensor([img[2] for img in data])
-
-    return torch.cat((image_0, image_n), dim=1), vector, torch.tensor(targets)
+    data, targets = torch.utils.data.dataloader.default_collate(batch)
+    # data is a list of [image_0, image_1, vector]
+    return torch.cat((data[0], data[1]), dim=1), data[2], targets
 
 
 if args.deterministic:
