@@ -87,6 +87,9 @@ costar_class_dict = {'translation_only': 3,
 costar_inp_channel_dict = {'translation_only': 52,
                            'rotation_only': 55,
                            'all_features': 57}
+costar_vec_size_dict = {'translation_only': 44,
+                        'rotation_only': 49,
+                        'all_features': 49}
 
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
