@@ -26,12 +26,13 @@ import torch.utils.model_zoo as model_zoo
 
 class NetworkResNetCOSTAR(nn.Module):
   # Baseline model based on https://arxiv.org/pdf/1611.08036.pdf
-  def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=55, reduce_spacing=None,
-               mixed_aux=False, op_dict=None, C_mid=None, stem_multiplier=3):
+  def __init__(self, C, num_classes, layers, auxiliary, genotype, in_channels=6, reduce_spacing=None,
+               mixed_aux=False, op_dict=None, C_mid=None, stem_multiplier=3, vector_size=15):
     super(NetworkResNetCOSTAR, self).__init__()
     self._layers = layers
     self._auxiliary = auxiliary
     self._in_channels = in_channels
+    self._vector_size = vector_size
     self.drop_path_prob = 0.
     resnet_linear_count = 2048
     pretrained = True
@@ -51,7 +52,7 @@ class NetworkResNetCOSTAR(nn.Module):
     #   self.auxiliary_head = AuxiliaryHeadImageNet(C_to_auxiliary, num_classes)
     # self.global_pooling = nn.AvgPool2d(7)
     # Input minus the image channels
-    combined_state_size = resnet_linear_count + resnet_linear_count + in_channels - 6
+    combined_state_size = resnet_linear_count + resnet_linear_count + vector_size
     # print('>>>>> C:' + str(C) + ' combined state size: ' + str(combined_state_size))
     # print('>>>>> C:' + str(C) + ' combined state size: ' + str(combined_state_size))
     
@@ -65,18 +66,17 @@ class NetworkResNetCOSTAR(nn.Module):
         nn.Linear(512, num_classes)
     )
 
-  def forward(self, batch_input):
+  def forward(self, img, vec):
     logits_aux = None
-    vector_in = batch_input[:,6:,1,1]
     # print('vector_in: ' + str(vector_in.data))
     # print('pixel_sample: ' + str(batch_input[:,:,1,1]))
-    s0 = self.stem0(batch_input[:,:3,:,:])
-    s1 = self.stem0(batch_input[:,3:6,:,:])
+    s0 = self.stem0(img[:, :3, :, :])
+    s1 = self.stem0(img[:, 3:, :, :])
     # x = torch.cat([s0, s1], dim=1)
     # x = self.global_pooling(x)
     # vector_in = batch_input[:,6:,1,1]
     # out = torch.cat([x, vector_in], dim=-1)
-    out = torch.cat([s0, s1, vector_in], dim=-1)
+    out = torch.cat([s0, s1, vec], dim=-1)
     # print('>>>>>>> out shape: ' + str(out.shape))
     # print('>>>>>>> out shape: ' + str(out.shape))
     logits = self.classifier(out.view(out.size(0), -1))

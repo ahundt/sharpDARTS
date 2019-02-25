@@ -48,7 +48,6 @@ except ImportError:
     ImportError('The costar dataset is not available. '
                 'See https://github.com/ahundt/costar_dataset for details')
 
-from model import NetworkImageNet, NetworkCOSTAR
 from tqdm import tqdm
 import dataset
 import genotypes
@@ -57,7 +56,7 @@ import operations
 import utils
 import warmup_scheduler
 from cosine_power_annealing import cosine_power_annealing
-from costar_baseline_model import NetworkResNetCOSTAR
+from costar_baseline_model import NetworkResNetCOSTAR, NetworkCOSTAR
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -226,11 +225,15 @@ def main():
     # get the number of output channels
     classes = dataset.costar_class_dict[args.feature_mode]
 
-    # create model
-    genotype = eval("genotypes.%s" % args.arch)
-    # create the neural network
-    # model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
-    model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
+    if args.arch == 'NetworkResNetCOSTAR':
+        # baseline model for comparison
+        model = NetworkResNetCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, None, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
+    else:
+        # create model
+        genotype = eval("genotypes.%s" % args.arch)
+        # create the neural network
+        # model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
+        model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
 
     model.drop_path_prob = 0.0
     # if args.pretrained:
