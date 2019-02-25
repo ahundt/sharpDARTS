@@ -84,7 +84,7 @@ inp_channel_dict = {'cifar10': 3,
 costar_class_dict = {'translation_only': 3,
                      'rotation_only': 5,
                      'all_features': 8}
-costar_inp_channel_dict = {'translation_only': 52,
+costar_supercube_inp_channel_dict = {'translation_only': 52,
                            'rotation_only': 55,
                            'all_features': 57}
 costar_vec_size_dict = {'translation_only': 44,

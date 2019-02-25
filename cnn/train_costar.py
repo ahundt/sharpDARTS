@@ -169,9 +169,7 @@ best_combined_error = float('inf')
 args = parser.parse_args()
 logger = None
 
-DATASET_CHANNELS = dataset.costar_inp_channel_dict[args.feature_mode]
 VECTOR_SIZE = dataset.costar_vec_size_dict[args.feature_mode]
-
 
 def fast_collate(batch):
     data, targets = zip(*batch)
@@ -232,7 +230,6 @@ def main():
         # create model
         genotype = eval("genotypes.%s" % args.arch)
         # create the neural network
-        # model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
         model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
 
     model.drop_path_prob = 0.0
@@ -400,7 +397,7 @@ def main():
 
 
 class data_prefetcher():
-    def __init__(self, loader, in_channels, cutout=False, cutout_length=112, cutout_cuts=2):
+    def __init__(self, loader, cutout=False, cutout_length=112, cutout_cuts=2):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
 
@@ -415,7 +412,7 @@ class data_prefetcher():
         try:
             self.next_input_img, self.next_input_vec, self.next_target = next(self.loader)
         except StopIteration:
-            self.next_input_img = None
+            self.next_input_img = self.next_input_vec = None
             self.next_target = None
             return
         with torch.cuda.stream(self.stream):
@@ -451,7 +448,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
     end = time.time()
-    prefetcher = data_prefetcher(train_loader, in_channels=DATASET_CHANNELS, cutout=args.cutout, cutout_length=args.cutout_length)
+    prefetcher = data_prefetcher(train_loader, cutout=args.cutout, cutout_length=args.cutout_length)
 
     cart_error, angle_error = [], []
     input_img, input_vec, target = prefetcher.next()
@@ -534,10 +531,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
                    data_time=data_time, loss=losses, abs_cart=abs_cart_m, abs_angle=abs_angle_m))
     stats = {}
     prefix = 'train_'
-    if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
+    if args.feature_mode != 'rotation_only' and len(cart_error) > 0:  # translation_only or all_features: save cartesian csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
                           cart_error)
-    if args.feature_mode != 'translation_only':  # rotation_only or all_features: save angle csv
+    if args.feature_mode != 'translation_only' and len(angle_error) > 0:  # rotation_only or all_features: save angle csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
                           angle_error)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
@@ -580,7 +577,7 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
     end = time.time()
 
     cart_error, angle_error = [], []
-    prefetcher = data_prefetcher(val_loader, in_channels=DATASET_CHANNELS)
+    prefetcher = data_prefetcher(val_loader)
     input_img, input_vec, target = prefetcher.next()
     batch_size = input_img.size(0)
     i = -1
@@ -715,7 +712,7 @@ def accuracy(output, target):
         output = np.concatenate((output, fake_rotation), 1)
     elif out_channels == 5:  # aaxyz_nsc
         # Format into [batch, 8] by adding fake translations
-        fake_translation = torch.zeros([batch_size, 3], dtype=np.float32)
+        fake_translation = np.zeros([batch_size, 3], dtype=np.float32)
         target = np.concatenate((fake_translation, target), 1)
         output = np.concatenate((fake_translation, output), 1)
     elif out_channels == 8:  # xyz + aaxyz_nsc
