@@ -207,7 +207,7 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
         valid_data = dset.ImageFolder(root=dataset_location, transform=valid_transform, loader = grey_pil_loader)
     elif dataset_name == 'stacking':
         valid_data = costar_dataset.CostarBlockStackingDataset.from_standard_txt(
-                          root=dataset_location, single_batch_cube = False
+                          root=dataset_location, single_batch_cube=False,
                           version=costar_version, set_name=costar_set_name, subset_name=costar_subset_name,
                           split='val', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
                           random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
