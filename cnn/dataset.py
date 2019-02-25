@@ -259,8 +259,9 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
   return train_queue, valid_queue
 
 
-def get_costar_test_queue(dataset_location, costar_set_name, costar_subset_name, collate_fn, costar_version='v0.4', costar_feature_mode=None, costar_output_shape=(224, 224, 3),
-                          costar_random_augmentation=None, costar_one_hot_encoding=True, costar_num_images_per_example=200, batch_size=32, verbose=0):
+def get_costar_test_queue(dataset_location, costar_set_name, costar_subset_name, costar_version='v0.4', costar_feature_mode=None, costar_output_shape=(224, 224, 3),
+                          costar_random_augmentation=None, costar_one_hot_encoding=True, costar_num_images_per_example=200, batch_size=32, verbose=0,
+                          collate_fn=torch.utils.data.dataloader.default_collate):
   # Support for costar block stacking generator implemented by Chia-Hung Lin (rexxarchl)
   # sites.google.com/costardataset
   # https://github.com/ahundt/costar_dataset
