@@ -337,9 +337,8 @@ class NetworkCOSTAR(nn.Module):
     self.global_pooling = nn.AvgPool2d(7)
     self.classifier = nn.Linear(C_prev, num_classes)
 
-  def forward(self, batch_input):
+  def forward(self, img, vector):
     logits_aux = None
-    img, vector = batch_input
     s0 = self.stem0(img)
     s1 = self.stem1(s0)
     v = self.vector_stem(vector)
