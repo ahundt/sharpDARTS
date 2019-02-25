@@ -314,7 +314,7 @@ def main():
 
     if args.evaluate:
         test_loader = dataset.get_costar_test_queue(
-                args.data, costar_set_name=args.set_name, costar_subset_name=args.subset_name,
+                args.data, costar_set_name=args.set_name, costar_subset_name=args.subset_name, collate_fn=fast_collate,
                 costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
                 costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
         validate(test_loader, model, criterion, args, prefix='test_')
