@@ -49,7 +49,7 @@ except ImportError:
     ImportError('The costar dataset is not available. '
                 'See https://github.com/ahundt/costar_dataset for details')
 
-from model import NetworkImageNet, NetworkCOSTAR
+from model import NetworkImageNet
 from tqdm import tqdm
 import dataset
 import genotypes
@@ -176,17 +176,36 @@ args = parser.parse_args()
 logger = None
 
 DATASET_CHANNELS = dataset.costar_inp_channel_dict[args.feature_mode]
-VECTOR_SIZE = dataset.costar_vec_size_dict[args.feature_mode]
-
 
 def fast_collate(batch):
-    data, targets = zip(*batch)
+    # TODO(ahundt) make sure this doen't happen wrong, see dataset reader collate and prefetch
+    imgs = [img[0] for img in batch]
+    # [print(img[0].shape) for img in batch]
+    # [print(img[1].shape) for img in batch]
+    # print('len(imgs):' + str(len(imgs)))
+    # print(imgs[0].shape)
 
-    image_0 = torch.tensor([img[0] for img in data])
-    image_n = torch.tensor([img[1] for img in data])
-    vector = torch.tensor([img[2] for img in data])
+    # for i in range(len(imgs)):
+    #     img = imgs[i]
+    #     # print(img.shape)
+    #     assert np.all(imgs[i][:6, :, :] <= 1) and np.all(imgs[i][:6, :, :] >= -1), "img assertion failed for i={}".format(i)
+    #     assert not np.any(np.isnan(img[6:, :, :])), "vector assertion failed for i={}".format(i)
+    # assert np.all([np.all(imgs[i][:6, :, :] <= 1) and np.all(imgs[i][:6, :, :] >= -1) and not np.any(np.isnan(imgs[i][6:, :, :])) for i in range(len(imgs))])
+    imgs = torch.tensor(imgs, dtype=torch.float)
+    targets = torch.tensor([target[1] for target in batch], dtype=torch.float)
+    # w = imgs[0].shape[1]
+    # h = imgs[0].shape[2]
+    # tensor = torch.zeros((len(imgs), DATASET_CHANNELS, h, w), dtype=torch.uint8)
+    # for i, img in enumerate(imgs):
+    #     nump_array = np.asarray(img, dtype=np.uint8)
+    #     # tens = torch.from_numpy(nump_array)
+    #     if(nump_array.ndim < 3):
+    #         nump_array = np.expand_dims(nump_array, axis=-1)
+    #     # nump_array = np.rollaxis(nump_array, 2)
+    #     tensor[i] += torch.from_numpy(nump_array)
+    return imgs, targets
 
-    return (torch.cat((image_0, image_n), dim=1), vector), torch.tensor(targets)
+# CLASSES = 1000
 
 
 if args.deterministic:
@@ -245,9 +264,8 @@ def main():
         # create model
         genotype = eval("genotypes.%s" % args.arch)
         # create the neural network
-        # model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
-        model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
-
+        model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, in_channels=DATASET_CHANNELS, op_dict=op_dict, C_mid=args.mid_channels)
+    
     model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
@@ -371,7 +389,7 @@ def main():
     train_loader, val_loader = dataset.get_training_queues(
         args.dataset, train_transform, valid_transform, args.data,
         args.batch_size, train_proportion=1.0,
-        collate_fn=fast_collate,
+        # collate_fn=fast_collate, 
         distributed=args.distributed,
         num_workers=args.workers,
         costar_set_name=args.set_name, costar_subset_name=args.subset_name,
@@ -482,17 +500,17 @@ class data_prefetcher():
             self.next_target = None
             return
         with torch.cuda.stream(self.stream):
-            self.next_input = (self.next_input[0].cuda(non_blocking=True), self.next_input[1].cuda(non_blocking=True))
+            self.next_input = self.next_input.cuda(non_blocking=True)
             self.next_target = self.next_target.cuda(non_blocking=True)
             if args.fp16:
-                self.next_input = (self.next_input[0].half(), self.next_input[1].half())
+                self.next_input = self.next_input.half()
                 self.next_target = self.next_target.half()
             else:
-                self.next_input = (self.next_input[0].float(), self.next_input[1].float())
+                self.next_input = self.next_input.float()
                 self.next_target = self.next_target.float()
             if self.cutout is not None:
                 # TODO(ahundt) Fix performance of this cutout call, it makes batch loading time go from 0.001 seconds to 0.05 seconds.
-                self.next_input = (self.cutout(self.next_input[0]), self.next_input[1])
+                self.next_input = self.cutout(self.next_input)
 
     def next(self):
         torch.cuda.current_stream().wait_stream(self.stream)
@@ -572,9 +590,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         else:
             reduced_loss = loss.data
 
-        losses.update(to_python_float(reduced_loss), input[0].size(0))
-        abs_cart_m.update(to_python_float(abs_cart_f), input[0].size(0))
-        abs_angle_m.update(to_python_float(abs_angle_f), input[0].size(0))
+        losses.update(to_python_float(reduced_loss), input.size(0))
+        abs_cart_m.update(to_python_float(abs_cart_f), input.size(0))
+        abs_angle_m.update(to_python_float(abs_angle_f), input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
