@@ -297,6 +297,7 @@ def main():
     # the transform preprocessing list.
     # train_transform, valid_transform = utils.get_data_transforms(args, normalize_as_tensor=False)
     train_transform = valid_transform = None  # NOTE(rexxarchl): data transforms are not applicable for CoSTAR BSD at the moment
+    evaluate = True if args.evaluate else False
     # Get the training queue, select training and validation from training set
     train_loader, val_loader = dataset.get_training_queues(
         args.dataset, train_transform, valid_transform, args.data,
@@ -306,7 +307,7 @@ def main():
         num_workers=args.workers,
         costar_set_name=args.set_name, costar_subset_name=args.subset_name,
         costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
-        costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
+        costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True, evaluate=evaluate)
 
     if args.evaluate:
         # Load the test set

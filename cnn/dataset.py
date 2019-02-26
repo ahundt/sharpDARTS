@@ -97,7 +97,7 @@ COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only'
 def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=1.0, search_architecture=False,
                         costar_version='v0.4', costar_set_name=None, costar_subset_name=None, costar_feature_mode=None, costar_output_shape=(224, 224, 3),
                         costar_random_augmentation=None, costar_one_hot_encoding=True, costar_num_images_per_example=200, distributed=False, num_workers=12,
-                        collate_fn=torch.utils.data.dataloader.default_collate, verbose=0):
+                        collate_fn=torch.utils.data.dataloader.default_collate, verbose=0, evaluate=False):
   print("Getting " + dataset_name + " data")
   if dataset_name == 'imagenet':
     print("Using IMAGENET training set")
@@ -155,7 +155,7 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
                       version=costar_version, set_name=costar_set_name, subset_name=costar_subset_name,
                       split='train', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
                       random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
-                      verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=True)
+                      verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=not evaluate)
 
   else:
     assert False, "Cannot get training queue for dataset"
@@ -223,6 +223,9 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
 
   if distributed:
     train_sampler = torch.utils.data.distributed.DistributedSampler(indices[:split])
+  elif evaluate:
+    print("Evaluate mode! Training set will appear sequentially.")
+    train_sampler = None  # Use default sampler, i.e. Sequential Sampler, when in evaluation
   else:
     train_sampler = torch.utils.data.sampler.SubsetRandomSampler(indices[:split])
   # shuffle does not need to be set to True because
