@@ -397,6 +397,38 @@ def main():
         utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
         logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
 
+        # Do a final evaluation
+        logger.info('Final evaluation')
+        # Load the best model
+        best_model_path = os.path.join(args.save, 'model_best.pth.tar')
+        best_model = torch.load(best_model_path, map_location=lambda storage, loc: storage.cuda(args.gpu))
+        model.load_state_dict(best_model['state_dict'])
+        # optimizer.load_state_dict(best_model['optimizer'])
+        logger.info("=> loaded best_model '{}' from epoch {}".format(best_model_path, best_model['epoch']))
+
+        # Get the train and validation set in evaluate mode
+        train_loader, val_loader = dataset.get_training_queues(
+            args.dataset, train_transform, valid_transform, args.data,
+            args.batch_size, train_proportion=1.0,
+            collate_fn=fast_collate,
+            distributed=args.distributed,
+            num_workers=args.workers,
+            costar_set_name=args.set_name, costar_subset_name=args.subset_name,
+            costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
+            costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True, evaluate=evaluate)
+
+        # Get the test set
+        test_loader = dataset.get_costar_test_queue(
+                args.data, costar_set_name=args.set_name, costar_subset_name=args.subset_name, collate_fn=fast_collate,
+                costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
+                costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
+
+        # Evaluate on all splits, without any augmentation
+        validate(train_loader, model, criterion, args, prefix='best_final_train_')
+        validate(val_loader, model, criterion, args, prefix='best_final_val_')
+        validate(test_loader, model, criterion, args, prefix='best_final_test_')
+        logger.info("Final evaluation complete!")
+
 
 class data_prefetcher():
     def __init__(self, loader, cutout=False, cutout_length=112, cutout_cuts=2):
