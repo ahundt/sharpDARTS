@@ -637,10 +637,10 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
 
     # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(combined_error=combined_error, top5=top5))
-    if args.feature_mode != 'rotation_only':  # translation_only or all_features: save cartesian csv
+    if args.feature_mode != 'rotation_only' and len(cart_error) > 0:  # translation_only or all_features: save cartesian csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_cart_error_output_csv_name),
                           cart_error)
-    if args.feature_mode != 'translation_only':  # rotation_only or all_features: save angle csv
+    if args.feature_mode != 'translation_only' and len(angle_error) > 0:  # rotation_only or all_features: save angle csv
         utils.list_to_csv(os.path.join(args.save, prefix + args.abs_angle_error_output_csv_name),
                           angle_error)
     stats = get_stats(progbar, prefix, args, batch_time, data_time, abs_cart_m, abs_angle_m, losses, speed)
