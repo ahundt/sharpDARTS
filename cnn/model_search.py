@@ -521,14 +521,14 @@ class MultiChannelNetwork(nn.Module):
 
   def _initialize_alphas(self, genotype=None):
     
-    if genotype is None or type(genotype[0]) is not np.str_:
+    if genotype is None or genotype[-1] == 'longest_path':
         init_alpha = 1e-3*torch.randn(self.arch_weights_shape)
     else:
         print("_initialize_alphas with preconfigured weights", genotype[0][0][0][0])
         init_alpha = []
         init_alpha.append(genotype[0])
         init_alpha.append(genotype[2])
-        init_alpha = torch.from_numpy(np.array(init_alpha, dtype=double)).double()
+        init_alpha = torch.from_numpy(np.array(init_alpha)).float()
     if torch.cuda.is_available():
       self._arch_parameters = Variable(init_alpha.cuda(), requires_grad=True)
     else:
