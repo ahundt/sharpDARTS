@@ -431,7 +431,7 @@ def main():
 
 
 class data_prefetcher():
-    def __init__(self, loader, cutout=False, cutout_length=112, cutout_cuts=2):
+    def __init__(self, loader, cutout=False, cutout_length=112, cutout_cuts=1):
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
 
