@@ -329,6 +329,7 @@ def main():
         stats = {}
         epoch_stats = []
         best_epoch = 0
+        logger.info('Initial Learning Rate: ' + str(lr_schedule[0]))
         for epoch, learning_rate in zip(prog_epoch, lr_schedule):
             if args.distributed and train_loader.sampler is not None:
                 train_loader.sampler.set_epoch(int(epoch))
