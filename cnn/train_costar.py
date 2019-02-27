@@ -395,7 +395,7 @@ def main():
         with open(args.epoch_stats_file, 'w') as f:
             json.dump(epoch_stats, f, cls=utils.NumpyEncoder)
         utils.list_of_dicts_to_csv(stats_csv, epoch_stats)
-        logger.info('Training of Final Model Complete! Save dir: ' + str(args.save))
+        logger.info('Training of Final Model Complete!')
 
         # Do a final evaluation
         logger.info('Final evaluation')
@@ -419,15 +419,15 @@ def main():
 
         # Get the test set
         test_loader = dataset.get_costar_test_queue(
-                args.data, costar_set_name=args.set_name, costar_subset_name=args.subset_name, collate_fn=fast_collate,
-                costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
-                costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
+            args.data, costar_set_name=args.set_name, costar_subset_name=args.subset_name, collate_fn=fast_collate,
+            costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
+            costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
 
         # Evaluate on all splits, without any augmentation
         validate(train_loader, model, criterion, args, prefix='best_final_train_')
         validate(val_loader, model, criterion, args, prefix='best_final_val_')
         validate(test_loader, model, criterion, args, prefix='best_final_test_')
-        logger.info("Final evaluation complete!")
+        logger.info("Final evaluation complete! Save dir: ' + str(args.save)")
 
 
 class data_prefetcher():
