@@ -34,6 +34,11 @@ def sort_data_into_bins(csv_filename):
 
     # Load the csv file into numpy array
     epoch_error = np.genfromtxt(csv_filename, delimiter=',')
+    if epoch_error.ndim == 1:
+        # There is only one epoch -- possibly as a result of evaluation
+        # In this case, unsqueeze the first dimension.
+        # For example, from (49300,) to (1, 49300)
+        epoch_error = epoch_error[np.newaxis, :]
     num_epochs, num_examples = epoch_error.shape
     print('- Read {} epochs, each epoch have {} examples'.format(num_epochs, num_examples))
 
