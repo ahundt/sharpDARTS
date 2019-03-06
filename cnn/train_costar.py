@@ -275,7 +275,7 @@ def main():
             if os.path.isfile(args.resume):
                 logger.info("=> loading checkpoint '{}'".format(args.resume))
                 checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu))
-                args.start_epoch = checkpoint['epoch']
+                args.start_epoch = checkpoint['epoch'] + 1
                 if 'best_combined_error' in checkpoint:
                     best_combined_error = checkpoint['best_combined_error']
                 model.load_state_dict(checkpoint['state_dict'])
@@ -330,7 +330,7 @@ def main():
 
     stats_csv = args.epoch_stats_file
     stats_csv = stats_csv.replace('.json', '.csv')
-    with tqdm(epochs, dynamic_ncols=True, disable=args.local_rank != 0, leave=False) as prog_epoch:
+    with tqdm(epochs, dynamic_ncols=True, disable=args.local_rank != 0, leave=False, initial=args.start_epoch) as prog_epoch:
         best_stats = {}
         stats = {}
         epoch_stats = []
