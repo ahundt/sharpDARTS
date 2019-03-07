@@ -34,7 +34,7 @@ def main():
                       cifar10, mnist, emnist, fashion, svhn, stl10, devanagari')
   parser.add_argument('--batch_size', type=int, default=64, help='batch size')
   parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
-  parser.add_argument('--learning_rate_min', type=float, default=1e-3, help='min learning rate')
+  parser.add_argument('--learning_rate_min', type=float, default=1e-8, help='min learning rate')
   parser.add_argument('--lr_power_annealing_exponent_order', type=float, default=2,
                       help='Cosine Power Annealing Schedule Base, larger numbers make '
                            'the exponential more dominant, smaller make cosine more dominant, '
@@ -44,7 +44,7 @@ def main():
   parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
   parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
   parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
-  parser.add_argument('--epochs', type=int, default=1000, help='num of training epochs')
+  parser.add_argument('--epochs', type=int, default=2000, help='num of training epochs')
   parser.add_argument('--start_epoch', default=1, type=int, metavar='N',
                       help='manual epoch number (useful for restarts)')
   parser.add_argument('--warmup_epochs', type=int, default=5, help='num of warmup training epochs')
