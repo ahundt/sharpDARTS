@@ -9,7 +9,6 @@ from genotypes import PRIMITIVES
 from genotypes import Genotype
 import networkx as nx
 from networkx.readwrite import json_graph
-from main_fp16_optimizer import AverageMeter
 import json
 import time
 
@@ -235,6 +234,22 @@ class Network(nn.Module):
     )
     return genotype
 
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
 class MultiChannelNetwork(nn.Module):
 
