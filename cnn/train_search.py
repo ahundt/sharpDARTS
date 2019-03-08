@@ -223,6 +223,8 @@ def main():
         logger.info('Saving updated weight graph: ' + str(graph_filename))
         nx.write_gpickle(cnn_model.G, graph_filename)
         logger.info('optimal_path  : %s', optimal_path)
+        capacity = nx.get_edge_attributes(G, "capacity")
+        logger.info('capacity :%s', capacity)
 
       # for key in cnn_model.state_dict():
       #  updated_state_dict[key] = cnn_model.state_dict()[key].clone()
@@ -251,7 +253,11 @@ def main():
         new_mincost_flow = {}
         for key in mincostFlow:
           dic = mincostFlow[key]
-          new_mincost_flow[key] = {k: v for k, v in dic.items() if v != 0}
+          temp = {k: v for k, v in dic.items() if v != 0}
+          if len(temp)
+          new_mincost_flow[key] = temp
+        capacity = nx.get_edge_attributes(G, "capacity")
+        logger.info('capacity :%s', capacity)
         logger.info('mincostFlow  : %s', new_mincost_flow)
         mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
         np.save(mincostFlow_path_filename, new_mincost_flow)
