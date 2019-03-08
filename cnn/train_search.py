@@ -248,9 +248,12 @@ def main():
         # new best epoch, save weights
         utils.save(cnn_model, weights_file)
         mincostFlow = nx.max_flow_min_cost(cnn_model.G, "Source", "Linear", weight='capacity', capacity='weight')
-        logger.info('mincostFlow  : %s', mincostFlow)
+        new_mincost_flow = {}
+        for key, dic in mincostFlow:
+          new_mincost_flow[key] = {k: v for k, v in dic.items() if v != 0}
+        logger.info('mincostFlow  : %s', new_mincost_flow)
         mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
-        np.save(mincostFlow_path_filename, mincostFlow)
+        np.save(mincostFlow_path_filename, new_mincost_flow)
         graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')
         logger.info('Saving updated weight graph: ' + str(graph_filename))
         best_epoch = epoch

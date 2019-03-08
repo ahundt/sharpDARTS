@@ -490,7 +490,7 @@ class MultiChannelNetwork(nn.Module):
                       x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                     elif self._weighting_algorithm == 'max_w':
                       x = (1. - max_w + w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
-                      self.G[name][out_node]["weight"] = (1. - max_w + w)
+                      # self.G[name][out_node]["weight"] = (1. - max_w + w)
                     else:
                       raise ValueError(
                         'MultiChannelNetwork.forward(): Unsupported weighting algorithm: ' +
