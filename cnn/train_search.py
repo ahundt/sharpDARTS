@@ -249,7 +249,8 @@ def main():
         utils.save(cnn_model, weights_file)
         mincostFlow = nx.max_flow_min_cost(cnn_model.G, "Source", "Linear", weight='capacity', capacity='weight')
         new_mincost_flow = {}
-        for key, dic in mincostFlow:
+        for key in mincostFlow:
+          dic = mincostFlow[key]
           new_mincost_flow[key] = {k: v for k, v in dic.items() if v != 0}
         logger.info('mincostFlow  : %s', new_mincost_flow)
         mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
