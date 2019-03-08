@@ -255,7 +255,7 @@ def main():
           dic = mincostFlow[key]
           temp = {k: v for k, v in dic.items() if v != 0}
           if len(temp):
-          new_mincost_flow[key] = temp
+            new_mincost_flow[key] = temp
         capacity = nx.get_edge_attributes(G, "capacity")
         logger.info('capacity :%s', capacity)
         logger.info('mincostFlow  : %s', new_mincost_flow)
