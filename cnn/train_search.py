@@ -250,7 +250,7 @@ def main():
         mincostFlow = nx.max_flow_min_cost(cnn_model.G, "Source", "Linear", weight='capacity', capacity='weight')
         logger.info('mincostFlow  : %s', optimal_path)
         mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
-        graph_filename = os.path.join(args.save, 'network_graph_' + str(epoch) + '.graph')
+        graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')
         logger.info('Saving updated weight graph: ' + str(graph_filename))
         best_epoch = epoch
         best_valid_acc = valid_acc
