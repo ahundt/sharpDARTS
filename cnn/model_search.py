@@ -9,7 +9,9 @@ from genotypes import PRIMITIVES
 from genotypes import Genotype
 import networkx as nx
 from networkx.readwrite import json_graph
+from main_fp16_optimizer import AverageMeter
 import json
+import time
 
 
 class MixedOp(nn.Module):
@@ -312,11 +314,13 @@ class MultiChannelNetwork(nn.Module):
     else:
         self.stem = nn.ModuleList()
         self.G = nx.DiGraph()
+        self.G.add_node("Source")
         for i, c in enumerate(self.Cs):
           s = nn.Sequential(
             nn.Conv2d(int(in_channels), int(c), 3, padding=1, bias=False),
             nn.BatchNorm2d(c)
           )
+          self.G.add_edge("Source", "Conv3x3_"+str(i))
           self.G.add_node("Conv3x3_"+str(i))
           self.G.add_node("BatchNorm_"+str(i))
           self.G.add_edge("Conv3x3_"+str(i), "BatchNorm_"+str(i))
@@ -426,9 +430,12 @@ class MultiChannelNetwork(nn.Module):
     # Duplicate s0s to account for 2 different strides
     # s0s += [[]]
     # s1s = [None] * layers + 1
+    time_between_layers = AverageMeter()
+    end_time = time.time()
     for layer in range(self._layers):
       # layer is how many times we've called everything, i.e. the number of "layers"
       # this is different from the number of layer types which is len([SharpSepConv, ResizablePool]) == 2
+      layer_st_time = time.time()
       for stride_idx in self.strides:
         stride = 1 + stride_idx
         # we don't pass the gradient along max_w because it is the weight for a different operation.
@@ -442,8 +449,12 @@ class MultiChannelNetwork(nn.Module):
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
           out_node = 'layer_'+str(layer)+' add '+'c_out'+str(C_out)
           c_outs = []
+          time_between_layers.update(time.time() - end_time)
+          time_in_layers = AverageMeter()
           for C_in_idx, C_in in enumerate(self.Cs):
             for op_type_idx, OpType in enumerate(self.op_types):
+
+              op_st_time = time.time()
               # get the specific weight for this op
               name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(OpType.__name__)
               if not self._visualization:
@@ -464,6 +475,7 @@ class MultiChannelNetwork(nn.Module):
                       x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                     elif self._weighting_algorithm == 'max_w':
                       x = (1. - max_w + w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                      self.G[name][out_node]["weight"] = (1. - max_w + w)
                     else:
                       raise ValueError(
                         'MultiChannelNetwork.forward(): Unsupported weighting algorithm: ' +
@@ -472,6 +484,10 @@ class MultiChannelNetwork(nn.Module):
                     # doing visualization, skip the weights
                     x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                   c_outs += [x]
+                time_in_layers.update(time.time() - op_st_time)
+                self.G[name][out_node]["capacity"] = time_in_layers.avg + time_between_layers.avg
+                end_time = time.time()
+
           # only apply updates to layers of sufficient quality
           if c_outs:
             # print('combining c_outs forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
