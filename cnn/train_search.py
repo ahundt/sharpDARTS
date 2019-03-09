@@ -250,7 +250,7 @@ def main():
         # new best epoch, save weights
         capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
         weight = nx.get_edge_attributes(cnn_model.G, "weight")
-        for u,v,d in cnn.model.G.edges(data=True):
+        for u, v, d in cnn_model.G.edges(data=True):
           if "capacity" in d:
             d['capacity'] = int(d['capacity']*1e+6)
           if "weight" in d:
