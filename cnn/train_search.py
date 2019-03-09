@@ -248,6 +248,13 @@ def main():
 
       if valid_acc > best_valid_acc:
         # new best epoch, save weights
+        capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
+        weight = nx.get_edge_attributes(cnn_model.G, "weight")
+        for u,v,d in cnn.model.G.edges(data=True):
+          if "capacity" in d:
+            d['capacity'] = int(d['capacity']*1e+6)
+          if "weight" in d:
+            d['weight'] = int(d['weight']*1e+8)
         utils.save(cnn_model, weights_file)
         mincostFlow = nx.max_flow_min_cost(cnn_model.G, "Source", "Linear", weight='capacity', capacity='weight')
         new_mincost_flow = {}
