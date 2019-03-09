@@ -252,7 +252,7 @@ def main():
         weight = nx.get_edge_attributes(cnn_model.G, "weight")
         for u, v, d in cnn_model.G.edges(data=True):
           if "capacity" in d:
-            d['capacity'] = int(d['capacity']*1e+3)
+            d['capacity'] = int(d['capacity']*1e+4)
           if "weight" in d:
             d['weight'] = int(d['weight']*1e+5)
         utils.save(cnn_model, weights_file)
