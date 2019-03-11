@@ -379,7 +379,7 @@ class MultiChannelNetwork(nn.Module):
         self.base = nn.ModuleList()
         self.G.add_node("add-SharpSep")
         for C_out_idx in range(self.C_size):
-            self.G.add_edge('layer_'+str(self._layers-1)+' add '+'c_out'+str(self.Cs[C_out_idx]), "Add-SharpSep")
+            self.G.add_edge('layer_'+str(self._layers-1)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(self.strides[-1]), "Add-SharpSep")
         for c in self.Cs:
           self.G.add_node("SharpSepConv" + str(c))
           out_node = 'layer_'+str(self._layers-1)+' add '+'c_out'+str(c)
