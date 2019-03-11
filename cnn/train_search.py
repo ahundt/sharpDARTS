@@ -137,6 +137,14 @@ def main():
     cnn_model = model_search.MultiChannelNetwork(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
       weighting_algorithm=args.weighting_algorithm, genotype=genotype)
+    if args.load_genotype is not None:
+      # TODO(ahundt) support other batch shapes
+      data_shape = [1, 3, 32, 32]
+      batch = torch.zeros(data_shape)
+      cnn_model(batch)
+      logger.info("loaded genotype_raw_weights = " + str(cnn_model.genotype('raw_weights')))
+      logger.info("loaded genotype_longest_path = " + str(cnn_model.genotype('longest_path')))
+      # TODO(ahundt) support other layouts
   else:
     cnn_model = model_search.Network(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
