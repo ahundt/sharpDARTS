@@ -17,6 +17,7 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 from model import NetworkCIFAR as Network
 from tqdm import tqdm
+import flops_counter
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")
@@ -60,6 +61,25 @@ params_path = os.path.join(args.save, 'commandline_args.json')
 with open(params_path, 'w') as f:
     json.dump(vars(args), f)
 
+
+def count_parameters_in_MB(model):
+  return np.sum(np.prod(v.size()) for name, v in model.named_parameters() if "auxiliary" not in name)/1e6
+
+
+def count_model_flops(cnn_model, data_shape=[1, 3, 32, 32]):
+  cnn_model_flops = cnn_model
+  batch = torch.zeros(data_shape)
+  if torch.cuda.is_available():
+    batch = batch.cuda()
+  cnn_model_flops = flops_counter.add_flops_counting_methods(cnn_model)
+  cnn_model_flops.eval().start_flops_count()
+  out = cnn_model_flops(batch)
+  cnn_model_flops.stop_flops_count()
+  flops_str = flops_counter.flops_to_string(cnn_model.compute_average_flops_cost())
+  del cnn_model_flops
+  del batch
+  return flops_str
+
 def main():
   if not torch.cuda.is_available():
     logging.info('no gpu device available')
@@ -79,7 +99,13 @@ def main():
   cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype)
   cnn_model = cnn_model.cuda()
 
-  logging.info("param size = %fMB", utils.count_parameters_in_MB(cnn_model))
+  if args.flops:
+    flops_shape = [1, 3, 32, 32]
+    logging.info('flops_shape = ' + str(flops_shape))
+    logging.info("flops = " + count_model_flops(cnn_model, data_shape=flops_shape))
+    return
+
+  logging.info("param size = %fMB", count_parameters_in_MB(cnn_model))
 
   criterion = nn.CrossEntropyLoss()
   criterion = criterion.cuda()
