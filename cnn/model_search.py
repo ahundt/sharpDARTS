@@ -342,9 +342,10 @@ class MultiChannelNetwork(nn.Module):
           self.G.add_edge("Conv3x3_"+str(i), "BatchNorm_"+str(i))
           self.stem.append(s)
         for layer_idx in range(self._layers):
-            for C_out_idx in range(self.C_size):
-                out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(self.Cs[C_out_idx])
-                self.G.add_node(out_node)
+            for stride_idx in self.strides:
+                for C_out_idx in range(self.C_size):
+                    out_node = 'layer_'+str(layer_idx)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(stride_idx+1)
+                    self.G.add_node(out_node)
         self.op_grid = nn.ModuleList()
         for layer_idx in range(self._layers):
           stride_modules = nn.ModuleList()
@@ -354,7 +355,7 @@ class MultiChannelNetwork(nn.Module):
               out_modules = nn.ModuleList()
               # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
               for C_out_idx in range(self.C_size):
-                out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(self.Cs[C_out_idx])
+                out_node = 'layer_'+str(layer_idx)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(stride_idx+1)
                 type_modules = nn.ModuleList()
                 for OpType in self.op_types:
                   cin = C_in[C_in_idx][C_out_idx]
@@ -365,7 +366,7 @@ class MultiChannelNetwork(nn.Module):
                   if layer_idx == 0:
                     self.G.add_edge("BatchNorm_"+str(C_in_idx), name)
                   else:
-                    self.G.add_edge('layer_' + str(layer_idx-1)+' add ' + 'c_out'+str(self.Cs[C_in_idx]), name)
+                    self.G.add_edge('layer_' + str(layer_idx-1)+'_add_' + 'c_out'+str(self.Cs[C_in_idx]), name)+'_stride_' + str(self.strides[-1] if stride_idx else stride_idx)
                   self.G.add_edge(name, out_node)
                   op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
                   type_modules.append(op)
@@ -464,7 +465,7 @@ class MultiChannelNetwork(nn.Module):
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
-          out_node = 'layer_'+str(layer)+' add '+'c_out'+str(C_out)
+          out_node = 'layer_'+str(layer)+'_add_'+'c_out'+str(C_out)+'_stride_' + str(stride_idx+1)
           c_outs = []
           time_between_layers.update(time.time() - end_time)
           time_in_layers = AverageMeter()
