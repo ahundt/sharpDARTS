@@ -10,6 +10,7 @@ from genotypes import Genotype
 import networkx as nx
 from networkx.readwrite import json_graph
 import json
+import time
 
 
 class MixedOp(nn.Module):
@@ -233,6 +234,22 @@ class Network(nn.Module):
     )
     return genotype
 
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
 class MultiChannelNetwork(nn.Module):
 
@@ -312,19 +329,23 @@ class MultiChannelNetwork(nn.Module):
     else:
         self.stem = nn.ModuleList()
         self.G = nx.DiGraph()
+        self.G.add_node("Source")
         for i, c in enumerate(self.Cs):
           s = nn.Sequential(
             nn.Conv2d(int(in_channels), int(c), 3, padding=1, bias=False),
             nn.BatchNorm2d(c)
           )
+          self.G.add_edge("Source", "Conv3x3_"+str(i))
+          self.G["Source"]["Conv3x3_"+str(i)]["weight"] = 600
           self.G.add_node("Conv3x3_"+str(i))
           self.G.add_node("BatchNorm_"+str(i))
           self.G.add_edge("Conv3x3_"+str(i), "BatchNorm_"+str(i))
           self.stem.append(s)
         for layer_idx in range(self._layers):
-            for C_out_idx in range(self.C_size):
-                out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(self.Cs[C_out_idx])
-                self.G.add_node(out_node)
+            for stride_idx in self.strides:
+                for C_out_idx in range(self.C_size):
+                    out_node = 'layer_'+str(layer_idx)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(stride_idx+1)
+                    self.G.add_node(out_node)
         self.op_grid = nn.ModuleList()
         for layer_idx in range(self._layers):
           stride_modules = nn.ModuleList()
@@ -334,7 +355,7 @@ class MultiChannelNetwork(nn.Module):
               out_modules = nn.ModuleList()
               # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
               for C_out_idx in range(self.C_size):
-                out_node = 'layer_'+str(layer_idx)+' add '+'c_out'+str(self.Cs[C_out_idx])
+                out_node = 'layer_'+str(layer_idx)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(stride_idx+1)
                 type_modules = nn.ModuleList()
                 for OpType in self.op_types:
                   cin = C_in[C_in_idx][C_out_idx]
@@ -345,7 +366,7 @@ class MultiChannelNetwork(nn.Module):
                   if layer_idx == 0:
                     self.G.add_edge("BatchNorm_"+str(C_in_idx), name)
                   else:
-                    self.G.add_edge('layer_' + str(layer_idx-1)+' add ' + 'c_out'+str(self.Cs[C_in_idx]), name)
+                    self.G.add_edge('layer_' + str(layer_idx-1)+'_add_' + 'c_out'+str(self.Cs[C_in_idx]), name)+'_stride_' + str(self.strides[-1] if stride_idx else stride_idx)
                   self.G.add_edge(name, out_node)
                   op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
                   type_modules.append(op)
@@ -381,6 +402,7 @@ class MultiChannelNetwork(nn.Module):
         self.G.add_edge("add-SharpSep", "global_pooling")
         self.G.add_node("Linear")
         self.G.add_edge("global_pooling", "Linear")
+        self.G["global_pooling"]["Linear"]["weight"] = 800
         # print("Nodes in graph")
         # print(self.G.nodes())
         # print("Edges in graph")
@@ -426,9 +448,12 @@ class MultiChannelNetwork(nn.Module):
     # Duplicate s0s to account for 2 different strides
     # s0s += [[]]
     # s1s = [None] * layers + 1
+    time_between_layers = AverageMeter()
+    end_time = time.time()
     for layer in range(self._layers):
       # layer is how many times we've called everything, i.e. the number of "layers"
       # this is different from the number of layer types which is len([SharpSepConv, ResizablePool]) == 2
+      layer_st_time = time.time()
       for stride_idx in self.strides:
         stride = 1 + stride_idx
         # we don't pass the gradient along max_w because it is the weight for a different operation.
@@ -440,16 +465,20 @@ class MultiChannelNetwork(nn.Module):
         for C_out_idx, C_out in enumerate(self.Cs):
           # take all the layers with the same output so we can sum them
           # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
-          out_node = 'layer_'+str(layer)+' add '+'c_out'+str(C_out)
+          out_node = 'layer_'+str(layer)+'_add_'+'c_out'+str(C_out)+'_stride_' + str(stride_idx+1)
           c_outs = []
+          time_between_layers.update(time.time() - end_time)
+          time_in_layers = AverageMeter()
           for C_in_idx, C_in in enumerate(self.Cs):
             for op_type_idx, OpType in enumerate(self.op_types):
+
+              op_st_time = time.time()
               # get the specific weight for this op
               name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(OpType.__name__)
               if not self._visualization:
                 w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
                 # self.G.add_edge(name, out_node, {weight: w})
-                self.G[name][out_node]["weight"] = w
+                self.G[name][out_node]["weight"] = float(w.clone().cpu().detach().numpy())
               # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
@@ -464,6 +493,7 @@ class MultiChannelNetwork(nn.Module):
                       x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                     elif self._weighting_algorithm == 'max_w':
                       x = (1. - max_w + w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
+                      # self.G[name][out_node]["weight"] = (1. - max_w + w)
                     else:
                       raise ValueError(
                         'MultiChannelNetwork.forward(): Unsupported weighting algorithm: ' +
@@ -472,6 +502,10 @@ class MultiChannelNetwork(nn.Module):
                     # doing visualization, skip the weights
                     x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][op_type_idx](s)
                   c_outs += [x]
+                time_in_layers.update(time.time() - op_st_time)
+                self.G[name][out_node]["capacity"] = time_in_layers.avg + time_between_layers.avg
+                end_time = time.time()
+
           # only apply updates to layers of sufficient quality
           if c_outs:
             # print('combining c_outs forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
@@ -521,14 +555,14 @@ class MultiChannelNetwork(nn.Module):
 
   def _initialize_alphas(self, genotype=None):
     
-    if genotype is None or type(genotype[0]) is not np.str_:
+    if genotype is None or genotype[-1] == 'longest_path':
         init_alpha = 1e-3*torch.randn(self.arch_weights_shape)
     else:
         print("_initialize_alphas with preconfigured weights", genotype[0][0][0][0])
         init_alpha = []
         init_alpha.append(genotype[0])
         init_alpha.append(genotype[2])
-        init_alpha = torch.from_numpy(np.array(init_alpha, dtype=double)).double()
+        init_alpha = torch.from_numpy(np.array(init_alpha)).float()
     if torch.cuda.is_available():
       self._arch_parameters = Variable(init_alpha.cuda(), requires_grad=True)
     else:
