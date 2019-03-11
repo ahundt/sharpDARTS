@@ -266,7 +266,7 @@ def main():
             new_mincost_flow[key] = temp
         capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
         logger.info('capacity :%s', capacity)
-        logger.info('weight :%s', capacity)
+        logger.info('weight :%s', weight)
         logger.info('mincostFlow  : %s', new_mincost_flow)
         mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
         np.save(mincostFlow_path_filename, new_mincost_flow)
