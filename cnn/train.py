@@ -103,6 +103,7 @@ def main():
   logging.info("param size = %fMB", count_parameters_in_MB(cnn_model))
   if args.flops:
     flops_shape = [1, 3, 32, 32]
+    cnn_model.drop_path_prob = 0.0
     logging.info('flops_shape = ' + str(flops_shape))
     logging.info("flops = " + count_model_flops(cnn_model, data_shape=flops_shape))
     return
