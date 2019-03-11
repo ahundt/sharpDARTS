@@ -336,6 +336,7 @@ class MultiChannelNetwork(nn.Module):
             nn.BatchNorm2d(c)
           )
           self.G.add_edge("Source", "Conv3x3_"+str(i))
+          self.G["Source"]["Conv3x3_"+str(i)]["weight"] = 2000
           self.G.add_node("Conv3x3_"+str(i))
           self.G.add_node("BatchNorm_"+str(i))
           self.G.add_edge("Conv3x3_"+str(i), "BatchNorm_"+str(i))
@@ -400,6 +401,7 @@ class MultiChannelNetwork(nn.Module):
         self.G.add_edge("add-SharpSep", "global_pooling")
         self.G.add_node("Linear")
         self.G.add_edge("global_pooling", "Linear")
+        self.G["global_pooling"]["Linear"]["weight"] = 3000
         # print("Nodes in graph")
         # print(self.G.nodes())
         # print("Edges in graph")
