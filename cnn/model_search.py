@@ -477,7 +477,7 @@ class MultiChannelNetwork(nn.Module):
               if not self._visualization:
                 w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
                 # self.G.add_edge(name, out_node, {weight: w})
-                self.G[name][out_node]["weight"] = w
+                self.G[name][out_node]["weight"] = w.clone().cpu().numpy()
               # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
