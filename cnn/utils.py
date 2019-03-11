@@ -94,6 +94,15 @@ def list_of_dicts_to_csv(filename, list_of_dicts):
         w.writerow(d)
 
 
+def list_to_csv(filename, l, write=True):
+    if not write:
+        print('list_to_csv: Output list of length {} to file {}. Set `write` to True to actually write to file.'.format(len(l), filename))
+    else:
+        with open(filename, 'a') as f:
+            w = csv.writer(f)
+            w.writerow(l)
+
+
 def logging_setup(log_file_path):
     """ setup logging to a file and support for tqdm progress bar
 

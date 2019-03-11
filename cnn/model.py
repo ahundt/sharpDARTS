@@ -284,8 +284,6 @@ class NetworkImageNet(nn.Module):
     return logits, logits_aux
 
 
-
-
 class NoisyLinear(nn.Module):
   """ Factorised NoisyLinear layer with bias
   Reference: Rainbow: Combining Improvements in Deep Reinforcement Learning https://arxiv.org/abs/1710.02298
