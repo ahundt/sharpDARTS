@@ -50,6 +50,7 @@ parser.add_argument('--arch', type=str, default='DARTS', help='which architectur
 parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
 parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
+parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
 args = parser.parse_args()
 
 args.save = 'eval-{}-{}-{}-{}'.format(time.strftime("%Y%m%d-%H%M%S"), args.save, args.dataset, args.arch)
