@@ -83,7 +83,7 @@ def count_model_flops(cnn_model, data_shape=[1, 3, 32, 32]):
 
 def main():
   if not torch.cuda.is_available():
-    logging.info('no gpu device available')
+    logger.info('no gpu device available')
     sys.exit(1)
 
   np.random.seed(args.seed)
@@ -92,20 +92,20 @@ def main():
   torch.manual_seed(args.seed)
   cudnn.enabled=True
   torch.cuda.manual_seed(args.seed)
-  logging.info('gpu device = %d' % args.gpu)
-  logging.info("args = %s", args)
+  logger.info('gpu device = %d' % args.gpu)
+  logger.info("args = %s", args)
   CIFAR_CLASSES = 10
 
   genotype = eval("genotypes.%s" % args.arch)
   cnn_model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, genotype)
   cnn_model = cnn_model.cuda()
 
-  logging.info("param size = %fMB", count_parameters_in_MB(cnn_model))
+  logger.info("param size = %fMB", count_parameters_in_MB(cnn_model))
   if args.flops:
     flops_shape = [1, 3, 32, 32]
     cnn_model.drop_path_prob = 0.0
-    logging.info('flops_shape = ' + str(flops_shape))
-    logging.info("flops = " + count_model_flops(cnn_model, data_shape=flops_shape))
+    logger.info('flops_shape = ' + str(flops_shape))
+    logger.info("flops = " + count_model_flops(cnn_model, data_shape=flops_shape))
     return
 
   criterion = nn.CrossEntropyLoss()
