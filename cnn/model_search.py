@@ -336,7 +336,7 @@ class MultiChannelNetwork(nn.Module):
             nn.BatchNorm2d(c)
           )
           self.G.add_edge("Source", "Conv3x3_"+str(i))
-          self.G["Source"]["Conv3x3_"+str(i)]["weight"] = 2000
+          self.G["Source"]["Conv3x3_"+str(i)]["weight"] = 600
           self.G.add_node("Conv3x3_"+str(i))
           self.G.add_node("BatchNorm_"+str(i))
           self.G.add_edge("Conv3x3_"+str(i), "BatchNorm_"+str(i))
@@ -401,7 +401,7 @@ class MultiChannelNetwork(nn.Module):
         self.G.add_edge("add-SharpSep", "global_pooling")
         self.G.add_node("Linear")
         self.G.add_edge("global_pooling", "Linear")
-        self.G["global_pooling"]["Linear"]["weight"] = 3000
+        self.G["global_pooling"]["Linear"]["weight"] = 800
         # print("Nodes in graph")
         # print(self.G.nodes())
         # print("Edges in graph")
@@ -477,7 +477,7 @@ class MultiChannelNetwork(nn.Module):
               if not self._visualization:
                 w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
                 # self.G.add_edge(name, out_node, {weight: w})
-                self.G[name][out_node]["weight"] = w.clone().cpu().numpy()
+                self.G[name][out_node]["weight"] = w.clone().cpu().detach().numpy()
               # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)
