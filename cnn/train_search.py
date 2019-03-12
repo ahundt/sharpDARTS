@@ -137,6 +137,7 @@ def main():
     cnn_model = model_search.MultiChannelNetwork(
       args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
       weighting_algorithm=args.weighting_algorithm, genotype=genotype)
+    save_graph(cnn_model.G, os.path.join(args.save, 'network_graph.pdf'))
     if args.load_genotype is not None:
       # TODO(ahundt) support other batch shapes
       data_shape = [1, 3, 32, 32]
@@ -376,7 +377,18 @@ def infer(valid_queue, model, criterion):
 
   return top1.avg, objs.avg
 
+def save_graph(G, file_name):
+  pos=graphviz_layout(G, prog='dot')
+  plt.figure(figsize=(160, 180))
+  nx.draw_networkx_nodes(G, pos, node_shape="s",nodelist=G.nodes(),node_size=1000, linewidths=0.1, vmin=0, vmax=1, alpha=1)
+  nx.draw_networkx_edges(G, pos, edgelist=G.edges(),width=1, edge_color="black", alpha=0.8)
+  nx.draw_networkx_labels(G, pos, font_size=8, font_family='sans-serif')
+  # figure(num=1, figsize=(100, 80), dpi=1000, facecolor='w', edgecolor='k')
+  # plt.figure(1,figsize=(1200,1200))
+  plt.axis('off')
+  plt.tight_layout()
+  plt.savefig(file_name)
+
 
 if __name__ == '__main__':
   main()
-
