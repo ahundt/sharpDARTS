@@ -303,7 +303,7 @@ class MultiChannelNetwork(nn.Module):
     self.op_types = [operations.SharpSepConv, operations.ResizablePool]
     if self._genotype is not None and type(self._genotype[0]) is np.str_:
         model = self._genotype[np.flatnonzero(np.core.defchararray.find(self._genotype, 'add') == -1)]
-        root_ch = self.Cs[int(model[0][-1])]
+        root_ch = self.Cs[int(model[1][-1])]
         self.stem = nn.ModuleList()
         s = nn.Sequential(
             nn.Conv2d(int(in_channels), root_ch, 3, padding=1, bias=False),
@@ -313,7 +313,7 @@ class MultiChannelNetwork(nn.Module):
         c_out = 0
         # TODO(ahundt) switch back to primitives parameter and ops dict like in Network
         ops = {'SharpSepConv': 0, 'ResizablePool': 1}
-        for layers in model[2:-4]:
+        for layers in model[3:-4]:
             layer = layers.split("_")
             OpType = self.op_types[ops[layer[-1]]]
             stride = layer[3]
@@ -365,8 +365,10 @@ class MultiChannelNetwork(nn.Module):
                   self.G.add_node(name)
                   if layer_idx == 0 and stride_idx == 0:
                     self.G.add_edge("BatchNorm_"+str(C_in_idx), name)
+                  elif stride_idx > 0 or layer_idx == 0:
+                    self.G.add_edge('layer_' + str(layer_idx)+'_add_' + 'c_out'+str(self.Cs[C_in_idx])+'_stride_' + str(stride_idx), name)
                   else:
-                    self.G.add_edge('layer_' + str(layer_idx-1)+'_add_' + 'c_out'+str(self.Cs[C_in_idx])+'_stride_' + str(self.strides[-1] + 1 if stride_idx == 0 else stride_idx), name)
+                    self.G.add_edge('layer_' + str(layer_idx-1)+'_add_' + 'c_out'+str(self.Cs[C_in_idx])+'_stride_' + str(self.strides[-1] + 1), name)
                   self.G.add_edge(name, out_node)
                   op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
                   type_modules.append(op)
@@ -378,6 +380,7 @@ class MultiChannelNetwork(nn.Module):
 
         self.base = nn.ModuleList()
         self.G.add_node("add-SharpSep")
+
         # for C_out_idx in range(self.C_size):
         #   self.G.add_edge('layer_'+str(self._layers-1)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(self.strides[-1] + 1), "Add-SharpSep")
         for c in self.Cs:
