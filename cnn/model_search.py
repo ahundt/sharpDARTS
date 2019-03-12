@@ -303,7 +303,7 @@ class MultiChannelNetwork(nn.Module):
     self.op_types = [operations.SharpSepConv, operations.ResizablePool]
     if self._genotype is not None and type(self._genotype[0]) is np.str_:
         model = self._genotype[np.flatnonzero(np.core.defchararray.find(self._genotype, 'add') == -1)]
-        root_ch = self.Cs[int(model[0][-1])]
+        root_ch = self.Cs[int(model[1][-1])]
         self.stem = nn.ModuleList()
         s = nn.Sequential(
             nn.Conv2d(int(in_channels), root_ch, 3, padding=1, bias=False),
@@ -313,7 +313,7 @@ class MultiChannelNetwork(nn.Module):
         c_out = 0
         # TODO(ahundt) switch back to primitives parameter and ops dict like in Network
         ops = {'SharpSepConv': 0, 'ResizablePool': 1}
-        for layers in model[2:-4]:
+        for layers in model[3:-4]:
             layer = layers.split("_")
             OpType = self.op_types[ops[layer[-1]]]
             stride = layer[3]
