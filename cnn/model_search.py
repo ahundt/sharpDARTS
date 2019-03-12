@@ -363,10 +363,10 @@ class MultiChannelNetwork(nn.Module):
                   # print('cin: ' + str(cin) + ' cout: ' + str(cout))
                   name = 'layer_' + str(layer_idx) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(self.Cs[C_in_idx]) + '_c_out_' + str(self.Cs[C_out_idx]) + '_op_type_' + str(OpType.__name__)
                   self.G.add_node(name)
-                  if layer_idx == 0:
+                  if layer_idx == 0 and stride_idx == 0:
                     self.G.add_edge("BatchNorm_"+str(C_in_idx), name)
                   else:
-                    self.G.add_edge('layer_' + str(layer_idx-1)+'_add_' + 'c_out'+str(self.Cs[C_in_idx]), name)+'_stride_' + str(self.strides[-1] if stride_idx else stride_idx)
+                    self.G.add_edge('layer_' + str(layer_idx-1)+'_add_' + 'c_out'+str(self.Cs[C_in_idx])+'_stride_' + str(self.strides[-1] + 1 if stride_idx == 0 else stride_idx), name)
                   self.G.add_edge(name, out_node)
                   op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
                   type_modules.append(op)
@@ -378,11 +378,12 @@ class MultiChannelNetwork(nn.Module):
 
         self.base = nn.ModuleList()
         self.G.add_node("add-SharpSep")
-        for C_out_idx in range(self.C_size):
-            self.G.add_edge('layer_'+str(self._layers-1)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(self.strides[-1]), "Add-SharpSep")
+
+        # for C_out_idx in range(self.C_size):
+        #   self.G.add_edge('layer_'+str(self._layers-1)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(self.strides[-1] + 1), "Add-SharpSep")
         for c in self.Cs:
           self.G.add_node("SharpSepConv" + str(c))
-          out_node = 'layer_'+str(self._layers-1)+' add '+'c_out'+str(c)
+          out_node = 'layer_'+str(self._layers-1)+'_add_'+'c_out'+str(c)+'_stride_' + str(self.strides[-1] + 1)
           self.G.add_edge("SharpSepConv" + str(c), "add-SharpSep")
           self.G.add_edge(out_node, "SharpSepConv" + str(c))
           self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
