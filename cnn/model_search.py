@@ -365,10 +365,10 @@ class MultiChannelNetwork(nn.Module):
                   self.G.add_node(name)
                   if layer_idx == 0 and stride_idx == 0:
                     self.G.add_edge("BatchNorm_"+str(C_in_idx), name)
-                  elif stride_idx > 0:
+                  elif stride_idx > 0 or layer_idx == 0:
                     self.G.add_edge('layer_' + str(layer_idx)+'_add_' + 'c_out'+str(self.Cs[C_in_idx])+'_stride_' + str(stride_idx), name)
                   else:
-                    self.G.add_edge('layer_' + str(layer_idx-1)+'_add_' + 'c_out'+str(self.Cs[C_in_idx])+'_stride_' + str(self.strides[-1]), name)
+                    self.G.add_edge('layer_' + str(layer_idx-1)+'_add_' + 'c_out'+str(self.Cs[C_in_idx])+'_stride_' + str(self.strides[-1] + 1), name)
                   self.G.add_edge(name, out_node)
                   op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
                   type_modules.append(op)
