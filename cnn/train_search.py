@@ -29,6 +29,7 @@ import operations
 import genotypes
 import dataset
 from cosine_power_annealing import cosine_power_annealing
+import matplotlib.pyplot as plt
 try:
     import pygraphviz
     from networkx.drawing.nx_agraph import graphviz_layout
