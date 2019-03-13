@@ -29,6 +29,15 @@ import operations
 import genotypes
 import dataset
 from cosine_power_annealing import cosine_power_annealing
+try:
+    import pygraphviz
+    from networkx.drawing.nx_agraph import graphviz_layout
+except ImportError:
+    try:
+        import pydotplus
+        from networkx.drawing.nx_pydot import graphviz_layout
+    except ImportError:
+        raise ImportError("Needs PyGraphviz or PyDotPlus to generate graph visualization")
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")
