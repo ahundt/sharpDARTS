@@ -155,6 +155,7 @@ def main():
       cnn_model(batch)
       logger.info("loaded genotype_raw_weights = " + str(cnn_model.genotype('raw_weights')))
       logger.info("loaded genotype_longest_path = " + str(cnn_model.genotype('longest_path')))
+      logger.info("loaded genotype greedy_path = "+ gen_greedy_path(cnn_model.G))
       # TODO(ahundt) support other layouts
   else:
     cnn_model = model_search.Network(
@@ -398,6 +399,31 @@ def save_graph(G, file_name):
   plt.axis('off')
   plt.tight_layout()
   plt.savefig(file_name)
+
+def gen_greedy_path(G):
+  start_ = "Source"
+  wt = 0
+  current_node = "Source"
+  node_list = []
+  while current_node != "Linear":
+      neighbors = [n for n in G.neighbors(start_)]
+      for nodes in neighbors:
+          weight_ = G.get_edge_data(start_, nodes, "weight")
+          # print(weight_)
+          if len(weight_):
+              weight_ = weight_["weight"]
+          else:
+              weight_ = 0
+  #         print(weight_)
+          if weight_ > wt:
+              current_node = nodes
+      node_list.append(current_node)
+      # print("start",start_)
+      # print(node)
+      start_ = current_node
+      wt = -1
+  # print(node_list)
+  return node_list
 
 
 if __name__ == '__main__':
