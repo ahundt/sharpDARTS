@@ -155,7 +155,7 @@ def main():
       cnn_model(batch)
       logger.info("loaded genotype_raw_weights = " + str(cnn_model.genotype('raw_weights')))
       logger.info("loaded genotype_longest_path = " + str(cnn_model.genotype('longest_path')))
-      logger.info("loaded genotype greedy_path = "+ gen_greedy_path(cnn_model.G))
+      logger.info("loaded genotype greedy_path = "+ str(gen_greedy_path(cnn_model.G)))
       # TODO(ahundt) support other layouts
   else:
     cnn_model = model_search.Network(
