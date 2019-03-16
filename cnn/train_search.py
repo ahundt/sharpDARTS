@@ -435,6 +435,7 @@ def gen_greedy_path(G, strategy="top_down"):
   # print(node_list)
   if strategy == "bottom_up":
     node_list = node_list[::-1]
+    node_list.append("Linear")
   return node_list
 
 
