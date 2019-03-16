@@ -425,6 +425,7 @@ def gen_greedy_path(G, strategy="top_down"):
               weight_ = 0
   #         print(weight_)
           if weight_ > wt:
+              wt = weight_
               current_node = nodes
       node_list.append(current_node)
       # print("start",start_)
