@@ -29,6 +29,16 @@ import operations
 import genotypes
 import dataset
 from cosine_power_annealing import cosine_power_annealing
+import matplotlib.pyplot as plt
+try:
+    import pygraphviz
+    from networkx.drawing.nx_agraph import graphviz_layout
+except ImportError:
+    try:
+        import pydotplus
+        from networkx.drawing.nx_pydot import graphviz_layout
+    except ImportError:
+        raise ImportError("Needs PyGraphviz or PyDotPlus to generate graph visualization")
 
 
 parser = argparse.ArgumentParser("Common Argument Parser")
@@ -145,6 +155,8 @@ def main():
       cnn_model(batch)
       logger.info("loaded genotype_raw_weights = " + str(cnn_model.genotype('raw_weights')))
       logger.info("loaded genotype_longest_path = " + str(cnn_model.genotype('longest_path')))
+      logger.info("loaded genotype greedy_path = " + str(gen_greedy_path(cnn_model.G, strategy="top_down")))
+      logger.info("loaded genotype greedy_path_bottom_up = " + str(gen_greedy_path(cnn_model.G, strategy="bottom_up")))
       # TODO(ahundt) support other layouts
   else:
     cnn_model = model_search.Network(
@@ -388,6 +400,43 @@ def save_graph(G, file_name):
   plt.axis('off')
   plt.tight_layout()
   plt.savefig(file_name)
+
+def gen_greedy_path(G, strategy="top_down"):
+  if strategy == "top_down":
+    start_ = "Source"
+    current_node = "Source"
+    end_node = "Linear"
+    new_G = G
+  elif strategy == "bottom_up":
+    start_ = "Linear"
+    current_node = "Linear"
+    end_node = "Source"
+    new_G = G.reverse(copy=True)
+  wt = 0
+  node_list = []
+  while current_node != end_node:
+      neighbors = [n for n in new_G.neighbors(start_)]
+      for nodes in neighbors:
+          weight_ = new_G.get_edge_data(start_, nodes, "weight")
+          # print(weight_)
+          if len(weight_):
+              weight_ = weight_["weight"]
+          else:
+              weight_ = 0
+  #         print(weight_)
+          if weight_ > wt:
+              wt = weight_
+              current_node = nodes
+      node_list.append(current_node)
+      # print("start",start_)
+      # print(node)
+      start_ = current_node
+      wt = -1
+  # print(node_list)
+  if strategy == "bottom_up":
+    node_list = node_list[::-1]
+    node_list.append("Linear")
+  return node_list
 
 
 if __name__ == '__main__':
