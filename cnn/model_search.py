@@ -260,7 +260,11 @@ class MultiChannelNetwork(nn.Module):
     """
     super(MultiChannelNetwork, self).__init__()
     self._C = C
-    self._genotype = np.array(genotype)
+    if genotype is not None:
+      # TODO(ahundt) We shouldn't be using arrays here, we should be using actual genotype objects.
+      self._genotype = np.array(genotype)
+    else:
+      self._genotype = genotype
     self._num_classes = num_classes
     if layers % 2 == 1:
       raise ValueError('MultiChannelNetwork layers option must be even, got ' + str(layers))

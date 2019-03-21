@@ -68,7 +68,8 @@ parser.add_argument('--init_channels', type=int, default=48, help='num of init c
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
 args = parser.parse_args()
-if args.arch is not 'multi_channel':
+print('args.arch: ' + str(args.arch))
+if args.arch != 'multi_channel':
   # # load the correct ops dictionary
   op_dict_to_load = "operations.%s" % args.ops
   print('loading op dict: ' + str(op_dict_to_load))
@@ -85,7 +86,7 @@ if args.arch is not 'multi_channel':
   # create the neural network
   print('initializing module')
 if args.arch == 'multi_channel':
-    cnn_model = model_search.MultiChannelNetwork(always_apply_ops=True, layers=6, steps=3, visualization=True)
+    cnn_model = model_search.MultiChannelNetwork(always_apply_ops=True, layers=4, steps=2, visualization=True, genotype=None)
 elif args.dataset == 'imagenet':
     cnn_model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
     # workaround for graph generation limitations
