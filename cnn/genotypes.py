@@ -275,7 +275,7 @@ MULTI_CHANNEL_GREEDY_MAX_W_TOP_DOWN = ['Source', 'Conv3x3_0', 'BatchNorm_0', 'la
 MULTI_CHANNEL_GREEDY_MAX_W_BOTTOM_UP = ['Source', 'Conv3x3_3', 'BatchNorm_3', 'layer_0_stride_1_c_in_256_c_out_128_op_type_ResizablePool', 'layer_0_add_c_out_128_stride_1', 'layer_0_stride_2_c_in_128_c_out_256_op_type_ResizablePool', 'layer_0_add_c_out_256_stride_2', 'layer_1_stride_1_c_in_256_c_out_128_op_type_ResizablePool', 'layer_1_add_c_out_128_stride_1', 'layer_1_stride_2_c_in_128_c_out_128_op_type_SharpSepConv', 'layer_1_add_c_out_128_stride_2', 'layer_2_stride_1_c_in_128_c_out_64_op_type_ResizablePool', 'layer_2_add_c_out_64_stride_1', 'layer_2_stride_2_c_in_64_c_out_64_op_type_ResizablePool', 'layer_2_add_c_out_64_stride_2', 'layer_3_stride_1_c_in_64_c_out_64_op_type_ResizablePool', 'layer_3_add_c_out_64_stride_1', 'layer_3_stride_2_c_in_64_c_out_64_op_type_ResizablePool', 'layer_3_add_c_out_64_stride_2', 'SharpSepConv64', 'add-SharpSep', 'global_pooling', 'Linear']
 
 '''
-2019_03_22_20_40_54 alphas_normal = tensor([[0.0232, 0.0151, 0.0171, 0.0194, 0.0332, 0.0312, 0.8298, 0.0309],                                                                                               
+2019_03_22_20_40_54 alphas_normal = tensor([[0.0232, 0.0151, 0.0171, 0.0194, 0.0332, 0.0312, 0.8298, 0.0309],
         [0.0286, 0.0168, 0.0197, 0.0224, 0.0504, 0.0883, 0.0418, 0.7321],
         [0.0877, 0.0575, 0.0670, 0.3865, 0.0951, 0.0988, 0.1257, 0.0818],
         [0.0540, 0.0393, 0.0405, 0.0442, 0.0624, 0.0779, 0.0628, 0.6189],
@@ -290,7 +290,7 @@ MULTI_CHANNEL_GREEDY_MAX_W_BOTTOM_UP = ['Source', 'Conv3x3_3', 'BatchNorm_3', 'l
         [0.0195, 0.8692, 0.0158, 0.0147, 0.0208, 0.0193, 0.0199, 0.0207],
         [0.0090, 0.0080, 0.9410, 0.0070, 0.0084, 0.0087, 0.0087, 0.0092]],
        device='cuda:0', grad_fn=<SoftmaxBackward>)
-2019_03_22_20_40_54 alphas_reduce = tensor([[0.0583, 0.6199, 0.0478, 0.0560, 0.0569, 0.0585, 0.0557, 0.0469],                                                                                               
+2019_03_22_20_40_54 alphas_reduce = tensor([[0.0583, 0.6199, 0.0478, 0.0560, 0.0569, 0.0585, 0.0557, 0.0469],
         [0.1099, 0.1485, 0.1486, 0.1488, 0.1488, 0.0791, 0.1487, 0.0677],
         [0.1059, 0.0870, 0.0895, 0.1150, 0.1011, 0.2977, 0.1077, 0.0960],
         [0.1216, 0.1476, 0.1479, 0.1478, 0.1141, 0.1016, 0.1196, 0.0997],
@@ -305,10 +305,15 @@ MULTI_CHANNEL_GREEDY_MAX_W_BOTTOM_UP = ['Source', 'Conv3x3_3', 'BatchNorm_3', 'l
         [0.1238, 0.1194, 0.1174, 0.1649, 0.1167, 0.1173, 0.1207, 0.1199],
         [0.1192, 0.1132, 0.1116, 0.1128, 0.1130, 0.2097, 0.1126, 0.1079]],
        device='cuda:0', grad_fn=<SoftmaxBackward>)
-2019_03_22_21_01_53 epoch, 120, train_acc, 89.499997, valid_acc, 83.815997, train_loss, 0.302826, valid_loss, 0.483055, lr, 1.000000e-04, best_epoch, 119, best_valid_acc, 84.159997                        
+2019_03_22_21_01_53 epoch, 120, train_acc, 89.499997, valid_acc, 83.815997, train_loss, 0.302826, valid_loss, 0.483055, lr, 1.000000e-04, best_epoch, 119, best_valid_acc, 84.159997
 Overview ***** best_epoch: 119 best_valid_acc: 84.16 ***** Progress: 100%|| 120/120 [42:15:54<00:00, 1265.52s/it]
-2019_03_22_21_01_54 genotype = 
+2019_03_22_21_01_54 genotype =
 2019_03_22_21_01_54 Search for Model Complete! Save dir: search-20190321-024555-max_w_SharpSepConvDARTS_SEARCH_5e49783-cifar10-DARTS_PRIMITIVES-OPS-0
+
+export CUDA_VISIBLE_DEVICES="1" && python3 main_fp16_optimizer.py --autoaugment --auxiliary --cutout --batch_size 128 --epochs 2000 --save flops_SHARPSEPCONV_DARTS_MAX_W_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARPSEPCONV_DARTS_MAX_W --flops
+2019_03_27_13_51_30 param size = 2.477062MB
+2019_03_27_13_51_30 flops_shape = [1, 3, 32, 32]
+2019_03_27_13_51_30 flops = 405.84MMac
 '''
 
 SHARPSEPCONV_DARTS_MAX_W = Genotype(normal=[('dil_conv_3x3', 0), ('dil_conv_5x5', 1), ('sep_conv_3x3', 2), ('dil_conv_5x5', 1), ('avg_pool_3x3', 2), ('sep_conv_3x3', 0), ('avg_pool_3x3', 4), ('max_pool_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('sep_conv_5x5', 0), ('skip_connect', 2), ('sep_conv_5x5', 0), ('dil_conv_5x5', 3), ('sep_conv_5x5', 4), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
@@ -366,5 +371,10 @@ cay=0.0003, weighting_algorithm='max_w')
 Overview ***** best_epoch: 116 best_valid_acc: 84.89 ***** Progress: 100%|| 120/120 [97:41:46<00:00, 2952.55s/it]
 2019_03_27_02_04_37 genotype = Genotype(normal=[('sep_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('dil_conv_3x3', 2), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 0), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('dil_choke_conv_3x3', 0), ('dil_flood_conv_3x3', 2), ('dil_conv_3x3', 0), ('skip_connect', 3), ('flood_conv_3x3', 0), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
 2019_03_27_02_04_37 Search for Model Complete! Save dir: search-20190323-002241-max_w_SHARP_DARTS_SEARCH_e79c097-cifar10-PRIMITIVES-OPS-0
+
+export CUDA_VISIBLE_DEVICES="1" && python3 main_fp16_optimizer.py --autoaugment --auxiliary --cutout --batch_size 2 --epochs 2000 --save flops_SHARP_DARTS_MAX_W_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARP_DARTS_MAX_W --flops
+2019_03_27_13_48_41 param size = 5.902558MB
+2019_03_27_13_48_41 flops_shape = [1, 3, 32, 32]
+2019_03_27_13_48_41 flops = 935.22MMac
 """
 SHARP_DARTS_MAX_W = Genotype(normal=[('sep_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('dil_conv_3x3', 2), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 0), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('dil_choke_conv_3x3', 0), ('dil_flood_conv_3x3', 2), ('dil_conv_3x3', 0), ('skip_connect', 3), ('flood_conv_3x3', 0), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
