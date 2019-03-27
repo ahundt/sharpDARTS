@@ -314,6 +314,11 @@ export CUDA_VISIBLE_DEVICES="1" && python3 main_fp16_optimizer.py --autoaugment 
 2019_03_27_13_51_30 param size = 2.477062MB
 2019_03_27_13_51_30 flops_shape = [1, 3, 32, 32]
 2019_03_27_13_51_30 flops = 405.84MMac
+
+Full training run command:
+costar@ubuntu|~/src/sharpDARTS/cnn on multi_channel_search!?
+± for i in {1..8}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 64 --epochs 2000 --save SHARPSEPCONV_DARTS_MAX_W_2k_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARPSEPCONV_DARTS_MAX_W ; done;
+Experiment dir : eval-20190327-140904-SHARPSEPCONV_DARTS_MAX_W_2k_c1059c7_cospower_min_1e-8-cifar10-SHARPSEPCONV_DARTS_MAX_W-0
 '''
 
 SHARPSEPCONV_DARTS_MAX_W = Genotype(normal=[('dil_conv_3x3', 0), ('dil_conv_5x5', 1), ('sep_conv_3x3', 2), ('dil_conv_5x5', 1), ('avg_pool_3x3', 2), ('sep_conv_3x3', 0), ('avg_pool_3x3', 4), ('max_pool_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('sep_conv_5x5', 0), ('skip_connect', 2), ('sep_conv_5x5', 0), ('dil_conv_5x5', 3), ('sep_conv_5x5', 4), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
@@ -376,5 +381,10 @@ export CUDA_VISIBLE_DEVICES="1" && python3 main_fp16_optimizer.py --autoaugment 
 2019_03_27_13_48_41 param size = 5.902558MB
 2019_03_27_13_48_41 flops_shape = [1, 3, 32, 32]
 2019_03_27_13_48_41 flops = 935.22MMac
+
+Full training run command:
+costar@ubuntu|~/src/sharpDARTS/cnn on multi_channel_search!?
+± for i in {1..8}; do export CUDA_VISIBLE_DEVICES="1" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 32 --epochs 2000 --save SHARP_DARTS_MAX_W_2k_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARP_DARTS_MAX_W ; done;
+Experiment dir : eval-20190327-141933-SHARP_DARTS_MAX_W_2k_c1059c7_cospower_min_1e-8-cifar10-SHARP_DARTS_MAX_W-0
 """
 SHARP_DARTS_MAX_W = Genotype(normal=[('sep_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('dil_conv_3x3', 2), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 0), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('dil_choke_conv_3x3', 0), ('dil_flood_conv_3x3', 2), ('dil_conv_3x3', 0), ('skip_connect', 3), ('flood_conv_3x3', 0), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
