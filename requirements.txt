@@ -1,0 +1,5 @@
+torch
+torchvision
+colorlog
+tqdm
+graphviz

@@ -42,11 +42,11 @@ def load_new_test_data(root, version='default'):
 
 
 class CIFAR10_1(data.Dataset):
-    images_url = 'https://github.com/modestyachts/CIFAR-10.1/blob/master/datasets/cifar10.1-data.npy?raw=true'
+    images_url = 'https://github.com/modestyachts/CIFAR-10.1/raw/master/datasets/cifar10.1_v6_data.npy'
     images_md5 = '29615bb88ff99bca6b147cee2520f010'
     images_filename = 'cifar10.1-data.npy'
 
-    labels_url = 'https://github.com/modestyachts/CIFAR-10.1/blob/master/datasets/cifar10.1-labels.npy?raw=true'
+    labels_url = 'https://github.com/modestyachts/CIFAR-10.1/raw/master/datasets/cifar10.1_v6_labels.npy'
     labels_md5 = 'a27460fa134ae91e4a5cb7e6be8d269e'
     labels_filename = 'cifar10.1-labels.npy'
 

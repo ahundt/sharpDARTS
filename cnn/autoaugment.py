@@ -286,9 +286,9 @@ class CIFAR10Policy(object):
         self.policies = exp0s + exp1s + exp2s
 
     def __call__(self, img):
-        for sub_policy in np.random.choice(self.policies, len(self.policies)):
-            img = sub_policy(img)
-        return img
+        # Choose policy then sub-policy. Note in the original paper the policy is chosen once per epoch.
+        sub_policy = self.policies[np.random.choice(len(self.policies))]
+        return sub_policy(img)
 
     def __repr__(self):
         return "AutoAugment CIFAR10 Policy"
@@ -365,7 +365,8 @@ class SubPolicy(object):
             "brightness": np.linspace(0.0, 0.9, 10),
             "autocontrast": [0] * 10,
             "equalize": [0] * 10,
-            "invert": [0] * 10
+            "invert": [0] * 10,
+            "cutout": np.linspace(0.0, 0.9, 10),
         }
 
         # from https://stackoverflow.com/questions/5252170/specify-image-filling-color-when-rotating-in-python-with-pil-and-setting-expand
@@ -388,14 +389,14 @@ class SubPolicy(object):
                 fillcolor=fillcolor),
             "rotate": lambda img, magnitude: rotate_with_fill(img, magnitude),
             # "rotate": lambda img, magnitude: img.rotate(magnitude * random.choice([-1, 1])),
-            "color": lambda img, magnitude: ImageEnhance.color(img).enhance(1 + magnitude * random.choice([-1, 1])),
+            "color": lambda img, magnitude: ImageEnhance.Color(img).enhance(1 + magnitude * random.choice([-1, 1])),
             "posterize": lambda img, magnitude: ImageOps.posterize(img, magnitude),
             "solarize": lambda img, magnitude: ImageOps.solarize(img, magnitude),
-            "contrast": lambda img, magnitude: ImageEnhance.contrast(img).enhance(
+            "contrast": lambda img, magnitude: ImageEnhance.Contrast(img).enhance(
                 1 + magnitude * random.choice([-1, 1])),
-            "sharpness": lambda img, magnitude: ImageEnhance.sharpness(img).enhance(
+            "sharpness": lambda img, magnitude: ImageEnhance.Sharpness(img).enhance(
                 1 + magnitude * random.choice([-1, 1])),
-            "brightness": lambda img, magnitude: ImageEnhance.brightness(img).enhance(
+            "brightness": lambda img, magnitude: ImageEnhance.Brightness(img).enhance(
                 1 + magnitude * random.choice([-1, 1])),
             "autocontrast": lambda img, magnitude: ImageOps.autocontrast(img),
             "equalize": lambda img, magnitude: ImageOps.equalize(img),
