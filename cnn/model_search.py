@@ -334,6 +334,7 @@ class MultiChannelNetwork(nn.Module):
         self.stem = nn.ModuleList()
         self.G = nx.DiGraph()
         self.G.add_node("Source")
+        self.G.nodes["Source"]['demand'] = -1
         for i, c in enumerate(self.Cs):
           s = nn.Sequential(
             nn.Conv2d(int(in_channels), int(c), 3, padding=1, bias=False),
@@ -408,6 +409,7 @@ class MultiChannelNetwork(nn.Module):
         self.G.add_node("global_pooling")
         self.G.add_edge("add-SharpSep", "global_pooling")
         self.G.add_node("Linear")
+        self.G.nodes["Linear"]['demand'] = 1
         self.G.add_edge("global_pooling", "Linear")
         self.G["global_pooling"]["Linear"]["weight"] = 800
         # print("Nodes in graph")
@@ -486,6 +488,7 @@ class MultiChannelNetwork(nn.Module):
                 w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]
                 # self.G.add_edge(name, out_node, {weight: w})
                 self.G[name][out_node]["weight"] = float(w.clone().cpu().detach().numpy())
+                self.G[name][out_node]["weight_int"] = int(float(w.clone().cpu().detach().numpy()) * 1e+7)
               # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
               # apply the operation then weight, equivalent to
               # w * op(input_feature_map)

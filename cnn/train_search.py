@@ -269,12 +269,12 @@ def main():
 
       if valid_acc > best_valid_acc:
         # new best epoch, save weights
-      #  capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-      #  weight = nx.get_edge_attributes(cnn_model.G, "weight")
-      #  for u, v, d in cnn_model.G.edges(data=True):
-      #    if u is not "Source" or v is not "Linear":
-      #      if "capacity" in d:
-      #        d['capacity'] = int(d['capacity']*1e+5)
+       capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
+       weight = nx.get_edge_attributes(cnn_model.G, "weight_int")
+       for u, v, d in cnn_model.G.edges(data=True):
+         if u is not "Source" or v is not "Linear":
+           if "capacity" in d:
+             d['capacity'] = int(d['capacity']*1e+5)
       #      if "weight" in d:
       #        d['weight'] = int(d['weight']*1e+7)
         utils.save(cnn_model, weights_file)
@@ -285,11 +285,15 @@ def main():
       #    temp = {k: v for k, v in dic.items() if v != 0}
       #    if len(temp):
       #      new_mincost_flow[key] = temp
-      #  capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-      #  capacity = nx.get_edge_attributes(cnn_model.G, "weight")
-      #  logger.info('capacity :%s', capacity)
-      #  logger.info('weight :%s', weight)
-      #  logger.info('mincostFlow  : %s', new_mincost_flow)
+        capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
+      #  weight = nx.get_edge_attributes(cnn_model.G, "weight")
+        logger.info('capacity :%s', capacity)
+        logger.info('weight_int :%s', weight)
+        flow_cost, flow_dict = nx.newtork_simplex(cnn_model.G)
+        min_cost_flow_edge=[(u, v) for u in flow_dict for v in flow_dict[u] if flow_dict[u][v] > 0]
+        logger.info('min_cost_flow_edge : %s', min_cost_flow_edge)
+        new_path = nx.add_edges_from(min_cost_flow_edge)
+        logger.info(new_path)
       #  mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
       #  np.save(mincostFlow_path_filename, new_mincost_flow)
         graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')
