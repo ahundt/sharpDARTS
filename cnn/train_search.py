@@ -289,11 +289,11 @@ def main():
       #  weight = nx.get_edge_attributes(cnn_model.G, "weight")
         logger.info('capacity :%s', capacity)
         logger.info('weight_int :%s', weight)
-        flow_cost, flow_dict = nx.newtork_simplex(cnn_model.G)
+        flow_cost, flow_dict = nx.newtork_simplex(cnn_model.G, weight='capacity', capacity='weight_int')
         min_cost_flow_edge=[(u, v) for u in flow_dict for v in flow_dict[u] if flow_dict[u][v] > 0]
         logger.info('min_cost_flow_edge : %s', min_cost_flow_edge)
         new_path = nx.add_edges_from(min_cost_flow_edge)
-        logger.info(new_path)
+        logger.info('min_cost_flow_path : %s', new_path)
       #  mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
       #  np.save(mincostFlow_path_filename, new_mincost_flow)
         graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')
