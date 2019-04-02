@@ -292,7 +292,8 @@ def main():
         flow_cost, flow_dict = nx.network_simplex(cnn_model.G, weight='capacity', capacity='weight_int')
         min_cost_flow_edge=[(u, v) for u in flow_dict for v in flow_dict[u] if flow_dict[u][v] > 0]
         logger.info('min_cost_flow_edge : %s', min_cost_flow_edge)
-        new_path = nx.add_edges_from(min_cost_flow_edge)
+        new_g = nx.DiGraph()
+        new_path = new_g.add_edges_from(min_cost_flow_edge)
         logger.info('min_cost_flow_path : %s', new_path)
       #  mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
       #  np.save(mincostFlow_path_filename, new_mincost_flow)
