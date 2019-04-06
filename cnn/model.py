@@ -509,3 +509,115 @@ class DQNAS(nn.Module):
 
   def reset_noise(self):
         self.classifier.reset_noise()
+
+class residual_block(nn.Module):
+    """Implements a layer of ResNeXt.
+
+    Based in https://blog.waya.ai/deep-residual-learning-9610bb62c355.
+
+    Args:
+        input: Input for the block.
+        channels_in: Number of channels of data for the convolutional group.
+        channels_out: Number of chhannels generated as output.
+        cardinality: Number of convolution groups. Must be divisible by channels_in
+        is_training: Placeholder that indicates if the model is being trained
+        strides: Strides.
+        project_shortcut: Indicates whether the input should be projected to match the output's dimensions.
+
+    Returns:
+        A tensor with shape (-1, channels_out, width, height).
+    
+    """
+    def __init__(self, channels_in, channels_out, cardinality, strides=(1, 1), project_shortcut=False):
+      super(residual_block, self).__init__()
+      self.channels_in = channels_in
+      self.channels_out = channels_out
+      self.cardinality = cardinality
+      self.project_shortcut = project_shortcut
+      self.strides = strides
+
+      self.conv1 = nn.Conv2d(64, self.channels_in, 1 , stride = 1)
+      self.norm1 = nn.BatchNorm2d(self.channels_in)
+      self.group_conv = nn.Conv2d(self.channels_in, self.channels_in, kernel_size=(3,3),stride=self.strides, groups=1,padding=1)
+      
+      self.norm2 = nn.BatchNorm2d(self.channels_in)
+      self.conv2 = nn.Conv2d(self.channels_in ,self.channels_out, 1 , stride = 1)
+      self.norm3 = nn.BatchNorm2d(self.channels_out)
+      
+      if self.project_shortcut or self.strides != (1,1):
+          self.conv3 = nn.Conv2d(64, self.channels_out, 1, stride = self.strides)
+          self.norm4 = nn.BatchNorm2d(self.channels_out)
+
+    def forward(self, input):
+      shortcut = input
+      x = F.relu(self.norm1(self.conv1(input)))
+      x = self.group_conv(x)
+      x = F.relu(self.norm2(x))
+      x = self.norm3(self.conv2(x))
+
+      if self.project_shortcut or self.strides!=(1,1):
+          # When the dimensions increase projection shortcut is used to match dimensions (done by 1×1 convolutions).
+          shortcut = self.norm4(self.conv3(shortcut))
+
+      output = F.relu(torch.add(shortcut, x))
+      return output
+
+class TDCFeaturizer(nn.Module):
+    """Temporal Distance Classification featurizer
+
+    Reference: "Playing hard exploration games by watching YouTube"
+    The task consists of presenting the network with 2 frames separated by n timesteps,
+    and making it classify the distance between the frames.
+
+    We use the same network architecture as the paper:
+    3 convolutional layers, followed by 3 residual blocks,
+    followed by 2 fully connected layers for the encoder.
+
+    For the classifier, we do a multiplication between both feature vectors
+    followed by a fully connected layer.
+
+    """
+    def __init__(self):
+      super(TDCFeaturizer, self).__init__()
+      self.feature_vector_size = 1024
+
+      self.conv1 = nn.Conv2d(3, 32, 3, stride = 2, padding=1)
+      self.conv2 = nn.Conv2d(32, 64, 3, stride = 1,padding=1)
+      self.conv3 = nn.Conv2d(64, 64, 3, stride = 1,padding=1)
+      self.pool = nn.MaxPool2d(2, 2)
+      self.norm1 = nn.BatchNorm2d(32)
+      self.norm2 = nn.BatchNorm2d(64)
+      self.norm3 = nn.BatchNorm2d(64)
+      self.residual_block = residual_block(64, 64, 1)
+      self.fc1 = nn.Linear(3072, self.feature_vector_size)  #dense layer
+      self.fc2 = nn.Linear(self.feature_vector_size, self.feature_vector_size)
+      self.fc3 = nn.Linear(1024, self.feature_vector_size)
+      self.fc4 = nn.Linear(self.feature_vector_size, 6)   # size of each label
+       
+
+    def forward(self, img_1, img_2):
+      logits_aux = None
+      x = torch.cat((img_1,img_2),0)
+      x = self.pool(self.norm1(F.relu(self.conv1(x))))   
+      x = self.pool(self.norm2(F.relu(self.conv2(x))))   
+      x = self.pool(self.norm3(F.relu(self.conv3(x))))  
+      
+      for i in range(3):
+        x = self.residual_block(x)
+      
+      x = x.view(-1, 3072)  # flatten layer  (3072 = 64*6*8)
+      x = F.relu(self.fc1(x))  
+      
+      feature_vector = self.fc2(x)  
+      feature_vector = F.normalize(feature_vector, p=2, dim=1)	 
+      #if not self.training:
+      #    return feature_vector
+      feature_vector_stack = feature_vector.view(-1, 2, self.feature_vector_size)
+
+      combined_embeddings = torch.mul(feature_vector_stack[:, 0, :], feature_vector_stack[:, 1, :])
+
+      x = F.relu(self.fc3(combined_embeddings))
+      prediction = F.relu(self.fc4(x))
+      
+      return prediction, logits_aux
+

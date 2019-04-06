@@ -83,13 +83,15 @@ inp_channel_dict = {'cifar10': 3,
 
 costar_class_dict = {'translation_only': 3,
                      'rotation_only': 5,
-                     'all_features': 8}
+                     'all_features': 8,
+                     'time_difference_images': 6}
 costar_supercube_inp_channel_dict = {'translation_only': 52,
                            'rotation_only': 55,
                            'all_features': 57}
 costar_vec_size_dict = {'translation_only': 44,
                         'rotation_only': 49,
-                        'all_features': 49}
+                        'all_features': 49,
+                        'time_difference_images': 0}
 
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
