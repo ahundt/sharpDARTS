@@ -37,7 +37,10 @@ SHARPER_PRIMITIVES = [
     'flood_conv_3x3',
     'flood_conv_5x5',
     'dil_flood_conv_3x3',
-    'dil_flood_conv_5x5',
+    # TODO(ahundt) sharpsepconv doesn't correctly support dil_flood_conv_5x5, padding is not sufficient
+    # w shape: torch.Size([]) op type: <class 'operations.SharpSepConv'> i: 12 self._primitives[i]: dil_flood_conv_5x5x size: torch.Size([16, 16, 32, 32]) stride: 1
+    # op_out size: torch.Size([16, 16, 28, 28])
+    # 'dil_flood_conv_5x5',
     # 'choke_conv_3x3',
     # 'dil_choke_conv_3x3',
 ]
