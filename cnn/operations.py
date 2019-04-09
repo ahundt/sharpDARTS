@@ -9,6 +9,7 @@ OPS = {
   'skip_connect': lambda C_in, C_out, stride, affine, C_mid=None: Identity() if stride == 1 else FactorizedReduce(C_in, C_out, 1, stride, 0, affine=affine),
   'sep_conv_3x3': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 3, stride, padding=1, affine=affine),
   'sep_conv_5x5': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 5, stride, padding=2, affine=affine),
+  'flood_conv_5x5': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 5, stride, padding=2, affine=affine, C_mid_mult=4),
   'sep_conv_7x7': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 7, stride, padding=3, affine=affine),
   'dil_conv_3x3': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 3, stride, padding=2, dilation=2, affine=affine),
   'dil_conv_5x5': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 5, stride, padding=4, dilation=2, affine=affine),
@@ -20,6 +21,7 @@ OPS = {
     ),
   'flood_conv_3x3': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid_mult=4),
   'dil_flood_conv_3x3': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 3, stride, padding=2, dilation=2, affine=affine, C_mid_mult=4),
+  'dil_flood_conv_5x5': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 5, stride, padding=2, dilation=2, affine=affine, C_mid_mult=4),
   'choke_conv_3x3': lambda C_in, C_out, stride, affine, C_mid=32: SharpSepConv(C_in, C_out, 3, stride, padding=1, affine=affine, C_mid=C_mid),
   'dil_choke_conv_3x3': lambda C_in, C_out, stride, affine, C_mid=32: SharpSepConv(C_in, C_out, 3, stride, padding=2, dilation=2, affine=affine, C_mid=C_mid),
 }

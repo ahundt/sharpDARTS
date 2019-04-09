@@ -37,6 +37,7 @@ SHARPER_PRIMITIVES = [
     'flood_conv_3x3',
     'flood_conv_5x5',
     'dil_flood_conv_3x3',
+    'dil_flood_conv_5x5',
     # 'choke_conv_3x3',
     # 'dil_choke_conv_3x3',
 ]
