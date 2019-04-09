@@ -21,6 +21,26 @@ PRIMITIVES = [
     'dil_choke_conv_3x3',
 ]
 
+SHARPER_PRIMITIVES = [
+    'none',
+    'max_pool_3x3',
+    'avg_pool_3x3',
+    'skip_connect',
+    'sep_conv_3x3',
+    'sep_conv_5x5',
+    'sep_conv_7x7',
+    'dil_conv_3x3',
+    'dil_conv_5x5',
+    # 'nor_conv_3x3',
+    # 'nor_conv_5x5',
+    # 'nor_conv_7x7',
+    'flood_conv_3x3',
+    'flood_conv_5x5',
+    'dil_flood_conv_3x3',
+    # 'choke_conv_3x3',
+    # 'dil_choke_conv_3x3',
+]
+
 # Primitives for the original darts search space
 DARTS_PRIMITIVES = [
     'none',
