@@ -140,6 +140,7 @@ def main():
     cnn_model = MultiChannelNetwork(
       args.init_channels, DATASET_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
       weighting_algorithm=args.weighting_algorithm, genotype=genotype)
+    flops_shape = [1, 3, 32, 32]
   elif args.dataset == 'imagenet':
       cnn_model = NetworkImageNet(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
       flops_shape = [1, 3, 224, 224]

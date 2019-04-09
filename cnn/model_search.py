@@ -566,8 +566,47 @@ class MultiChannelNetwork(nn.Module):
     # out = self.global_pooling(out)
     logits = self.classifier(out.view(out.size(0),-1))
     # print('logits')
+    #print("Optimal_path_forward", nx.algorithms.dag.dag_longest_path(self.G))
+    #print("Top down greedy", self.gen_greedy_path(self.G,"top_down"))
+    #print("Bottom up greedy",self.gen_greedy_path(self.G,"bottom_up")) 
     return logits
 
+  def gen_greedy_path(self, G, strategy="top_down"):
+   if strategy == "top_down":
+     start_ = "Source"
+     current_node = "Source"
+     end_node = "Linear"
+     new_G = G
+   elif strategy == "bottom_up":
+     start_ = "Linear"
+     current_node = "Linear"
+     end_node = "Source"
+     new_G = G.reverse(copy=True)
+   wt = 0
+   node_list = []
+   while current_node != end_node:
+      neighbors = [n for n in new_G.neighbors(start_)]
+      for nodes in neighbors:
+          weight_ = new_G.get_edge_data(start_, nodes, "weight")
+          # print(weight_)
+          if len(weight_):
+              weight_ = weight_["weight"]
+          else:
+              weight_ = 0
+  #         print(weight_)
+          if weight_ > wt:
+              wt = weight_
+              current_node = nodes
+      node_list.append(current_node)
+      # print("start",start_)
+      # print(node)
+      start_ = current_node
+      wt = -1
+  # print(node_list)
+   if strategy == "bottom_up":
+     node_list = node_list[::-1]
+     node_list.append("Linear")
+   return node_list
   def arch_weights(self, stride_idx):
     # ops are stored as layer, stride, cin, cout, num_layer_types
     # while weights are ordered stride_index, layer, cin, cout, num_layer_types
