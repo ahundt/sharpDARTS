@@ -479,6 +479,10 @@ Overview ***** best_epoch: 113 best_valid_acc: 86.48 ***** Progress:  99%|| 119/
 Overview ***** best_epoch: 120 best_valid_acc: 86.73 ***** Progress: 100%|| 120/120 [237:58:43<00:00, 7156.24s/it]
 2019_04_19_16_32_34 genotype = Genotype(normal=[('skip_connect', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 1), ('skip_connect', 0), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 1), ('dil_flood_conv_3x3', 3), ('dil_conv_3x3', 4)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 1), ('avg_pool_3x3', 0), ('avg_pool_3x3', 1), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3), ('skip_connect', 4)], reduce_concat=range(2, 6), layout='cell')
 2019_04_19_16_32_34 Search for Model Complete! Save dir: search-20190409-183345-SHARPER_SEARCH_efa1168-cifar10-SHARPER_PRIMITIVES-OPS-0
+
+2019_04_20_12_52_14 param size = 7.109470MB
+2019_04_20_12_52_14 flops_shape = [1, 3, 32, 32]
+2019_04_20_12_52_14 flops = 1.1GMac
 """
 
 SHARPER_SCALAR = Genotype(normal=[('skip_connect', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 1), ('skip_connect', 0), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 1), ('dil_flood_conv_3x3', 3), ('dil_conv_3x3', 4)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 1), ('avg_pool_3x3', 0), ('avg_pool_3x3', 1), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3), ('skip_connect', 4)], reduce_concat=range(2, 6), layout='cell')
@@ -487,6 +491,12 @@ SHARPER_SCALAR = Genotype(normal=[('skip_connect', 0), ('sep_conv_3x3', 1), ('se
 
 ahundt@femur|~/src/darts/cnn on sharper?
 ± export CUDA_VISIBLE_DEVICES="0" && python3 train_search.py --dataset cifar10 --batch_size 16 --layers_of_cells 8 --layers_in_cells 4 --save max_w_SHARPER_SEARCH_`git rev-parse --short HEAD` --init_channels 16 --epochs 120 --cutout --autoaugment --seed 22 --weighting_algorithm max_w --primitives SHARPER_PRIMITIVES
+2019_04_09_18_04_03 gpu device = 0
+2019_04_09_18_04_03 args = Namespace(arch='SHARPER_PRIMITIVES-OPS', arch_learning_rate=0.0003, arch_weight_decay=0.001, autoaugment=True, batch_size=16, cutout=True, cutout_length=16, data='../data', dataset='cifar10', drop_path_prob=0.3, epoch_stats_file='search-20190409-180403-max_w_SHARPER_SEARCH_efa1168-cifar10-SHARPER_PRIMITIVES-OPS-0/eval-epoch-stats-20190409-180403.json', epochs=120, evaluate='', final_path=None, gpu=0, grad_clip=5, init_channels=16, layers_in_cells=4, layers_of_cells=8, learning_rate=0.025, learning_rate_min=0.0001, load='', load_args='', load_genotype=None, log_file_path='search-20190409-180403-max_w_SHARPER_SEARCH_efa1168-cifar10-SHARPER_PRIMITIVES-OPS-0/log.txt', lr_power_annealing_exponent_order=2, mid_channels=32, model_path='saved_models', momentum=0.9, multi_channel=False, no_architect=False, ops='OPS', primitives='SHARPER_PRIMITIVES', random_eraser=False, report_freq=50, save='search-20190409-180403-max_w_SHARPER_SEARCH_efa1168-cifar10-SHARPER_PRIMITIVES-OPS-0', seed=22, start_epoch=1, stats_file='search-20190409-180403-max_w_SHARPER_SEARCH_efa1168-cifar10-SHARPER_PRIMITIVES-OPS-0/eval-stats-20190409-180403.json', train_portion=0.5, unrolled=False, warmup_epochs=5, weight_decay=0.0003, weighting_algorithm='max_w')
+2019_04_09_18_04_03 loading op dict: operations.OPS
+2019_04_09_18_04_03 loading primitives:genotypes.SHARPER_PRIMITIVES
+2019_04_09_18_04_03 primitives: ['none', 'max_pool_3x3', 'avg_pool_3x3', 'skip_connect', 'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 'dil_conv_3x3', 'dil_conv_5x5', 'flood_conv_3x3', 'flood_conv_5x5', 'dil_flood_conv_3x3']
+2019_04_09_18_04_07 param size = 9.707002MB
 2019_04_19_20_07_23 epoch, 119, train_acc, 88.696000, valid_acc, 84.868000, train_loss, 0.327119, valid_loss, 0.456210, lr, 1.032201e-04, best_epoch, 119, best_valid_acc, 84.868000
 2019_04_19_20_07_25 genotype = Genotype(normal=[('sep_conv_3x3', 0), ('dil_conv_5x5', 1), ('max_pool_3x3', 0), ('sep_conv_7x7', 2), ('avg_pool_3x3', 3), ('flood_conv_3x3', 0), ('flood_conv_3x3', 1), ('skip_connect', 2)], normal_concat=range(2, 6), reduce=[('flood_conv_5x5', 0), ('dil_flood_conv_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 2), ('sep_conv_3x3', 0), ('skip_connect', 2), ('dil_conv_5x5', 4), ('sep_conv_3x3', 0)], reduce_concat=range(2, 6), layout='cell')
 2019_04_19_20_07_25 alphas_normal = tensor([[0.0064, 0.0045, 0.0048, 0.0053, 0.9306, 0.0070, 0.0069, 0.0070, 0.0064, 0.0066, 0.0069, 0.0076],
@@ -522,6 +532,10 @@ Overview ***** best_epoch: 119 best_valid_acc: 84.87 ***** Progress: 100%|| 120/
 2019_04_19_22_09_52 genotype = Genotype(normal=[('sep_conv_3x3', 0), ('dil_conv_5x5', 1), ('max_pool_3x3', 0), ('sep_conv_7x7', 2), ('avg_pool_3x3', 3), ('flood_conv_3x3', 0), ('flood_conv_3x3', 1), ('skip_connect', 2)], normal_concat=range(2, 6), reduce=[('flood_conv_5x5', 0), ('max_pool_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 2), ('sep_conv_3x3', 0), ('skip_connect', 2), ('dil_conv_5
 x5', 4), ('sep_conv_3x3', 0)], reduce_concat=range(2, 6), layout='cell')
 2019_04_19_22_09_52 Search for Model Complete! Save dir: search-20190409-180403-max_w_SHARPER_SEARCH_efa1168-cifar10-SHARPER_PRIMITIVES-OPS-0
+
+2019_04_20_12_51_18 param size = 6.087142MB
+2019_04_20_12_51_18 flops_shape = [1, 3, 32, 32]
+2019_04_20_12_51_18 flops = 950.22MMac
 """
 
 SHARPER_MAX_W = Genotype(normal=[('sep_conv_3x3', 0), ('dil_conv_5x5', 1), ('max_pool_3x3', 0), ('sep_conv_7x7', 2), ('avg_pool_3x3', 3), ('flood_conv_3x3', 0), ('flood_conv_3x3', 1), ('skip_connect', 2)], normal_concat=range(2, 6), reduce=[('flood_conv_5x5', 0), ('dil_flood_conv_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 2), ('sep_conv_3x3', 0), ('skip_connect', 2), ('dil_conv_5x5', 4), ('sep_conv_3x3', 0)], reduce_concat=range(2, 6), layout='cell')
