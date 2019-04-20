@@ -575,7 +575,9 @@ class TDCFeaturizer(nn.Module):
 
     For the classifier, we do a multiplication between both feature vectors
     followed by a fully connected layer.
-
+    Set 'classify_frame_distance' as True if we want the predicted class from the model. 
+    To just get the embeddings, set 'classify_frame_distance' as False and 'frame_embeddings'
+    as True. 
     """
     def __init__(self):
       super(TDCFeaturizer, self).__init__()
@@ -593,7 +595,12 @@ class TDCFeaturizer(nn.Module):
       self.fc2 = nn.Linear(self.feature_vector_size, self.feature_vector_size)
       self.fc3 = nn.Linear(1024, self.feature_vector_size)
       self.fc4 = nn.Linear(self.feature_vector_size, 6)   # size of each label
+      self.classify_frame_distance = True
+      self.frame_embeddings = False
        
+    def choose_outputs(self, classify_frame_distance = True, frame_embeddings = False):
+        self.classify_frame_distance = classify_frame_distance
+        self.frame_embeddings = frame_embeddings   
 
     def forward(self, img_1, img_2):
       logits_aux = None
@@ -609,9 +616,9 @@ class TDCFeaturizer(nn.Module):
       x = F.relu(self.fc1(x))  
       
       feature_vector = self.fc2(x)  
-      feature_vector = F.normalize(feature_vector, p=2, dim=1)	 
-      #if not self.training:
-      #    return feature_vector
+      feature_vector = F.normalize(feature_vector, p=2, dim=1)
+      if self.frame_embeddings and not self.classify_frame_distance:
+        return feature_vector
       feature_vector_stack = feature_vector.view(-1, 2, self.feature_vector_size)
 
       combined_embeddings = torch.mul(feature_vector_stack[:, 0, :], feature_vector_stack[:, 1, :])
@@ -619,5 +626,8 @@ class TDCFeaturizer(nn.Module):
       x = F.relu(self.fc3(combined_embeddings))
       prediction = F.relu(self.fc4(x))
       
-      return prediction, logits_aux
+      if self.classify_frame_distance and not self.frame_embeddings:
+        return prediction , logits_aux
+      if self.classify_frame_distance and self.frame_embeddings:
+        return (prediction, feature_vector, logits_aux)
 
