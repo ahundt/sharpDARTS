@@ -483,6 +483,8 @@ Overview ***** best_epoch: 120 best_valid_acc: 86.73 ***** Progress: 100%|| 120/
 2019_04_20_12_52_14 param size = 7.109470MB
 2019_04_20_12_52_14 flops_shape = [1, 3, 32, 32]
 2019_04_20_12_52_14 flops = 1.1GMac
+
+for i in {1..8}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --b 48 --save SHARPER_SCALAR_2k_`git rev-parse --short HEAD` --arch SHARPER_SCALAR --epochs 2000 --cutout --autoaugment --auxiliary ; done;
 """
 
 SHARPER_SCALAR = Genotype(normal=[('skip_connect', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 1), ('skip_connect', 0), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 1), ('dil_flood_conv_3x3', 3), ('dil_conv_3x3', 4)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 1), ('avg_pool_3x3', 0), ('avg_pool_3x3', 1), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3), ('skip_connect', 4)], reduce_concat=range(2, 6), layout='cell')
@@ -536,6 +538,8 @@ x5', 4), ('sep_conv_3x3', 0)], reduce_concat=range(2, 6), layout='cell')
 2019_04_20_12_51_18 param size = 6.087142MB
 2019_04_20_12_51_18 flops_shape = [1, 3, 32, 32]
 2019_04_20_12_51_18 flops = 950.22MMac
+
+for i in {1..8}; do export CUDA_VISIBLE_DEVICES="2" && python3 train.py --b 64 --save SHARPER_MAX_W_2k_`git rev-parse --short HEAD` --arch SHARPER_MAX_W --epochs 2000 --cutout --autoaugment --auxiliary ; done;
 """
 
 SHARPER_MAX_W = Genotype(normal=[('sep_conv_3x3', 0), ('dil_conv_5x5', 1), ('max_pool_3x3', 0), ('sep_conv_7x7', 2), ('avg_pool_3x3', 3), ('flood_conv_3x3', 0), ('flood_conv_3x3', 1), ('skip_connect', 2)], normal_concat=range(2, 6), reduce=[('flood_conv_5x5', 0), ('dil_flood_conv_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 2), ('sep_conv_3x3', 0), ('skip_connect', 2), ('dil_conv_5x5', 4), ('sep_conv_3x3', 0)], reduce_concat=range(2, 6), layout='cell')
