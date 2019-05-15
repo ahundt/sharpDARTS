@@ -79,12 +79,19 @@ Training SHARP_DARTS model on ImageNet:
 export CUDA_VISIBLE_DEVICES="0" && python3 main_fp16_optimizer.py --fp16 --b 256 --save `git rev-parse --short HEAD` --epochs 400 --dynamic-loss-scale --workers 20 --autoaugment --auxiliary --cutout --data /home/costar/datasets/imagenet/ --learning_rate_min 1e-8 --mid_channels 96 --lr 1e-4 --load eval-20190222-175718-4f5892f-imagenet-SHARP_DARTS-0/model_best.pth.tar
 ```
 
-### Differentiable Hyperparameter Search
+## Differentiable Hyperparameter Search on CIFAR-10
 
+Searching for a Model:
 ```
 export CUDA_VISIBLE_DEVICES="1" && python2 train_search.py --dataset cifar10 --batch_size 64 --save MULTI_CHANNEL_SEARCH_`git rev-parse --short HEAD`_search_weighting_max_w --init_channels 36 --epochs 120 --cutout --autoaugment --seed 10 --weighting_algorithm max_w --multi_channel
 ```
 
+Add the best path printed during the search process to `genotypes.py`, you can see examples in that file.
+
+Training a final model, this one will reproduce the best results from Max-W search:
+```
+for i in {1..5}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --b 512 --save MULTI_CHANNEL_MAX_W_PATH_FULL_2k_`git rev-parse --short HEAD`_LR_0.1_to_1e-8 --arch MULTI_CHANNEL_MAX_W_PATH --epochs 2000 --multi_channel --cutout --autoaugment --learning_rate 0.1 ; done;
+```
 
 # sharpDARTS Repository based on Differentiable Architecture Search (DARTS)
 
