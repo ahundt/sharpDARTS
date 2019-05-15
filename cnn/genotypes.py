@@ -518,6 +518,19 @@ SHARPER_SCALAR_WEIGHTS = Genotype(normal=[[0.1108, 0.0556, 0.0575, 0.2509, 0.102
         [0.1492, 0.0676, 0.0754, 0.1314, 0.0717, 0.1051, 0.0829, 0.0670, 0.0863, 0.0683, 0.0518, 0.0432]], normal_concat=[], reduce_concat=[], layout='raw_weights')
 # Retrieved from SHARPER_SCALAR_WEIGHTS by running genotype_extractor.py
 SHARPER_SCALAR_genotype_skip_none = Genotype(normal=[('skip_connect', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 1), ('skip_connect', 0), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 1), ('dil_flood_conv_3x3', 3), ('dil_conv_3x3', 4)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 1), ('avg_pool_3x3', 0), ('avg_pool_3x3', 1), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3), ('skip_connect', 4)], reduce_concat=range(2, 6), layout='cell')
+"""
+costar@ubuntu|/media/costar/7d094c19-d61f-48fe-93cb-0f7287e05292/datasets/sharpDARTS/cnn on sharper!?
+± for i in {1..8}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 64 --epochs 2000 --save SHARPER_SCALAR_genotype_no_hack_2k_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARPER_SCALAR_genotype_no_hack --primitives SHARPER_PRIMITIVES ; done;
+Tensorflow is not installed. Skipping tf related imports
+Experiment dir : eval-20190515-140449-SHARPER_SCALAR_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_SCALAR_genotype_no_hack-0
+2019_05_15_14_04_49 gpu device = 0
+2019_05_15_14_04_49 args = Namespace(arch='SHARPER_SCALAR_genotype_no_hack', autoaugment=True, auxiliary=True, auxiliary_weight=0.4, batch_size=64, cutout=True, cutout_length=16, data='../data', dataset='cifar10', drop_path_prob=0.2, epoch_stats_file='eval-20190515-140449-SHARPER_SCALAR_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_SCALAR_genotype_no_hack-0/eval-epoch-stats-20190515-140449.json', epochs=2000, evaluate='', flops=False, gpu=0, grad_clip=5, init_channels=36, layers=20, layers_in_cells=4, layers_of_cells=8, learning_rate=0.025, learning_rate_min=1e-08, load='', load_args='', load_genotype=None, log_file_path='eval-20190515-140449-SHARPER_SCALAR_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_SCALAR_genotype_no_hack-0/log.txt', lr_power_annealing_exponent_order=2, mid_channels=32, mixed_auxiliary=False, model_path='saved_models', momentum=0.9, multi_channel=False, ops='OPS', optimizer='sgd', partial=0.125, primitives='SHARPER_PRIMITIVES', random_eraser=False, report_freq=50, save='eval-20190515-140449-SHARPER_SCALAR_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_SCALAR_genotype_no_hack-0', seed=0, start_epoch=1, stats_file='eval-20190515-140449-SHARPER_SCALAR_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_SCALAR_genotype_no_hack-0/eval-stats-20190515-140449.json', warm_restarts=20, warmup_epochs=5, weight_decay=0.0003, weighting_algorithm='scalar')
+2019_05_15_14_04_49 output channels: 10
+2019_05_15_14_04_49 loading op dict: operations.OPS
+2019_05_15_14_04_49 loading primitives:genotypes.SHARPER_PRIMITIVES
+2019_05_15_14_04_49 primitives: ['none', 'max_pool_3x3', 'avg_pool_3x3', 'skip_connect', 'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 'dil_conv_3x3', 'dil_conv_5x5', 'flood_conv_3x3', 'flood_conv_5x5', 'dil_flood_conv_3x3']
+2019_05_15_14_04_51 param size = 3.250846MB
+"""
 SHARPER_SCALAR_genotype_no_hack = Genotype(normal=[('none', 1), ('skip_connect', 0), ('none', 2), ('none', 1), ('none', 2), ('none', 1), ('none', 2), ('dil_flood_conv_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('skip_connect', 1), ('avg_pool_3x3', 0), ('avg_pool_3x3', 1), ('dil_flood_conv_3x3', 0), ('none', 4), ('flood_conv_3x3', 3)], reduce_concat=range(2, 6), layout='cell')
 
 """
@@ -604,4 +617,19 @@ SHARPER_MAX_W_WEIGHTS = Genotype(normal=[[0.0064, 0.0045, 0.0048, 0.0053, 0.9306
         [0.0799, 0.0759, 0.0747, 0.0774, 0.0808, 0.0749, 0.0827, 0.0802, 0.1554, 0.0747, 0.0713, 0.0722]], normal_concat=[], reduce_concat=[], layout='raw_weights')
 # Retrieved from SHARPER_MAX_W_WEIGHTS by running genotype_extractor.py
 SHARPER_MAX_W_genotype_skip_none = Genotype(normal=[('sep_conv_3x3', 0), ('dil_conv_5x5', 1), ('max_pool_3x3', 0), ('sep_conv_7x7', 2), ('avg_pool_3x3', 3), ('flood_conv_3x3', 0), ('flood_conv_3x3', 1), ('skip_connect', 2)], normal_concat=range(2, 6), reduce=[('flood_conv_5x5', 0), ('dil_flood_conv_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 2), ('sep_conv_3x3', 0), ('skip_connect', 2), ('dil_conv_5x5', 4), ('sep_conv_3x3', 0)], reduce_concat=range(2, 6), layout='cell')
+"""
+costar@ubuntu|/media/costar/7d094c19-d61f-48fe-93cb-0f7287e05292/datasets/sharpDARTS/cnn on sharper!?
+± for i in {1..8}; do export CUDA_VISIBLE_DEVICES="1" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 48 --epochs 2000 --save SHARPER_MAX_W_genotype_no_hack_2k_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARPER_MAX_W_genotype_no_hack --primitives SHARPER_PRIMITIVES ; done;
+Tensorflow is not installed. Skipping tf related imports
+Experiment dir : eval-20190515-142614-SHARPER_MAX_W_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_MAX_W_genotype_no_hack-0
+2019_05_15_14_26_14 gpu device = 0
+2019_05_15_14_26_14 args = Namespace(arch='SHARPER_MAX_W_genotype_no_hack', autoaugment=True, auxiliary=True, auxiliary_weight=0.4, batch_size=48, cutout=True, cutout_length=16, data='../data', dataset='cifar10', drop_path_prob=0.2, epoch_stats_file='eval-20190515-142614-SHARPER_MAX_W_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_MAX_W_genotype_no_hack-0/eval-epoch-stats-20190515-142614.json', epochs=2000, evaluate='', flops=False, gpu=0, grad_clip=5, init_channels=36, layers=20, layers_in_cells=4, layers_of_cells=8, learning_rate=0.025, learning_rate_min=1e-08, load='', load_args='', load_genotype=None, log_file_path='eval-20190515-142614-SHARPER_MAX_W_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_MAX_W_genotype_no_hack-0/log.txt', lr_power_annealing_exponent_order=2, mid_channels=32, mixed_auxiliary=False, model_path='saved_models', momentum=0.9, multi_channel=False, ops='OPS', optimizer='sgd', partial=0.125, primitives='SHARPER_PRIMITIVES', random_eraser=False, report_freq=50, save='eval-20190515-142614-SHARPER_MAX_W_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_MAX_W_genotype_no_hack-0', seed=0, start_epoch=1, stats_file='eval-20190515-142614-SHARPER_MAX_W_genotype_no_hack_2k_b374f37_cospower_min_1e-8-cifar10-SHARPER_MAX_W_genotype_no_hack-0/eval-stats-20190515-142614.json', warm_restarts=20, warmup_epochs=5, weight_decay=0.0003, weighting_algorithm='scalar')
+2019_05_15_14_26_14 output channels: 10
+2019_05_15_14_26_14 loading op dict: operations.OPS
+2019_05_15_14_26_14 loading primitives:genotypes.SHARPER_PRIMITIVES
+2019_05_15_14_26_14 primitives: ['none', 'max_pool_3x3', 'avg_pool_3x3', 'skip_connect', 'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 'dil_conv_3x3', 'dil_conv_5x5', 'flood_conv_3x3', 'flood_conv_5x5', 'dil_flood_conv_3x3']
+2019_05_15_14_26_17 param size = 4.697614MB
+
+
+"""
 SHARPER_MAX_W_genotype_no_hack = Genotype(normal=[('sep_conv_3x3', 0), ('dil_conv_5x5', 1), ('max_pool_3x3', 0), ('sep_conv_7x7', 2), ('avg_pool_3x3', 3), ('flood_conv_3x3', 0), ('none', 4), ('none', 3)], normal_concat=range(2, 6), reduce=[('flood_conv_5x5', 0), ('dil_flood_conv_3x3', 1), ('sep_conv_3x3', 0), ('skip_connect', 2), ('sep_conv_3x3', 0), ('skip_connect', 2), ('dil_conv_5x5', 4), ('sep_conv_3x3', 0)], reduce_concat=range(2, 6), layout='cell')
