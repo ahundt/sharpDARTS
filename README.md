@@ -1,4 +1,89 @@
-# Differentiable Architecture Search
+# sharpDARTS: Faster, More Accurate Differentiable Architecture Search
+
+Please cite sharpDARTS if you use this code as part of your research! By using any part of the code you are agreeing to comply with our permissive Apache 2.0 license.
+
+```
+@article{DBLP:journals/corr/abs-1903-09900,
+  author    = {Andrew Hundt and
+               Varun Jain and
+               Gregory D. Hager},
+  title     = {sharpDARTS: Faster and More Accurate Differentiable Architecture Search},
+  journal   = {CoRR},
+  volume    = {abs/1903.09900},
+  year      = {2019},
+  url       = {http://arxiv.org/abs/1903.09900},
+  archivePrefix = {arXiv},
+  eprint    = {1903.09900},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/abs-1903-09900},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+```
+
+For algorithm details see:
+[sharpDARTS: Faster, More Accurate Differentiable Architecture Search](http://arxiv.org/abs/1903.09900)
+
+Requires pytorch 1.0.
+
+
+## Searching for a model
+
+To see the configuration options, run `python3 train_search.py --help` from the directory `cnn`. The code is also commented.
+
+Run `cnn/train_search.py` with your configuration. Place the best genotype into `genotypes.py`, preferably with a record of the raw weights as well and other command execution data so similar results can be reproduced in the future.
+
+## Training a final Model
+
+To see the configuration options, run `python3 train.py --help` from the directory `cnn`. The code is also commented.
+
+### CIFAR-10 Training
+
+Best Results with SharpSepConvDARTS:
+```
+export CUDA_VISIBLE_DEVICES="0" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 64 --epochs 2000 --save SHARPSEPCONV_DARTS_2k_`git rev-parse --short HEAD`_cospower_min_1e-8 --arch SHARPSEPCONV_DARTS --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10
+```
+
+Collecting multiple data points:
+
+```
+for i in {1..8}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 64 --epochs 2000 --save SHARPSEPCONV_DARTS_MAX_W_2k_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARPSEPCONV_DARTS_MAX_W ; done;
+```
+
+
+### ImageNet Training
+
+We train with a modified version the fp16 optimizer from [APEX](https://github.com/NVIDIA/apex), we suspect this means results will be slightly below the ideal possible accuracy, but training time is substantially reduced.
+These configurations are designed for an NVIDIA RTX 1080Ti, `--fp16` should be removed for older GPUs.
+
+You'll need to first [acquire the imagenet files](http://image-net.org/download) and preprocess them.
+
+Best SharpSepConvDARTS Results:
+
+```
+python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 224 --save `git rev-parse --short HEAD`_DARTS_PRIMITIVES_DIL_IS_SEPCONV --epochs 300 --dynamic-loss-scale --workers 20 --autoaugment --auxiliary --cutout --data /home/costar/datasets/imagenet/ --learning_rate 0.05 --learning_rate_min 0.00075 --arch DARTS_PRIMITIVES_DIL_IS_SEPCONV
+```
+
+Resuming Training (you may need to do this if your results don't match the paper on the first run):
+
+You'll need to make sure to specify the correct checkpoint directory, which will change every run. 
+```
+python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 224 --save `git rev-parse --short HEAD`_DARTS_PRIMITIVES_DIL_IS_SEPCONV --epochs 100 --dynamic-loss-scale --workers 20 --autoaugment --auxiliary --cutout --data /home/costar/datasets/imagenet/ --learning_rate 0.0005 --learning_rate_min 0.0000075 --arch DARTS_PRIMITIVES_DIL_IS_SEPCONV --resume eval-20190213-182625-975c657_DARTS_PRIMITIVES_DIL_IS_SEPCONV-imagenet-DARTS_PRIMITIVES_DIL_IS_SEPCONV-0/checkpoint.pth.tar
+```
+
+Training SHARP_DARTS model on ImageNet:
+
+```
+export CUDA_VISIBLE_DEVICES="0" && python3 main_fp16_optimizer.py --fp16 --b 256 --save `git rev-parse --short HEAD` --epochs 400 --dynamic-loss-scale --workers 20 --autoaugment --auxiliary --cutout --data /home/costar/datasets/imagenet/ --learning_rate_min 1e-8 --mid_channels 96 --lr 1e-4 --load eval-20190222-175718-4f5892f-imagenet-SHARP_DARTS-0/model_best.pth.tar
+```
+
+### Differentiable Hyperparameter Search
+
+```
+export CUDA_VISIBLE_DEVICES="1" && python2 train_search.py --dataset cifar10 --batch_size 64 --save MULTI_CHANNEL_SEARCH_`git rev-parse --short HEAD`_search_weighting_max_w --init_channels 36 --epochs 120 --cutout --autoaugment --seed 10 --weighting_algorithm max_w --multi_channel
+```
+
+
+# sharpDARTS Repository based on Differentiable Architecture Search (DARTS)
+
 Code accompanying the paper
 > [DARTS: Differentiable Architecture Search](https://arxiv.org/abs/1806.09055)\
 > Hanxiao Liu, Karen Simonyan, Yiming Yang.\
