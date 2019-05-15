@@ -93,6 +93,67 @@ Training a final model, this one will reproduce the best results from Max-W sear
 for i in {1..5}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --b 512 --save MULTI_CHANNEL_MAX_W_PATH_FULL_2k_`git rev-parse --short HEAD`_LR_0.1_to_1e-8 --arch MULTI_CHANNEL_MAX_W_PATH --epochs 2000 --multi_channel --cutout --autoaugment --learning_rate 0.1 ; done;
 ```
 
+## Cosine Power Annealing
+
+Cosine Power annealing is designed to be a learning rate schedule which improves on cosine annealing.
+See `consine_power_annealing.py` for the code, and `cnn/train.py` for an example of using the API.
+
+```python
+def cosine_power_annealing(
+        epochs=None, max_lr=0.1, min_lr=1e-4, exponent_order=10,
+        max_epoch=None, warmup_epochs=None, return_intermediates=False,
+        start_epoch=1, restart_lr=True):
+    """ Cosine Power annealing is designed to be an improvement on cosine annealing.
+
+    Often the cosine annealing schedule decreases too slowly at the beginning
+    and to quickly at the end. A simple exponential annealing curve does the
+    opposite, decreasing too quickly at the beginning and too slowly at the end.
+    Power cosine annealing strikes a configurable balance between the two.
+    The larger the exponent order, the faster exponential decay occurs.
+    The smaller the exponent order, the more like cosine annealing the curve becomes.
+
+    # Arguments
+
+    epochs: An integer indicating the number of epochs to train.
+        If you are resuming from epoch 100 and want to run until epoch 300,
+        specify 200.
+    max_lr: The maximum learning rate which is also the initial learning rate.
+    min_lr: The minimum learning rate which is also the final learning rate.
+    exponent_order: Determines how fast the learning rate decays.
+        A value of 1 will perform standard cosine annealing, while
+        10 will decay with an exponential base of 10.
+    max_epoch: The maximum epoch number that will be encountered.
+        This is usually specified for when you are getting a single learning rate
+        value at the current epoch, or for resuming training runs.
+    return_intermediates: True changes the return value to be
+        [cos_power_annealing, cos_power_proportions, cos_proportions]
+        which is useful for comparing, understanding, and plotting several possible
+        learning rate curves. False returns only the cos_power_annealing
+        learning rate values.,
+    start_epoch: The epoch number to start training from which will be at index 0
+        of the returned numpy array.
+    restart_lr: If True the training curve will be returned as if starting from
+        epoch 1, even if you are resuming from a later epoch. Otherwise we will
+        return with the learning rate as if you have already trained up to
+        the value specified by start_epoch.
+
+    # Returns
+
+        A 1d numpy array cos_power_annealing, which will contain the learning
+        rate you should use at each of the specified epochs.
+    """
+```
+
+Here is the key line with the settings you'll want to use:
+
+```python
+  lr_schedule = cosine_power_annealing(
+    epochs=args.epochs, max_lr=args.learning_rate, min_lr=args.learning_rate_min,
+    warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order)
+```
+
+lr_schedule is a numpy array containing the learning rate at each epoch.
+
 # sharpDARTS Repository based on Differentiable Architecture Search (DARTS)
 
 Code accompanying the paper
