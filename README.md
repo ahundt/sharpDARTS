@@ -48,6 +48,10 @@ Collecting multiple data points:
 for i in {1..8}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 64 --epochs 2000 --save SHARPSEPCONV_DARTS_MAX_W_2k_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARPSEPCONV_DARTS_MAX_W ; done;
 ```
 
+Collecting results from multiple runs into a file from `sharperDARTS/cnn` directory with [ack-grep](https://beyondgrep.com/) (on some machiens it is just `ack`):
+```
+ack-grep  --match "cifar10.1" */*.txt > cifar10.1_results_femur.txt
+```
 
 ### ImageNet Training
 
@@ -64,7 +68,7 @@ python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --
 
 Resuming Training (you may need to do this if your results don't match the paper on the first run):
 
-You'll need to make sure to specify the correct checkpoint directory, which will change every run. 
+You'll need to make sure to specify the correct checkpoint directory, which will change every run.
 ```
 python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 224 --save `git rev-parse --short HEAD`_DARTS_PRIMITIVES_DIL_IS_SEPCONV --epochs 100 --dynamic-loss-scale --workers 20 --autoaugment --auxiliary --cutout --data /home/costar/datasets/imagenet/ --learning_rate 0.0005 --learning_rate_min 0.0000075 --arch DARTS_PRIMITIVES_DIL_IS_SEPCONV --resume eval-20190213-182625-975c657_DARTS_PRIMITIVES_DIL_IS_SEPCONV-imagenet-DARTS_PRIMITIVES_DIL_IS_SEPCONV-0/checkpoint.pth.tar
 ```
