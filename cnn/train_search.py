@@ -294,7 +294,7 @@ def main():
         logger.info('min_cost_flow_edge : %s', min_cost_flow_edge)
         new_g = nx.DiGraph()
         new_path = new_g.add_edges_from(min_cost_flow_edge)
-        logger.info('min_cost_flow_path : %s', new_path)
+        logger.info('min_cost_flow_path : %s', new_path.nodes)  
       #  mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
       #  np.save(mincostFlow_path_filename, new_mincost_flow)
         graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')
