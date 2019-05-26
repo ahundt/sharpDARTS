@@ -137,7 +137,7 @@ def main():
       if type(genotype[0]) is str:
         logger.info('Path :%s', genotype)
     # TODO(ahundt) remove final path and switch back to genotype
-    cnn_model = MultiChannelNetwork(
+    cnn_model = MultiChannelNetworkModel(
       args.init_channels, DATASET_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
       weighting_algorithm=args.weighting_algorithm, genotype=genotype)
   elif args.dataset == 'imagenet':
