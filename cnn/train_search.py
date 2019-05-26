@@ -292,6 +292,7 @@ def main():
       #  weight = nx.get_edge_attributes(cnn_model.G, "weight")
         logger.info('capacity :%s', capacity)
         logger.info('weight_int :%s', weight)
+        #iterative cost_search
         for demand in range(1, args.demand_limit, args.demand_step):
           cnn_model.G.nodes["Linear"]['demand'] = -demand
           cnn_model.G.nodes["Linear"]['demand'] = demand
@@ -299,6 +300,8 @@ def main():
           min_cost_flow_edge = [(u, v) for u in flow_dict for v in flow_dict[u] if flow_dict[u][v] > args.flow_cut]
           logger.info('min_cost_flow_edge with demand: %d %s', demand, min_cost_flow_edge)
           new_g = nx.DiGraph()
+
+          # create graph form added nodes
           new_path = new_g.add_edges_from(min_cost_flow_edge)
           logger.info('min_cost_flow_path with demand: %d %s', demand, new_path.nodes)  
       #  mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
@@ -353,6 +356,7 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
     input_search, target_search = next(iter(valid_queue))
     input_search = Variable(input_search, requires_grad=False).cuda(non_blocking=True)
     target_search = Variable(target_search, requires_grad=False).cuda(non_blocking=True)
+    cnn_model.time_between_layers.reset()
 
     # define validation loss for analyzing the importance of hyperparameters
     if architect is not None:

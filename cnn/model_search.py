@@ -377,6 +377,7 @@ class MultiChannelNetwork(nn.Module):
 
     self.base = nn.ModuleList()
     self.G.add_node("add-SharpSep")
+    self.time_between_layers = AverageMeter()
 
     # for C_out_idx in range(self.C_size):
     #   self.G.add_edge('layer_'+str(self._layers-1)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(self.strides[-1] + 1), "Add-SharpSep")
@@ -442,7 +443,7 @@ class MultiChannelNetwork(nn.Module):
 
     # computing capacity during model eval
     if self.training is False:
-        time_between_layers = AverageMeter()
+        # time_between_layers = AverageMeter()
         end_time = time.time()
     for layer in range(self._layers):
       # layer is how many times we've called everything, i.e. the number of "layers"
@@ -463,7 +464,7 @@ class MultiChannelNetwork(nn.Module):
           c_outs = []
           # compute average time when validating model.
           if self.training is False:
-            time_between_layers.update(time.time() - end_time)
+            self.time_between_layers.update(time.time() - end_time)
             time_in_layers = AverageMeter()
           for C_in_idx, C_in in enumerate(self.Cs):
             for primitive_idx, primitive in enumerate(self.primitives):
@@ -503,7 +504,7 @@ class MultiChannelNetwork(nn.Module):
                 # compute average time when validating model.
                 if self.training is False:
                     time_in_layers.update(time.time() - op_st_time)
-                    self.G[name][out_node]["capacity"] = time_in_layers.avg + time_between_layers.avg
+                    self.G[name][out_node]["capacity"] = time_in_layers.avg + self.time_between_layers.avg
                     end_time = time.time()
 
           # only apply updates to layers of sufficient quality
