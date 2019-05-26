@@ -98,9 +98,9 @@ parser.add_argument('--weighting_algorithm', type=str, default='scalar',
 # TODO(ahundt) remove final path and switch back to genotype
 parser.add_argument('--final_path', type=str, default=None, help='path for final model')
 parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
-parser.add_argument('--demand_limit' type=int, default=2, help='Set the demand limit for the iterative cost search for best model')
-parser.add_argument('--demand_step' type=int, default=2, help='Set the demand step size for the iterative cost search for best model')
-parser.add_argument('--flow_cut' type=float, default=0, help='Set the threshold for the edges to be included in iterative cost search for best model. Default is a good choice.')
+parser.add_argument('--demand_limit', type=int, default=2, help='Set the demand limit for the iterative cost search for best model')
+parser.add_argument('--demand_step', type=int, default=1, help='Set the demand step size for the iterative cost search for best model')
+parser.add_argument('--flow_cut', type=float, default=0, help='Set the threshold for the edges to be included in iterative cost search for best model. Default is a good choice.')
 args = parser.parse_args()
 
 args.arch = args.primitives + '-' + args.ops
