@@ -389,7 +389,7 @@ class MultiChannelNetwork(nn.Module):
       self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
     # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
     # C_in will be defined by the previous layer's c_out
-    self.arch_weights_shape = [len(self.strides), self._layers, self.C_size, self.C_size, len(self.op_types)]
+    self.arch_weights_shape = [len(self.strides), self._layers, self.C_size, self.C_size, len(self.primitives)]
     # number of weights total
     self.weight_count = np.prod(self.arch_weights_shape)
     # number of weights in a softmax call
