@@ -364,10 +364,10 @@ class MultiChannelNetwork(nn.Module):
                     self.G.add_edge('layer_' + str(layer_idx-1)+'_add_' + 'c_out_'+str(self.Cs[C_in_idx])+'_stride_' + str(self.strides[-1] + 1), name)
                 self.G.add_edge(name, out_node)
                 # op = OpType(int(cin), int(cout), kernel_size=3, stride=int(stride_idx + 1))
-                op = self.op_dict[primitive](cin, cout, int(stride_idx + 1), False)
+                op = self.op_dict[primitive](int(cin), int(cout), int(stride_idx + 1), False)
                 # Consistent with MixedOp
                 if 'pool' in primitive:
-                    op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
+                    op = nn.Sequential(op, nn.BatchNorm2d(int(cout), affine=False))
                 type_modules.append(op)
             out_modules.append(type_modules)
           in_modules.append(out_modules)
@@ -491,6 +491,8 @@ class MultiChannelNetwork(nn.Module):
                     if self._weighting_algorithm is None or self._weighting_algorithm == 'scalar':
                       x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
                     elif self._weighting_algorithm == 'max_w':
+                      print(name)
+                      print(s.size())
                       x = (1. - max_w + w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
                       # self.G[name][out_node]["weight"] = (1. - max_w + w)
                     else:
