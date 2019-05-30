@@ -1,5 +1,7 @@
 # sharpDARTS: Faster, More Accurate Differentiable Architecture Search
 
+![Differentiable Hyperparameter Search Example Graph](img/multi_channel_net_2x2_x2x2x2.svg)
+
 Please cite [sharpDARTS: Faster, More Accurate Differentiable Architecture Search](http://arxiv.org/abs/1903.09900) if you use this code as part of your research! By using any part of the code you are agreeing to comply with our permissive Apache 2.0 license.
 
 ```
@@ -101,6 +103,8 @@ export CUDA_VISIBLE_DEVICES="0" && python3 main_fp16_optimizer.py --fp16 --b 256
 
 ## Differentiable Hyperparameter Search on CIFAR-10
 
+![Differentiable Hyperparameter Search Example Graph](img/multi_channel_net_2x2_x2x2x2.svg)
+
 Searching for a Model:
 ```
 export CUDA_VISIBLE_DEVICES="1" && python2 train_search.py --dataset cifar10 --batch_size 64 --save MULTI_CHANNEL_SEARCH_`git rev-parse --short HEAD`_search_weighting_max_w --init_channels 36 --epochs 120 --cutout --autoaugment --seed 10 --weighting_algorithm max_w --multi_channel
@@ -114,6 +118,8 @@ for i in {1..5}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --b 512 
 ```
 
 ## Cosine Power Annealing
+
+![Cosine Power Annealing Example Curve](img/cos_power_annealing_imagenet.png)
 
 Cosine Power annealing is designed to be a learning rate schedule which improves on cosine annealing.
 See `consine_power_annealing.py` for the code, and `cnn/train.py` for an example of using the API.
