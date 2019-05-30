@@ -266,11 +266,6 @@ def main():
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
-    # epoch_count = args.epochs - args.start_epoch
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(epoch_count))
-    # scheduler = warmup_scheduler.GradualWarmupScheduler(
-    #     optimizer, args.warmup_lr_divisor, args.warmup_epochs, scheduler)
-
     if args.fp16:
         optimizer = FP16_Optimizer(optimizer,
                                    static_loss_scale=args.static_loss_scale,
