@@ -11,13 +11,14 @@ def plot(genotype, filename):
       engine='dot')
   g.body.extend(['rankdir=LR'])
 
-  g.node("c_{k-2}", fillcolor='darkseagreen2')
-  g.node("c_{k-1}", fillcolor='darkseagreen2')
+  g.node(str(0), label="c_{k-2}", fillcolor='darkseagreen2')
+  g.node(str(1), label="c_{k-1}", fillcolor='darkseagreen2')
   assert len(genotype) % 2 == 0
   steps = len(genotype) // 2
 
   for i in range(steps):
-    g.node(str(i), fillcolor='lightblue')
+    g.node(str(i), label='+', fillcolor='lightblue')
+    # g.node(str(i), label='+_{' + str(i) + '}', fillcolor='lightblue')
 
   for i in range(steps):
     for k in [2*i, 2*i + 1]:
@@ -29,11 +30,14 @@ def plot(genotype, filename):
       else:
         u = str(j-2)
       v = str(i)
-      g.edge(u, v, label=op, fillcolor="gray")
+      name_ijk = str(i) + '_' + str(j) + '_' + str(k) + op
+      g.node(name_ijk, label=op, fillcolor='darkseagreen2')
+      g.edge(u, name_ijk, fillcolor="black")
+      g.edge(name_ijk, v, fillcolor="black")
 
   g.node("c_{k}", fillcolor='palegoldenrod')
   for i in range(steps):
-    g.edge(str(i), "c_{k}", fillcolor="gray")
+    g.edge(str(i), "c_{k}", fillcolor="black")
 
   g.render(filename, view=True)
 
