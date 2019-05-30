@@ -67,7 +67,7 @@ def main():
   parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
   parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                       help='which primitive layers to use inside a cell search space,'
-                           ' options are PRIMITIVES and DARTS_PRIMITIVES')
+                           ' options are PRIMITIVES, SHARPER_PRIMITIVES, and DARTS_PRIMITIVES')
   parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
   parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
   parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
