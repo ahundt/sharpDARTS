@@ -1,8 +1,8 @@
-# sharpDARTS: Faster, More Accurate Differentiable Architecture Search
+# sharpDARTS: Faster and More Accurate Differentiable Architecture Search
 
 ![Differentiable Hyperparameter Search Example Graph](img/multi_channel_net_2x2_x2x2x2.svg)
 
-Please cite [sharpDARTS: Faster, More Accurate Differentiable Architecture Search](http://arxiv.org/abs/1903.09900) if you use this code as part of your research! By using any part of the code you are agreeing to comply with our permissive Apache 2.0 license.
+Please cite [sharpDARTS: Faster and More Accurate Differentiable Architecture Search](http://arxiv.org/abs/1903.09900) if you use this code as part of your research! By using any part of the code you are agreeing to comply with our permissive Apache 2.0 license.
 
 ```
 @article{hundt2019sharpdarts,
@@ -52,7 +52,7 @@ python3 visualize.py SHARP_DARTS
 python3 visualize.py DARTS
 ```
 
-## Training a final Model
+## Training a Final Model
 
 To see the configuration options, run `python3 train.py --help` from the directory `cnn`. The code is also commented.
 
