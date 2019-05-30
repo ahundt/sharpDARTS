@@ -15,8 +15,8 @@ import torch.backends.cudnn as cudnn
 try:
   import costar_dataset
 except ImportError:
-  print('dataset.py: The costar dataset is not available, so it is being skipped. '
-        'See https://github.com/ahundt/costar_dataset for details')
+  # print('dataset.py: The costar dataset is not available, so it is being skipped. '
+  #       'See https://github.com/ahundt/costar_dataset for details')
   costar_dataset = None
 
 CIFAR_CLASSES = 10

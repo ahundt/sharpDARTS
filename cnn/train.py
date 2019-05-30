@@ -41,7 +41,7 @@ def main():
                            '1 returns to standard cosine annealing.')
   parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
   parser.add_argument('--weight_decay', '--wd', dest='weight_decay', type=float, default=3e-4, help='weight decay')
-  parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
+  # parser.add_argument('--partial', default=1/8, type=float, help='partially adaptive parameter p in Padam')
   parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
   parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
   parser.add_argument('--epochs', type=int, default=2000, help='num of training epochs')
@@ -68,7 +68,7 @@ def main():
   parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                       help='which primitive layers to use inside a cell search space,'
                            ' options are PRIMITIVES and DARTS_PRIMITIVES')
-  parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, options are padam and sgd')
+  parser.add_argument('--optimizer', type=str, default='sgd', help='which optimizer to use, option is sgd')
   parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
   parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
   parser.add_argument('--flops', action='store_true', default=False, help='count flops and exit, aka floating point operations.')
