@@ -1,3 +1,6 @@
+# Code to load various datasets for training.
+#
+# Some data loading code is from https://github.com/DRealArun/darts/ with the same license as DARTS.
 import os
 import sys
 import time
