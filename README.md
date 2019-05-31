@@ -119,7 +119,8 @@ for i in {1..5}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --b 512 
 
 ## Cosine Power Annealing
 
-![Cosine Power Annealing Example Curve](img/cos_power_annealing_imagenet.png)
+![Cosine Power Annealing Example Curve](img/cos_power_annealing_imagenet.svg)
+![Cosine Power Annealing Example Logarithmic Curve](img/cos_power_annealing_imagenet_log.svg)
 
 Cosine Power annealing is designed to be a learning rate schedule which improves on cosine annealing.
 See `consine_power_annealing.py` for the code, and `cnn/train.py` for an example of using the API.
