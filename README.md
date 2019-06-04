@@ -37,9 +37,13 @@ export CUDA_VISIBLE_DEVICES="0" && python3 train_search.py --dataset cifar10 --b
 
 ### Max-W Regularization Search
 
-
+```
 export CUDA_VISIBLE_DEVICES="0" && python3 train_search.py --dataset cifar10 --batch_size 48 --layers_of_cells 8 --layers_in_cells 4 --save max_w_SharpSepConvDARTS_SEARCH_`git rev-parse --short HEAD` --init_channels 16 --epochs 120 --cutout --autoaugment --seed 22 --weighting_algorithm max_w --primitives DARTS_PRIMITIVES
-Run `cnn/train_search.py` with your configuration. Place the best genotype into `genotypes.py`, preferably with a record of the raw weights as well and other command execution data so similar results can be reproduced in the future.
+```
+
+### Add Search Results to the Code
+
+After running `cnn/train_search.py` with your configuration, place the best genotype printout `genotype = ...` into `genotypes.py` with a unique name. We suggest also adding a record of your command, the git commit version, and a copy of the raw weights, and other command execution data so similar results can be reproduced in the future.
 
 ### Visualization
 
@@ -91,6 +95,7 @@ python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --
 Resuming Training (you may need to do this if your results don't match the paper on the first run):
 
 You'll need to make sure to specify the correct checkpoint directory, which will change every run.
+
 ```
 python3 -m torch.distributed.launch --nproc_per_node=2 main_fp16_optimizer.py --fp16 --b 224 --save `git rev-parse --short HEAD`_DARTS_PRIMITIVES_DIL_IS_SEPCONV --epochs 100 --dynamic-loss-scale --workers 20 --autoaugment --auxiliary --cutout --data /home/costar/datasets/imagenet/ --learning_rate 0.0005 --learning_rate_min 0.0000075 --arch DARTS_PRIMITIVES_DIL_IS_SEPCONV --resume eval-20190213-182625-975c657_DARTS_PRIMITIVES_DIL_IS_SEPCONV-imagenet-DARTS_PRIMITIVES_DIL_IS_SEPCONV-0/checkpoint.pth.tar
 ```
