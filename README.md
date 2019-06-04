@@ -47,7 +47,7 @@ After running `cnn/train_search.py` with your configuration, place the best geno
 
 ### Visualization
 
-Here are examples of how to visualize the cell structures from a genotype definition found int `genotypes.py`:
+Here are examples of how to visualize the cell structures from a genotype definition found in `genotypes.py`:
 ```
 cd cnn
 
