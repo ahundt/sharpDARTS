@@ -181,7 +181,7 @@ Here is the key line with the settings you'll want to use:
 
 lr_schedule is a numpy array containing the learning rate at each epoch.
 
-## The sharpDARTS Repository is based on Differentiable Architecture Search (DARTS)
+## The sharpDARTS Repository is Based on Differentiable Architecture Search (DARTS)
 
 The following is a lightly edited and updated reproduction of the README.md from the original [DARTS Code](https://github.com/quark0/darts/tree/f276dd346a09ae3160f8e3aca5c7b193fda1da37) accompanying the paper [DARTS: Differentiable Architecture Search](https://arxiv.org/abs/1806.09055):
 
