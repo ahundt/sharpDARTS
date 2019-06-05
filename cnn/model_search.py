@@ -607,8 +607,8 @@ class MultiChannelNetwork(nn.Module):
 class MultiChannelNetworkModel(nn.Module):
 
   def __init__(self, C=32, num_classes=10, layers=6, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
-               in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False,
-               weighting_algorithm=None, genotype=None):
+               in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False, primitives=None,
+               op_dict=None, weighting_algorithm=None, genotype=None):
     """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
     """
     super(MultiChannelNetworkModel, self).__init__()
@@ -692,6 +692,8 @@ class MultiChannelNetworkModel(nn.Module):
         # Consistent with MixedOp
         if 'pool' in primitive:
             op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
+        if 'none' in primitive or ('skip_connect' in primitive and stride_idx == 0):
+            op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
         self.op_grid.append(op)
     self.base = nn.ModuleList()
     self.base.append(operations.SharpSepConv(int(c_out), int(final_linear_filters), 3))

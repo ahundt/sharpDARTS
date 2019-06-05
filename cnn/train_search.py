@@ -148,8 +148,8 @@ def main():
     if args.load_genotype is not None:
       genotype = getattr(genotypes, args.load_genotype)
     cnn_model = model_search.MultiChannelNetwork(
-      args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      weighting_algorithm=args.weighting_algorithm, genotype=genotype)
+      args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells, primitives=primitives,
+      op_dict=op_dict, weighting_algorithm=args.weighting_algorithm, genotype=genotype)
     #save_graph(cnn_model.G, os.path.join(args.save, 'network_graph.pdf'))
     if args.load_genotype is not None:
       # TODO(ahundt) support other batch shapes
