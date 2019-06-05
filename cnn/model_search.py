@@ -368,7 +368,7 @@ class MultiChannelNetwork(nn.Module):
                 # Consistent with MixedOp
                 if 'pool' in primitive:
                     op = nn.Sequential(op, nn.BatchNorm2d(int(cout), affine=False))
-                if 'none' or 'skip_connect' in primitive:
+                if 'none' in primitive or 'skip_connect' in primitive:
                     op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
                 type_modules.append(op)
             out_modules.append(type_modules)
@@ -493,8 +493,8 @@ class MultiChannelNetwork(nn.Module):
                     if self._weighting_algorithm is None or self._weighting_algorithm == 'scalar':
                       x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
                     elif self._weighting_algorithm == 'max_w':
-                      print(name)
-                      print(s.size())
+                      # print(name)
+                      # print(s.size())
                       x = (1. - max_w + w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
                       # self.G[name][out_node]["weight"] = (1. - max_w + w)
                     else:
