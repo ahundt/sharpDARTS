@@ -707,7 +707,7 @@ class MultiChannelNetworkModel(nn.Module):
     # Parsing model definition string. Refer genotypes.py for sample model definition string.
     for layers in model[3:-4]:
         layer = layers.split("_")
-        # primitive index
+        # fetching primitive and other parameters from saved model.
         primitive = self.primitives[ops[layer[-1]]]
         stride = layer[3]
         c_in = layer[6]
