@@ -368,7 +368,7 @@ class MultiChannelNetwork(nn.Module):
                 # Consistent with MixedOp
                 if 'pool' in primitive:
                     op = nn.Sequential(op, nn.BatchNorm2d(int(cout), affine=False))
-                if 'none' in primitive or 'skip_connect' in primitive:
+                if 'none' in primitive or ('skip_connect' in primitive and stride_idx == 0):
                     op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
                 type_modules.append(op)
             out_modules.append(type_modules)
