@@ -273,3 +273,118 @@ MULTI_CHANNEL_GREEDY_SCALAR_TOP_DOWN = ['Source', 'Conv3x3_0', 'BatchNorm_0', 'l
 MULTI_CHANNEL_GREEDY_SCALAR_BOTTOM_UP = ['Source', 'Conv3x3_2', 'BatchNorm_2', 'layer_0_stride_1_c_in_128_c_out_256_op_type_SharpSepConv', 'layer_0_add_c_out_256_stride_1', 'layer_0_stride_2_c_in_256_c_out_32_op_type_ResizablePool', 'layer_0_add_c_out_32_stride_2', 'layer_1_stride_1_c_in_32_c_out_32_op_type_ResizablePool', 'layer_1_add_c_out_32_stride_1', 'layer_1_stride_2_c_in_32_c_out_32_op_type_ResizablePool', 'layer_1_add_c_out_32_stride_2', 'layer_2_stride_1_c_in_32_c_out_256_op_type_ResizablePool', 'layer_2_add_c_out_256_stride_1', 'layer_2_stride_2_c_in_256_c_out_256_op_type_ResizablePool', 'layer_2_add_c_out_256_stride_2', 'layer_3_stride_1_c_in_256_c_out_256_op_type_ResizablePool', 'layer_3_add_c_out_256_stride_1', 'layer_3_stride_2_c_in_256_c_out_32_op_type_SharpSepConv', 'layer_3_add_c_out_32_stride_2', 'SharpSepConv32', 'add-SharpSep', 'global_pooling', 'Linear']
 MULTI_CHANNEL_GREEDY_MAX_W_TOP_DOWN = ['Source', 'Conv3x3_0', 'BatchNorm_0', 'layer_0_stride_1_c_in_32_c_out_32_op_type_ResizablePool', 'layer_0_add_c_out_32_stride_1', 'layer_0_stride_2_c_in_32_c_out_128_op_type_SharpSepConv', 'layer_0_add_c_out_128_stride_2', 'layer_1_stride_1_c_in_128_c_out_128_op_type_SharpSepConv', 'layer_1_add_c_out_128_stride_1', 'layer_1_stride_2_c_in_128_c_out_128_op_type_SharpSepConv', 'layer_1_add_c_out_128_stride_2', 'layer_2_stride_1_c_in_128_c_out_64_op_type_SharpSepConv', 'layer_2_add_c_out_64_stride_1', 'layer_2_stride_2_c_in_64_c_out_64_op_type_SharpSepConv', 'layer_2_add_c_out_64_stride_2', 'layer_3_stride_1_c_in_64_c_out_128_op_type_SharpSepConv', 'layer_3_add_c_out_128_stride_1', 'layer_3_stride_2_c_in_128_c_out_128_op_type_ResizablePool', 'layer_3_add_c_out_128_stride_2', 'SharpSepConv128', 'add-SharpSep', 'global_pooling', 'Linear']
 MULTI_CHANNEL_GREEDY_MAX_W_BOTTOM_UP = ['Source', 'Conv3x3_3', 'BatchNorm_3', 'layer_0_stride_1_c_in_256_c_out_128_op_type_ResizablePool', 'layer_0_add_c_out_128_stride_1', 'layer_0_stride_2_c_in_128_c_out_256_op_type_ResizablePool', 'layer_0_add_c_out_256_stride_2', 'layer_1_stride_1_c_in_256_c_out_128_op_type_ResizablePool', 'layer_1_add_c_out_128_stride_1', 'layer_1_stride_2_c_in_128_c_out_128_op_type_SharpSepConv', 'layer_1_add_c_out_128_stride_2', 'layer_2_stride_1_c_in_128_c_out_64_op_type_ResizablePool', 'layer_2_add_c_out_64_stride_1', 'layer_2_stride_2_c_in_64_c_out_64_op_type_ResizablePool', 'layer_2_add_c_out_64_stride_2', 'layer_3_stride_1_c_in_64_c_out_64_op_type_ResizablePool', 'layer_3_add_c_out_64_stride_1', 'layer_3_stride_2_c_in_64_c_out_64_op_type_ResizablePool', 'layer_3_add_c_out_64_stride_2', 'SharpSepConv64', 'add-SharpSep', 'global_pooling', 'Linear']
+
+'''
+2019_03_22_20_40_54 alphas_normal = tensor([[0.0232, 0.0151, 0.0171, 0.0194, 0.0332, 0.0312, 0.8298, 0.0309],
+        [0.0286, 0.0168, 0.0197, 0.0224, 0.0504, 0.0883, 0.0418, 0.7321],
+        [0.0877, 0.0575, 0.0670, 0.3865, 0.0951, 0.0988, 0.1257, 0.0818],
+        [0.0540, 0.0393, 0.0405, 0.0442, 0.0624, 0.0779, 0.0628, 0.6189],
+        [0.0489, 0.0368, 0.0358, 0.0387, 0.6566, 0.0585, 0.0651, 0.0596],
+        [0.0855, 0.0645, 0.0748, 0.0851, 0.4185, 0.0954, 0.1091, 0.0671],
+        [0.5734, 0.0475, 0.0503, 0.0550, 0.0668, 0.0779, 0.0643, 0.0649],
+        [0.0789, 0.0542, 0.4509, 0.0610, 0.0802, 0.0793, 0.0861, 0.1094],
+        [0.8564, 0.0183, 0.0183, 0.0173, 0.0212, 0.0231, 0.0226, 0.0227],
+        [0.0453, 0.0343, 0.0378, 0.0412, 0.0481, 0.0476, 0.0459, 0.6999],
+        [0.1087, 0.0705, 0.0891, 0.1052, 0.1184, 0.1329, 0.1179, 0.2574],
+        [0.0525, 0.0375, 0.6463, 0.0456, 0.0520, 0.0581, 0.0550, 0.0530],
+        [0.0195, 0.8692, 0.0158, 0.0147, 0.0208, 0.0193, 0.0199, 0.0207],
+        [0.0090, 0.0080, 0.9410, 0.0070, 0.0084, 0.0087, 0.0087, 0.0092]],
+       device='cuda:0', grad_fn=<SoftmaxBackward>)
+2019_03_22_20_40_54 alphas_reduce = tensor([[0.0583, 0.6199, 0.0478, 0.0560, 0.0569, 0.0585, 0.0557, 0.0469],
+        [0.1099, 0.1485, 0.1486, 0.1488, 0.1488, 0.0791, 0.1487, 0.0677],
+        [0.1059, 0.0870, 0.0895, 0.1150, 0.1011, 0.2977, 0.1077, 0.0960],
+        [0.1216, 0.1476, 0.1479, 0.1478, 0.1141, 0.1016, 0.1196, 0.0997],
+        [0.1176, 0.1342, 0.1314, 0.1998, 0.0986, 0.1033, 0.1004, 0.1146],
+        [0.1195, 0.1052, 0.1077, 0.1202, 0.1218, 0.1956, 0.1175, 0.1124],
+        [0.1238, 0.1394, 0.1396, 0.1395, 0.1117, 0.1157, 0.1115, 0.1189],
+        [0.1234, 0.1338, 0.1321, 0.1505, 0.1169, 0.1140, 0.1139, 0.1152],
+        [0.1222, 0.1158, 0.1136, 0.1532, 0.1059, 0.1151, 0.1133, 0.1609],
+        [0.1238, 0.1120, 0.1141, 0.1222, 0.1256, 0.1337, 0.1503, 0.1184],
+        [0.1248, 0.1335, 0.1334, 0.1336, 0.1166, 0.1221, 0.1178, 0.1184],
+        [0.1242, 0.1317, 0.1300, 0.1353, 0.1307, 0.1120, 0.1128, 0.1233],
+        [0.1238, 0.1194, 0.1174, 0.1649, 0.1167, 0.1173, 0.1207, 0.1199],
+        [0.1192, 0.1132, 0.1116, 0.1128, 0.1130, 0.2097, 0.1126, 0.1079]],
+       device='cuda:0', grad_fn=<SoftmaxBackward>)
+2019_03_22_21_01_53 epoch, 120, train_acc, 89.499997, valid_acc, 83.815997, train_loss, 0.302826, valid_loss, 0.483055, lr, 1.000000e-04, best_epoch, 119, best_valid_acc, 84.159997
+Overview ***** best_epoch: 119 best_valid_acc: 84.16 ***** Progress: 100%|| 120/120 [42:15:54<00:00, 1265.52s/it]
+2019_03_22_21_01_54 genotype =
+2019_03_22_21_01_54 Search for Model Complete! Save dir: search-20190321-024555-max_w_SharpSepConvDARTS_SEARCH_5e49783-cifar10-DARTS_PRIMITIVES-OPS-0
+
+export CUDA_VISIBLE_DEVICES="1" && python3 main_fp16_optimizer.py --autoaugment --auxiliary --cutout --batch_size 128 --epochs 2000 --save flops_SHARPSEPCONV_DARTS_MAX_W_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARPSEPCONV_DARTS_MAX_W --flops
+2019_03_27_13_51_30 param size = 2.477062MB
+2019_03_27_13_51_30 flops_shape = [1, 3, 32, 32]
+2019_03_27_13_51_30 flops = 405.84MMac
+
+Full training run command:
+costar@ubuntu|~/src/sharpDARTS/cnn on multi_channel_search!?
+± for i in {1..8}; do export CUDA_VISIBLE_DEVICES="0" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 64 --epochs 2000 --save SHARPSEPCONV_DARTS_MAX_W_2k_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARPSEPCONV_DARTS_MAX_W ; done;
+Experiment dir : eval-20190327-140904-SHARPSEPCONV_DARTS_MAX_W_2k_c1059c7_cospower_min_1e-8-cifar10-SHARPSEPCONV_DARTS_MAX_W-0
+'''
+
+SHARPSEPCONV_DARTS_MAX_W = Genotype(normal=[('dil_conv_3x3', 0), ('dil_conv_5x5', 1), ('sep_conv_3x3', 2), ('dil_conv_5x5', 1), ('avg_pool_3x3', 2), ('sep_conv_3x3', 0), ('avg_pool_3x3', 4), ('max_pool_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('sep_conv_5x5', 0), ('skip_connect', 2), ('sep_conv_5x5', 0), ('dil_conv_5x5', 3), ('sep_conv_5x5', 4), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
+
+"""
+± export CUDA_VISIBLE_DEVICES="0" && python3 train_search.py --dataset cifar10 --batch_size 24 --layers_of_cells 8 --layers_in_cells 4 --save max_w_SHARP_DARTS_SEARCH_`git rev-parse --short HEAD` --i
+nit_channels 16 --epochs 120 --cutout --autoaugment --seed 23 --weighting_algorithm max_w
+Tensorflow is not installed. Skipping tf related imports
+Experiment dir : search-20190323-002241-max_w_SHARP_DARTS_SEARCH_e79c097-cifar10-PRIMITIVES-OPS-0
+2019_03_23_00_22_42 gpu device = 0
+2019_03_23_00_22_42 args = Namespace(arch='PRIMITIVES-OPS', arch_learning_rate=0.0003, arch_weight_decay=0.001, autoaugment=True, batch_size=24, cutout=True, cutout_length=16, data='../data', dataset
+='cifar10', drop_path_prob=0.3, epoch_stats_file='search-20190323-002241-max_w_SHARP_DARTS_SEARCH_e79c097-cifar10-PRIMITIVES-OPS-0/eval-epoch-stats-20190323-002241.json', epochs=120, evaluate='', fin
+al_path=None, gpu=0, grad_clip=5, init_channels=16, layers_in_cells=4, layers_of_cells=8, learning_rate=0.025, learning_rate_min=0.0001, load='', load_args='', load_genotype=None, log_file_path='sear
+ch-20190323-002241-max_w_SHARP_DARTS_SEARCH_e79c097-cifar10-PRIMITIVES-OPS-0/log.txt', lr_power_annealing_exponent_order=2, mid_channels=32, model_path='saved_models', momentum=0.9, multi_channel=Fal
+se, no_architect=False, ops='OPS', primitives='PRIMITIVES', random_eraser=False, report_freq=50, save='search-20190323-002241-max_w_SHARP_DARTS_SEARCH_e79c097-cifar10-PRIMITIVES-OPS-0', seed=23, star
+t_epoch=1, stats_file='search-20190323-002241-max_w_SHARP_DARTS_SEARCH_e79c097-cifar10-PRIMITIVES-OPS-0/eval-stats-20190323-002241.json', train_portion=0.5, unrolled=False, warmup_epochs=5, weight_de
+cay=0.0003, weighting_algorithm='max_w')
+2019_03_26_22_47_44 epoch, 116, train_acc, 89.159997, valid_acc, 84.891997, train_loss, 0.309159, valid_loss, 0.457367, lr, 1.515235e-04, best_epoch, 116, best_valid_acc, 84.891997
+
+2019_03_26_22_47_45 genotype = Genotype(normal=[('sep_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('dil_conv_3x3', 2), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 0), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('dil_choke_conv_3x3', 0), ('dil_flood_conv_3x3', 2), ('dil_conv_3x3', 0), ('skip_connect', 3), ('flood_conv_3x3', 0), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
+2019_03_26_22_47_45 alphas_normal = tensor([[0.0143, 0.0093, 0.0108, 0.8871, 0.0147, 0.0156, 0.0162, 0.0170, 0.0150],
+
+        [0.0372, 0.0194, 0.0285, 0.0438, 0.0300, 0.0522, 0.0522, 0.6729, 0.0637],
+        [0.0251, 0.0151, 0.8027, 0.0271, 0.0251, 0.0254, 0.0278, 0.0270, 0.0247],
+        [0.0345, 0.0207, 0.0290, 0.0423, 0.0373, 0.7211, 0.0346, 0.0405, 0.0400],
+        [0.0286, 0.0187, 0.0208, 0.0393, 0.7678, 0.0325, 0.0281, 0.0344, 0.0297],
+        [0.0093, 0.0072, 0.0078, 0.0091, 0.0092, 0.9293, 0.0093, 0.0094, 0.0094],
+        [0.0316, 0.0187, 0.0277, 0.7467, 0.0331, 0.0378, 0.0360, 0.0359, 0.0325],
+        [0.0174, 0.0128, 0.0138, 0.0182, 0.8653, 0.0169, 0.0178, 0.0196, 0.0182],
+        [0.0056, 0.0047, 0.0046, 0.0056, 0.0055, 0.0057, 0.9572, 0.0057, 0.0055],
+        [0.0655, 0.0446, 0.0509, 0.0755, 0.0643, 0.0739, 0.4925, 0.0671, 0.0657],
+        [0.0944, 0.0634, 0.0887, 0.0924, 0.0902, 0.0897, 0.0884, 0.1377, 0.2551],
+        [0.0962, 0.0696, 0.0673, 0.1256, 0.2202, 0.1166, 0.0974, 0.1173, 0.0898],
+        [0.0873, 0.0595, 0.0547, 0.0967, 0.1199, 0.2716, 0.1071, 0.1155, 0.0877],
+        [0.0894, 0.0562, 0.0553, 0.1606, 0.1609, 0.1461, 0.1476, 0.0995, 0.0843]],
+       device='cuda:0', grad_fn=<SoftmaxBackward>)
+2019_03_26_22_47_45 alphas_reduce = tensor([[0.0459, 0.6524, 0.0408, 0.0427, 0.0427, 0.0430, 0.0429, 0.0456, 0.0440],
+
+        [0.1075, 0.1086, 0.1400, 0.1091, 0.0917, 0.1211, 0.0922, 0.1397, 0.0902],
+        [0.0716, 0.0625, 0.0676, 0.0689, 0.0687, 0.0656, 0.0670, 0.0699, 0.4582],
+        [0.1106, 0.1075, 0.1119, 0.1118, 0.1119, 0.1115, 0.1112, 0.1119, 0.1117],
+        [0.0874, 0.0745, 0.0705, 0.0915, 0.0785, 0.0846, 0.3297, 0.1040, 0.0791],
+        [0.1047, 0.0953, 0.1007, 0.1024, 0.1937, 0.1101, 0.0961, 0.1001, 0.0968],
+        [0.1106, 0.1100, 0.1123, 0.1068, 0.1120, 0.1121, 0.1120, 0.1121, 0.1121],
+        [0.1099, 0.1003, 0.1048, 0.1257, 0.1073, 0.1093, 0.1094, 0.1255, 0.1078],
+        [0.1100, 0.0988, 0.1329, 0.1059, 0.1087, 0.1060, 0.0981, 0.1306, 0.1090],
+        [0.1104, 0.1038, 0.1071, 0.1142, 0.1058, 0.1321, 0.1037, 0.1131, 0.1099],
+        [0.1107, 0.1110, 0.1120, 0.1117, 0.1087, 0.1117, 0.1108, 0.1117, 0.1117],
+        [0.1101, 0.1040, 0.1121, 0.1239, 0.1100, 0.1121, 0.1047, 0.1171, 0.1062],
+        [0.1104, 0.1030, 0.1313, 0.1152, 0.1055, 0.1081, 0.1073, 0.1093, 0.1099],
+        [0.1105, 0.1001, 0.1220, 0.1197, 0.1094, 0.1140, 0.0999, 0.1195, 0.1049]],
+       device='cuda:0', grad_fn=<SoftmaxBackward>)
+2019_03_27_02_04_35 epoch, 120, train_acc, 89.451997, valid_acc, 84.519997, train_loss, 0.308387, valid_loss, 0.461957, lr, 1.000000e-04, best_epoch, 116, best_valid_acc, 84.891997
+
+Overview ***** best_epoch: 116 best_valid_acc: 84.89 ***** Progress: 100%|| 120/120 [97:41:46<00:00, 2952.55s/it]
+2019_03_27_02_04_37 genotype = Genotype(normal=[('sep_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('dil_conv_3x3', 2), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 0), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('dil_choke_conv_3x3', 0), ('dil_flood_conv_3x3', 2), ('dil_conv_3x3', 0), ('skip_connect', 3), ('flood_conv_3x3', 0), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
+2019_03_27_02_04_37 Search for Model Complete! Save dir: search-20190323-002241-max_w_SHARP_DARTS_SEARCH_e79c097-cifar10-PRIMITIVES-OPS-0
+
+export CUDA_VISIBLE_DEVICES="1" && python3 main_fp16_optimizer.py --autoaugment --auxiliary --cutout --batch_size 2 --epochs 2000 --save flops_SHARP_DARTS_MAX_W_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARP_DARTS_MAX_W --flops
+2019_03_27_13_48_41 param size = 5.902558MB
+2019_03_27_13_48_41 flops_shape = [1, 3, 32, 32]
+2019_03_27_13_48_41 flops = 935.22MMac
+
+Full training run command:
+costar@ubuntu|~/src/sharpDARTS/cnn on multi_channel_search!?
+± for i in {1..8}; do export CUDA_VISIBLE_DEVICES="1" && python3 train.py --autoaugment --auxiliary --cutout --batch_size 32 --epochs 2000 --save SHARP_DARTS_MAX_W_2k_`git rev-parse --short HEAD`_cospower_min_1e-8 --learning_rate 0.025 --learning_rate_min 1e-8 --cutout_length 16 --init_channels 36 --dataset cifar10 --arch SHARP_DARTS_MAX_W ; done;
+Experiment dir : eval-20190327-141933-SHARP_DARTS_MAX_W_2k_c1059c7_cospower_min_1e-8-cifar10-SHARP_DARTS_MAX_W-0
+"""
+SHARP_DARTS_MAX_W = Genotype(normal=[('sep_conv_3x3', 0), ('choke_conv_3x3', 1), ('skip_connect', 0), ('dil_conv_3x3', 2), ('dil_flood_conv_3x3', 3), ('flood_conv_3x3', 0), ('dil_flood_conv_3x3', 0), ('flood_conv_3x3', 3)], normal_concat=range(2, 6), reduce=[('max_pool_3x3', 0), ('skip_connect', 1), ('dil_choke_conv_3x3', 0), ('dil_flood_conv_3x3', 2), ('dil_conv_3x3', 0), ('skip_connect', 3), ('flood_conv_3x3', 0), ('skip_connect', 3)], reduce_concat=range(2, 6), layout='cell')
