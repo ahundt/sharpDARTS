@@ -272,7 +272,7 @@ def main():
 
       if valid_acc > best_valid_acc:
         # new best epoch, save weights
-<<<<<<< HEAD
+
         if args.multi_channel:
           capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
           weight = nx.get_edge_attributes(cnn_model.G, "weight_int")

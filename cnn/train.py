@@ -25,7 +25,7 @@ import cifar10_1
 import dataset
 import flops_counter
 from cosine_power_annealing import cosine_power_annealing
-from model_search import MultiChannelNetwork
+from model import MultiChannelNetworkModel
 
 def main():
   parser = argparse.ArgumentParser("Common Argument Parser")

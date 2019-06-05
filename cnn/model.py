@@ -509,3 +509,187 @@ class DQNAS(nn.Module):
 
   def reset_noise(self):
         self.classifier.reset_noise()
+
+class MultiChannelNetworkModel(nn.Module):
+
+  def __init__(self, C=32, num_classes=10, layers=6, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
+               in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False, primitives=None,
+               op_dict=None, weighting_algorithm=None, genotype=None):
+    """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
+        op_dict: The dictionary of possible operation creation functions.
+        All primitives must be in the op dict.
+        genotype is used to get the architecture of final model to be generated.
+
+    """
+    super(MultiChannelNetworkModel, self).__init__()
+    self._C = C
+    if genotype is not None:
+      # TODO(ahundt) We shouldn't be using arrays here, we should be using actual genotype objects.
+      self._genotype = np.array(genotype)
+    else:
+      self._genotype = genotype
+    self._num_classes = num_classes
+    if layers % 2 == 1:
+      raise ValueError('MultiChannelNetwork layers option must be even, got ' + str(layers))
+    self._layers = layers // 2
+    if criterion is None:
+      self._criterion = nn.CrossEntropyLoss()
+    else:
+      self._criterion = criterion
+    self._steps = steps
+    self._multiplier = multiplier
+    self._always_apply_ops = always_apply_ops
+    self._visualization = visualization
+    self._weighting_algorithm = weighting_algorithm
+
+    self.normal_index = 0
+    self.reduce_index = 1
+    self.layer_types = 2
+    self.strides = np.array([self.normal_index, self.reduce_index])
+    # 5 is a reasonable number
+    self.C_start = int(np.log2(C))
+    self.C_end = self.C_start + steps
+    print('c_start: ' + str(self.C_start) + ' c_end: ' + str(self.C_end))
+    self.Cs = np.array(np.exp2(np.arange(self.C_start, self.C_end)), dtype='int')
+    # $ print(Cs)
+    # [ 32.  64. 128. 256. 512.]
+    self.C_size = len(self.Cs)
+    C_in, C_out = np.array(np.meshgrid(self.Cs, self.Cs, indexing='ij'), dtype='int')
+    # $ print(C_in)
+    # [[ 32.  32.  32.  32.  32.]
+    #  [ 64.  64.  64.  64.  64.]
+    #  [128. 128. 128. 128. 128.]
+    #  [256. 256. 256. 256. 256.]
+    #  [512. 512. 512. 512. 512.]]
+    # $ print(C_out)
+    # [[ 32.  64. 128. 256. 512.]
+    #  [ 32.  64. 128. 256. 512.]
+    #  [ 32.  64. 128. 256. 512.]
+    #  [ 32.  64. 128. 256. 512.]
+    #  [ 32.  64. 128. 256. 512.]]
+    if primitives is None:
+        primitives = PRIMITIVES
+    if op_dict is None:
+        op_dict = operations.OPS
+
+    self.primitives = primitives
+    self.op_dict = op_dict
+    # self.op_types = [operations.SharpSepConv, operations.ResizablePool]
+    # Removed condition as it is not required.
+    # if self._genotype is not None and type(self._genotype[0]) is np.str_:
+    model = self._genotype[np.flatnonzero(np.core.defchararray.find(self._genotype, 'add') == -1)]
+    root_ch = self.Cs[int(model[1][-1])]
+    self.stem = nn.ModuleList()
+    s = nn.Sequential(
+        nn.Conv2d(int(in_channels), root_ch, 3, padding=1, bias=False),
+        nn.BatchNorm2d(root_ch))
+    self.stem.append(s)
+    self.op_grid = nn.ModuleList()
+    c_out = 0
+    #Switched to primitives and op_dict like Network
+    # ops = {'SharpSepConv': 0, 'ResizablePool': 1}
+
+    # Parsing model definition string. Refer genotypes.py for sample model definition string.
+    for layers in model[3:-4]:
+        layer = layers.split("_")
+        # fetching primitive and other parameters from saved model.
+        primitive = self.primitives[ops[layer[-1]]]
+        stride = layer[3]
+        c_in = layer[6]
+        c_out = layer[9]
+        # self.op_grid.append(OpType(int(c_in), int(c_out), kernel_size=3, stride=int(stride)))
+        op = self.op_dict[primitive](c_in, c_out, int(stride), False)
+        # Consistent with MixedOp
+        if 'pool' in primitive:
+            op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
+        # Decreasing feature maps so that output is as expected.
+        if 'none' in primitive or ('skip_connect' in primitive and stride_idx == 0):
+            op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
+        self.op_grid.append(op)
+    self.base = nn.ModuleList()
+    self.base.append(operations.SharpSepConv(int(c_out), int(final_linear_filters), 3))
+    self.global_pooling = nn.AdaptiveAvgPool2d(1)
+    self.classifier = nn.Linear(final_linear_filters, num_classes)
+
+
+  def new(self):
+    model_new = Network(self._C, self._num_classes, self._layers, self._criterion).cuda()
+    for x, y in zip(model_new.arch_parameters(), self.arch_parameters()):
+        x.data.copy_(y.data)
+    return model_new
+
+  def forward(self, input_batch):
+    # [in, normal_out, reduce_out]
+    x = input_batch
+    for i in range(len(self.stem)):
+        x = self.stem[i](x)
+    for i in range(len(self.op_grid)):
+        x = self.op_grid[i](x)
+    out = self.global_pooling(self.base[0](x))
+    logits = self.classifier(out.view(out.size(0), -1))
+    return logits
+
+
+  def arch_weights(self, stride_idx):
+    # ops are stored as layer, stride, cin, cout, num_layer_types
+    # while weights are ordered stride_index, layer, cin, cout, num_layer_types
+    # first exclude the stride_idx because we already know that
+    view_shape = self.arch_weights_shape[1:]
+    # print('arch_weights() view_shape self.weights_shape[1:]: ' + str(view_shape))
+    # softmax of weights should occur once for each layer
+    num_layers = self.arch_weights_shape[1]
+    weights_softmax_view = self._arch_parameters[stride_idx].view(num_layers, -1)
+    # apply softmax and convert to an indexable view
+    weights = F.softmax(weights_softmax_view, dim=-1).view(view_shape)
+    return weights
+
+  def _loss(self, input_batch, target):
+    logits = self(input_batch)
+    return self._criterion(logits, target)
+
+  def _initialize_alphas(self, genotype=None):
+    
+    if genotype is None or genotype[-1] == 'longest_path':
+        init_alpha = 1e-3*torch.randn(self.arch_weights_shape)
+    else:
+        print("_initialize_alphas with preconfigured weights", genotype[0][0][0][0])
+        init_alpha = []
+        init_alpha.append(genotype[0])
+        init_alpha.append(genotype[2])
+        init_alpha = torch.from_numpy(np.array(init_alpha)).float()
+    if torch.cuda.is_available():
+      self._arch_parameters = Variable(init_alpha.cuda(), requires_grad=True)
+    else:
+      self._arch_parameters = Variable(init_alpha, requires_grad=True)
+
+  def arch_parameters(self):
+    ''' Get list of architecture parameters
+    '''
+    return [self._arch_parameters]
+
+  def genotype(self, layout='raw_weights'):
+    """
+    layout options: raw_weights, longest_path, graph
+    """
+    if layout == 'raw_weights':
+      # TODO(ahundt) switch from raw weights to a simpler representation for genotype?
+      gene_normal = np.array(self.arch_weights(0).data.cpu().numpy()).tolist()
+      gene_reduce = np.array(self.arch_weights(1).data.cpu().numpy()).tolist()
+    elif layout == 'longest_path':
+      # TODO(ahundt) make into a list of the layer strings to be included.
+      gene_normal = nx.algorithms.dag.dag_longest_path(self.G)
+      gene_reduce = []
+    elif layout == 'graph':
+      data = json_graph.node_link_data(self.G)
+      gene_normal = [json.dumps(data)]
+      gene_reduce = []
+    else:
+      raise ValueError('unsupported layout: ' + str(layout))
+
+    genotype = Genotype(
+      normal=gene_normal, normal_concat=[],
+      reduce=gene_reduce, reduce_concat=[],
+      layout=layout
+    )
+    return genotype
+
