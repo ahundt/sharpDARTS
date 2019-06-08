@@ -33,7 +33,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision
-from model import TDCFeaturizer
+from model import TDC, CMC
 
 import numpy as np
 import random
@@ -71,7 +71,8 @@ parser.add_argument('--arch', '-a', metavar='ARCH', default='SHARP_DARTS',
                     # choices=model_names,
                     help='model architecture: ' +
                     ' | '.join(model_names) +
-                    'TDCFeaturizer for feature embeddings'
+                    'TDC for temporal distance classifier'
+                    'CMC for cross modal temporal distance classifier'
                     ' (default: SHARP_DARTS)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
@@ -148,8 +149,8 @@ parser.add_argument('--subset_name', type=str, default='success_only',
                     help='which subset to use in the CoSTAR BSD. Options are "success_only", '
                          '"error_failure_only", "task_failure_only", or "task_and_error_failure". Defaults to "success_only"')
 parser.add_argument('--feature_mode', type=str, default='all_features',
-                    help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward", "time_difference_images"'
-                         'or the default "all_features"')
+                    help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward",' 
+                         '"time_difference_images", "cross_modal_embeddings" or the default "all_features"')
 parser.add_argument('--num_images_per_example', type=int, default=200,
                     help='Number of times an example is visited per epoch. Default value is 200. Since the image for each visit to an '
                          'example is randomly chosen, and since the number of images in an example is different, we simply visit each '
@@ -225,8 +226,13 @@ def main():
         # baseline model for comparison
         model = NetworkResNetCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, None, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
         model.drop_path_prob = 0.0
-    elif args.arch == 'TDCFeaturizer':
-        model = TDCFeaturizer()
+    elif args.arch == 'TDC':
+        model = TDC()
+        # To check the learnable parameters - 
+        #for n, p in model.named_parameters():
+        #    print(n, p.shape)
+    elif args.arch == 'CMC':
+        model = CMC()
     else:
         # create model
         genotype = eval("genotypes.%s" % args.arch)
@@ -260,8 +266,9 @@ def main():
     init_lr = args.learning_rate / args.warmup_lr_divisor
 
     # define loss function (criterion) and optimizer
-    if args.feature_mode == 'time_difference_images':
+    if args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings':
         # 'time_difference_images' is a feature mode where we try to classify time intervals between two frames.
+        # 'cross_modal_embeddings' is another mode where we try to classify time intervals between a frame and a joint embedding.
         criterion = nn.CrossEntropyLoss().cuda()
         optimizer = torch.optim.Adam(model.parameters(), lr=init_lr)
         # Change collate function and model input shape for this feature mode
@@ -358,7 +365,7 @@ def main():
             for param_group in optimizer.param_groups:
                 param_group['lr'] = learning_rate
             # scheduler.step()
-            if args.feature_mode != 'time_difference_images':
+            if args.feature_mode != 'time_difference_images' and args.feature_mode != 'cross_modal_embeddings':
                 model.drop_path_prob = args.drop_path_prob * float(epoch) / float(args.epochs)
             # train for one epoch
             train_stats = train(train_loader, model, criterion, optimizer, int(epoch), args)
@@ -497,12 +504,12 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
     end = time.time()
-    prefetcher = data_prefetcher(train_loader, cutout=args.cutout, cutout_length=args.cutout_length)
+    prefetcher = data_prefetcher(train_loader, cutout=args.cutout, cutout_length=args.cutout_length)      
 
     cart_error, angle_error = [], []
     input_img, input_vec, target = prefetcher.next()
-    if args.feature_mode == 'time_difference_images':
-        target = target.type(torch.cuda.LongTensor)
+    if args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings':
+        target = target.type(torch.cuda.LongTensor)  
     batch_size = input_img.size(0)
     i = -1
     if args.local_rank == 0:
@@ -523,7 +530,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # compute output
         # note here the term output is equivalent to logits
         output, logits_aux = model(input_img, input_vec)
-        if args.feature_mode != 'time_difference_images':
+        if args.feature_mode != 'time_difference_images' and args.feature_mode != 'cross_modal_embeddings':
             output = sigmoid(output)
         loss = criterion(output, target)
         if logits_aux is not None and args.auxiliary:
@@ -532,7 +539,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        if args.feature_mode != 'time_difference_images':
+        if args.feature_mode != 'time_difference_images' and args.feature_mode != 'cross_modal_embeddings':
             with torch.no_grad():
                 output_np = output.cpu().detach().numpy()
                 target_np = target.cpu().detach().numpy()
@@ -567,7 +574,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         end = time.time()
         input_img, input_vec, target = prefetcher.next()
-        if args.feature_mode == 'time_difference_images' and target is not None:
+        if (args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings') and target is not None:
             target = target.type(torch.cuda.LongTensor)
 
         if args.local_rank == 0:
@@ -638,7 +645,7 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
     cart_error, angle_error = [], []
     prefetcher = data_prefetcher(val_loader)
     input_img, input_vec, target = prefetcher.next()
-    if args.feature_mode == 'time_difference_images':
+    if args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings':
         target = target.type(torch.cuda.LongTensor)
     batch_size = input_img.size(0)
     i = -1
@@ -660,7 +667,7 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        if args.feature_mode != 'time_difference_images':
+        if args.feature_mode != 'time_difference_images' and args.feature_mode != 'cross_modal_embeddings':
             batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data.cpu().numpy(), target.data.cpu().numpy())
             abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
             cart_error.extend(batch_abs_cart_distance)
@@ -703,7 +710,7 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
                    abs_cart=abs_cart_m, abs_angle=abs_angle_m))
 
         input_img, input_vec, target = prefetcher.next()
-        if args.feature_mode == 'time_difference_images' and target is not None:
+        if (args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings') and target is not None:
             target = target.type(torch.cuda.LongTensor)
 
     # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'

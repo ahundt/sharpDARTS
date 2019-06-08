@@ -510,124 +510,215 @@ class DQNAS(nn.Module):
   def reset_noise(self):
         self.classifier.reset_noise()
 
-class residual_block(nn.Module):
-    """Implements a layer of ResNeXt.
-
-    Based in https://blog.waya.ai/deep-residual-learning-9610bb62c355.
-
+class Classifier(nn.Module):
+  """
+    Classifier network for both Temporal Distance Classifier (TDC) and Cross-Modal Temporal Distance Classifier (CMC)
+    Reference: Playing Hard Exploration Games by Watching Youtube - https://arxiv.org/abs/1805.11592
+    Code Source: https://github.com/seungjaeryanlee/playing-hard-exploration-games-by-watching-youtube
     Args:
-        input: Input for the block.
-        channels_in: Number of channels of data for the convolutional group.
-        channels_out: Number of chhannels generated as output.
-        cardinality: Number of convolution groups. Must be divisible by channels_in
-        is_training: Placeholder that indicates if the model is being trained
-        strides: Strides.
-        project_shortcut: Indicates whether the input should be projected to match the output's dimensions.
+      Input - embedding vector of type int (Image/ Joint). Default size 1024
+              The input is a product of two embeddings. 
+              For TDC -> input = img1_embedding * img2_embedding
+              For CMC -> input = img_embedding * joint_embedding 
 
     Returns:
-        A tensor with shape (-1, channels_out, width, height).
+      Number of features in the output layer is equal to the number of classes. Default number 
+      of classes(out_channels) is 6. 
+  """
+  def __init__(self, in_channels = 1024, out_channels = 6):
+    super(Classifier, self).__init__()
+    self.fc1 = nn.Linear(in_channels, 1024)
+    self.fc2 = nn.Linear(1024, out_channels)
+
+  def forward(self, input):
+    x = F.relu(self.fc1(input))
+    prediction = self.fc2(x)
+    return prediction
     
-    """
-    def __init__(self, channels_in, channels_out, cardinality, strides=(1, 1), project_shortcut=False):
-      super(residual_block, self).__init__()
-      self.channels_in = channels_in
-      self.channels_out = channels_out
-      self.cardinality = cardinality
-      self.project_shortcut = project_shortcut
-      self.strides = strides
+class ResidualBlock(nn.Module):
+  """
+    Implements residual connected blocks with no down sampling.
+    Reference: Playing Hard Exploration Games by Watching Youtube - https://arxiv.org/abs/1805.11592
+    Code Source: https://github.com/seungjaeryanlee/playing-hard-exploration-games-by-watching-youtube
+    Args:
+        input: Input for the block with shape (batch_size, in_channels, height, width)
+        in_channels: Number of channels of data for the convolutional group. Default is 64 channels
+        out_channels: Number of channels generated as output. Default is 64 channels 
+        
+    Returns:
+        A tensor with shape (batch_size, out_channels, height, width).   
+  """
+  def __init__(self, in_channels = 64, out_channels = 64):
+    super(ResidualBlock, self).__init__()
+    self.conv1 = nn.Conv2d(in_channels, out_channels, 3 ,padding=1)
+    self.norm1 = nn.BatchNorm2d(out_channels)
 
-      self.conv1 = nn.Conv2d(64, self.channels_in, 1 , stride = 1)
-      self.norm1 = nn.BatchNorm2d(self.channels_in)
-      self.group_conv = nn.Conv2d(self.channels_in, self.channels_in, kernel_size=(3,3),stride=self.strides, groups=1,padding=1)
-      
-      self.norm2 = nn.BatchNorm2d(self.channels_in)
-      self.conv2 = nn.Conv2d(self.channels_in ,self.channels_out, 1 , stride = 1)
-      self.norm3 = nn.BatchNorm2d(self.channels_out)
-      
-      if self.project_shortcut or self.strides != (1,1):
-          self.conv3 = nn.Conv2d(64, self.channels_out, 1, stride = self.strides)
-          self.norm4 = nn.BatchNorm2d(self.channels_out)
+    self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1)
+    self.norm2 = nn.BatchNorm2d(out_channels)
+  
+  def forward(self, input):
+    x = F.relu(self.norm1(self.conv1(input)))
+    x = self.norm1(self.conv2(x))
+    output = F.relu(x + input)
 
-    def forward(self, input):
-      shortcut = input
-      x = F.relu(self.norm1(self.conv1(input)))
-      x = self.group_conv(x)
-      x = F.relu(self.norm2(x))
-      x = self.norm3(self.conv2(x))
-
-      if self.project_shortcut or self.strides!=(1,1):
-          # When the dimensions increase projection shortcut is used to match dimensions (done by 1×1 convolutions).
-          shortcut = self.norm4(self.conv3(shortcut))
-
-      output = F.relu(torch.add(shortcut, x))
-      return output
+    return output
 
 class TDCFeaturizer(nn.Module):
-    """Temporal Distance Classification featurizer
-
-    Reference: "Playing hard exploration games by watching YouTube"
-    The task consists of presenting the network with 2 frames separated by n timesteps,
-    and making it classify the distance between the frames.
-
-    We use the same network architecture as the paper:
-    3 convolutional layers, followed by 3 residual blocks,
-    followed by 2 fully connected layers for the encoder.
-
-    For the classifier, we do a multiplication between both feature vectors
-    followed by a fully connected layer.
-    Set 'classify_frame_distance' as True if we want the predicted class from the model. 
-    To just get the embeddings, set 'classify_frame_distance' as False and 'frame_embeddings'
-    as True. 
     """
-    def __init__(self):
+      Temporal Distance Classification featurizer
+
+      Reference: Playing hard exploration games by watching YouTube - https://arxiv.org/abs/1805.11592
+      The task consists of presenting the network with 2 frames separated by n timesteps,
+      and making it classify the distance between the frames.
+
+      We use the same network architecture as the paper:
+      3 convolutional layers, followed by 3 residual blocks,
+      followed by 2 fully connected layers for the encoder.
+      The final embedding vector is normalized.
+      Args:
+          input: stack of images with tensor shape - (batch_size, in_channels, height, width)
+          in_channels: Number of channels of images. Default is 3 channels
+          out_channels: Number of channels generated as output is the same as the embedding size. 
+                        Default is 1024 channels 
+        
+      Returns:
+          embedding vector - A tensor with shape (batch_size, out_channels). 
+
+    """
+    def __init__(self, in_channels = 3, embedding_size = 1024):
       super(TDCFeaturizer, self).__init__()
-      self.feature_vector_size = 1024
 
-      self.conv1 = nn.Conv2d(3, 32, 3, stride = 2, padding=1)
-      self.conv2 = nn.Conv2d(32, 64, 3, stride = 1,padding=1)
-      self.conv3 = nn.Conv2d(64, 64, 3, stride = 1,padding=1)
-      self.pool = nn.MaxPool2d(2, 2)
+      self.conv1 = nn.Conv2d(in_channels, 32, 3, stride = 2, padding=1)
       self.norm1 = nn.BatchNorm2d(32)
-      self.norm2 = nn.BatchNorm2d(64)
-      self.norm3 = nn.BatchNorm2d(64)
-      self.residual_block = residual_block(64, 64, 1)
-      self.fc1 = nn.Linear(3072, self.feature_vector_size)  #dense layer
-      self.fc2 = nn.Linear(self.feature_vector_size, self.feature_vector_size)
-      self.fc3 = nn.Linear(1024, self.feature_vector_size)
-      self.fc4 = nn.Linear(self.feature_vector_size, 6)   # size of each label
-      self.classify_frame_distance = True
-      self.frame_embeddings = False
-       
-    def choose_outputs(self, classify_frame_distance = True, frame_embeddings = False):
-        self.classify_frame_distance = classify_frame_distance
-        self.frame_embeddings = frame_embeddings   
+      self.pool = nn.MaxPool2d(2, 2)
 
-    def forward(self, img_1, img_2):
-      logits_aux = None
-      x = torch.cat((img_1,img_2),0)
-      x = self.pool(self.norm1(F.relu(self.conv1(x))))   
-      x = self.pool(self.norm2(F.relu(self.conv2(x))))   
-      x = self.pool(self.norm3(F.relu(self.conv3(x))))  
+      self.conv2 = nn.Conv2d(32, 64, 3, stride = 1,padding=1)
+      self.norm2 = nn.BatchNorm2d(64)
+
+      self.conv3 = nn.Conv2d(64, 64, 3, stride = 1,padding=1)
+      self.norm3 = nn.BatchNorm2d(64)
+
+      self.residual_block = ResidualBlock(64, 64)
+
+      self.fc1 = nn.Linear(3072, 1024)    
+      self.fc2 = nn.Linear(1024, embedding_size)
+
+    def forward(self, input):
+      x = F.relu(self.pool(self.norm1(self.conv1(input))))
+      x = F.relu(self.pool(self.norm2(self.conv2(x))))
+      x = F.relu(self.pool(self.norm3(self.conv3(x))))
       
       for i in range(3):
         x = self.residual_block(x)
-      
-      x = x.view(-1, 3072)  # flatten layer  (3072 = 64*6*8)
-      x = F.relu(self.fc1(x))  
-      
-      feature_vector = self.fc2(x)  
-      feature_vector = F.normalize(feature_vector, p=2, dim=1)
-      if self.frame_embeddings and not self.classify_frame_distance:
-        return feature_vector
-      feature_vector_stack = feature_vector.view(-1, 2, self.feature_vector_size)
 
-      combined_embeddings = torch.mul(feature_vector_stack[:, 0, :], feature_vector_stack[:, 1, :])
-
-      x = F.relu(self.fc3(combined_embeddings))
-      prediction = F.relu(self.fc4(x))
+      x = x.view(x.size(0), -1)       #(3072 = 64*6*8)
       
-      if self.classify_frame_distance and not self.frame_embeddings:
-        return prediction , logits_aux
-      if self.classify_frame_distance and self.frame_embeddings:
-        return (prediction, feature_vector, logits_aux)
+      x = self.fc1(x)
+      embedding = F.normalize(self.fc2(x))  
+      return embedding
+
+class CMCFeaturizer(nn.Module):
+  """
+    Cross-Modal Temporal Distance Classification featurizer
+
+    Reference: Playing hard exploration games by watching YouTube - https://arxiv.org/abs/1805.11592
+    The task consists of presenting the network with one frame and joint_vectors information separated by n timesteps,
+    and making it classify the distance between the frames.
+
+    The joint_vectors is concatentation of joint_vector over M timesteps where M defaults to 10. 
+    To set M: It is an argument to the function 'block_stacking_reader_torch.generate_cross_modal_training_data'
+    Args:
+        input: stack of joint_vector with tensor shape - (batch_size, 1, M, 20) 
+        in_channels: Number of channels of joint_vectors. Default is 1 channel
+        out_channels: Number of channels generated as output is the same as the embedding size. 
+                      Default is 1024 channels 
+      
+    Returns:
+        embedding vector - A tensor with shape (batch_size, out_channels). 
+
+  """
+  def __init__(self, in_channels = 1, embedding_size = 1024):
+    super(CMCFeaturizer,self).__init__()
+
+    self.conv1 = nn.Conv2d(in_channels, 32, 3, padding=1)
+    self.norm1 = nn.BatchNorm2d(32)
+    self.pool = nn.MaxPool2d(2)
+
+    self.conv2 = nn.Conv2d(32, 64, 3, padding=1)
+    self.norm2 = nn.BatchNorm2d(64)
+
+    self.conv3 = nn.Conv2d(64, 128, 3, padding=1)
+    self.norm3 = nn.BatchNorm2d(128)
+
+    self.conv4 = nn.Conv2d(128, 256, 3, padding=1)
+    self.norm4 = nn.BatchNorm2d(256)
+    self.pool2 = nn.MaxPool2d(2,padding=1)
+
+    self.fc = nn.Linear(512, embedding_size)
+
+  def forward(self, joints):
+    x = F.relu(self.pool(self.norm1(self.conv1(joints))))
+    x = F.relu(self.pool(self.norm2(self.conv2(x))))
+    x = F.relu(self.pool(self.norm3(self.conv3(x))))
+    x = F.relu(self.pool2(self.norm4(self.conv4(x))))
+    
+    x = x.view(x.size(0), -1)
+    
+    joint_embedding = F.normalize(self.fc(x))
+    return joint_embedding    
+
+class TDC(nn.Module):
+  """
+    Full Temporal Distance Featurizer and Classifier.
+    Reference: Playing hard exploration games by watching YouTube - https://arxiv.org/abs/1805.11592
+
+    Args:
+        img1 - stack of images with tensor shape - (batch_size, in_channels, height, width)
+        img2 - stack of images with tensor shape - (batch_size, in_channels, height, width)
+               
+    Returns:
+        temporal distance prediction - A tensor with shape (batch_size, out_channels) where default out_channels is 6.
+
+  """
+  def __init__(self):
+    super(TDC, self).__init__()
+
+    self.featurizer = TDCFeaturizer()
+    self.classifier = Classifier()
+
+  def forward(self, img1, img2):
+    img1_embedding = self.featurizer(img1)
+    img2_embedding = self.featurizer(img2)
+
+    output = self.classifier(img1_embedding * img2_embedding)
+
+    return output, None    # Returning logits_aux as None 
+
+class CMC(nn.Module):
+  """
+    Full Cross Modal Temporal Distance Featurizer and Classifier.
+    Reference: Playing hard exploration games by watching YouTube - https://arxiv.org/abs/1805.11592
+
+    Args:
+        img - stack of images with tensor shape - (batch_size, in_channels, height, width)
+        joint_vec - stack of joint_vector with tensor shape - (batch_size, 1, M, 20) 
+            
+    Returns:
+        temporal distance prediction - A tensor with shape (batch_size, out_channels) where default out_channels is 6.
+
+  """
+  def __init__(self):
+    super(CMC, self).__init__()
+
+    self.img_featurizer = TDCFeaturizer()
+    self.joint_featurizer = CMCFeaturizer()
+    self.classifier = Classifier()
+
+  def forward(self, img, joint_vec):
+    img_embedding = self.img_featurizer(img)
+    joint_embedding = self.joint_featurizer(joint_vec)
+
+    output = self.classifier(img_embedding * joint_embedding)
+
+    return output, None    # Returning logits_aux as None
 
