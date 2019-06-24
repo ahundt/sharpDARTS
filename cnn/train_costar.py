@@ -149,7 +149,7 @@ parser.add_argument('--subset_name', type=str, default='success_only',
                     help='which subset to use in the CoSTAR BSD. Options are "success_only", '
                          '"error_failure_only", "task_failure_only", or "task_and_error_failure". Defaults to "success_only"')
 parser.add_argument('--feature_mode', type=str, default='all_features',
-                    help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward",' 
+                    help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward",'
                          '"time_difference_images", "cross_modal_embeddings" or the default "all_features"')
 parser.add_argument('--num_images_per_example', type=int, default=200,
                     help='Number of times an example is visited per epoch. Default value is 200. Since the image for each visit to an '
@@ -179,12 +179,10 @@ def fast_collate(batch):
     # data is a list of [image_0, image_1, vector]
     return torch.cat((data[0], data[1]), dim=1), data[2], targets
 
-
 if args.deterministic:
     cudnn.benchmark = False
     cudnn.deterministic = True
     torch.manual_seed(args.local_rank)
-
 
 def main():
     global best_combined_error, args, logger
@@ -207,7 +205,7 @@ def main():
     # note the gpu is used for directory creation and log files
     # which is needed when run as multiple processes
     args = utils.initialize_files_and_args(args)
-    logger = utils.logging_setup(args.log_file_path)    
+    logger = utils.logging_setup(args.log_file_path)
 
     # # load the correct ops dictionary
     op_dict_to_load = "operations.%s" % args.ops
@@ -228,7 +226,7 @@ def main():
         model.drop_path_prob = 0.0
     elif args.arch == 'TDC':
         model = TDC()
-        # To check the learnable parameters - 
+        # To check the learnable parameters -
         #for n, p in model.named_parameters():
         #    print(n, p.shape)
     elif args.arch == 'CMC':
@@ -259,8 +257,6 @@ def main():
         # model = DDP(model)
         # delay_allreduce delays all communication to the end of the backward pass.
         model = DDP(model, delay_allreduce=True)
-    
-    
     # Scale learning rate based on global batch size
     args.learning_rate = args.learning_rate * float(args.batch_size * args.world_size)/256.
     init_lr = args.learning_rate / args.warmup_lr_divisor
@@ -274,14 +270,13 @@ def main():
         # Change collate function and model input shape for this feature mode
         fast_collate = torch.utils.data.dataloader.default_collate
         model_input_shape = (3,96,128)
-    else: 
+    else:
         criterion = nn.MSELoss().cuda()
         # NOTE(rexxarchl): MSLE loss, indicated as better for rotation in costar_hyper/costar_block_stacking_train_regression.py
         #                  is not available in PyTorch by default
         optimizer = torch.optim.SGD(model.parameters(), init_lr,
                                     momentum=args.momentum,
                                     weight_decay=args.weight_decay)
-       
     # epoch_count = args.epochs - args.start_epoch
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(epoch_count))
     # scheduler = warmup_scheduler.GradualWarmupScheduler(
@@ -341,7 +336,7 @@ def main():
         validate(val_loader, model, criterion, args, prefix='evaluate_val_')
         validate(test_loader, model, criterion, args, prefix='evaluate_test_')
         return
-   
+
     lr_schedule = cosine_power_annealing(
         epochs=args.epochs, max_lr=args.learning_rate, min_lr=args.learning_rate_min,
         warmup_epochs=args.warmup_epochs, exponent_order=args.lr_power_annealing_exponent_order,
@@ -451,7 +446,6 @@ def main():
         validate(test_loader, model, criterion, args, prefix='best_final_test_')
         logger.info("Final evaluation complete! Save dir: ' + str(args.save)")
 
-       
 class data_prefetcher():
     def __init__(self, loader, cutout=False, cutout_length=112, cutout_cuts=1):
         self.loader = iter(loader)
@@ -487,7 +481,6 @@ class data_prefetcher():
         self.preload()
         return input_img, input_vec, target
 
-
 def train(train_loader, model, criterion, optimizer, epoch, args):
     loader_len = len(train_loader)
     if loader_len < 2:
@@ -504,12 +497,12 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     # switch to train mode
     model.train()
     end = time.time()
-    prefetcher = data_prefetcher(train_loader, cutout=args.cutout, cutout_length=args.cutout_length)      
+    prefetcher = data_prefetcher(train_loader, cutout=args.cutout, cutout_length=args.cutout_length)
 
     cart_error, angle_error = [], []
     input_img, input_vec, target = prefetcher.next()
     if args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings':
-        target = target.type(torch.cuda.LongTensor)  
+        target = target.type(torch.cuda.LongTensor)
     batch_size = input_img.size(0)
     i = -1
     if args.local_rank == 0:
@@ -558,7 +551,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             losses.update(reduced_loss, batch_size)
             abs_cart_m.update(abs_cart_f, batch_size)
             abs_angle_m.update(abs_angle_f, batch_size)
-        
+
         else:
             reduced_loss = reduce_tensor(loss.data) if args.distributed else loss.data
             losses.update(reduced_loss)
@@ -609,7 +602,6 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         del progbar
     return stats
 
-
 def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle, losses, speed):
     stats = {}
     if progbar is not None:
@@ -624,7 +616,6 @@ def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle,
         prefix + 'images_per_second': '{0:.4f}'.format(speed.avg),
     })
     return stats
-
 
 def validate(val_loader, model, criterion, args, prefix='val_'):
     loader_len = len(val_loader)
@@ -729,13 +720,11 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
     # Return the weighted sum of absolute cartesian and angle errors as the metric
     return (args.cart_weight * abs_cart_m.avg + (1-args.cart_weight) * abs_angle_m.avg), stats
 
-
 def save_checkpoint(state, is_best, path='', filename='checkpoint.pth.tar', best_filename='model_best.pth.tar'):
     new_filename = os.path.join(path, filename)
     torch.save(state, new_filename)
     if is_best:
         shutil.copyfile(new_filename, os.path.join(path, best_filename))
-
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -753,7 +742,6 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-
 
 def adjust_learning_rate(optimizer, epoch, step, len_epoch):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
@@ -773,7 +761,6 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
 
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-
 
 def accuracy(output, target):
     """Computes the absolute cartesian and angle distance between output and target"""
@@ -799,13 +786,11 @@ def accuracy(output, target):
 
     return abs_cart_distance, abs_angle_distance
 
-
 def reduce_tensor(tensor):
     rt = tensor.clone()
     dist.all_reduce(rt, op=dist.reduce_op.SUM)
     rt /= args.world_size
     return rt
-
 
 if __name__ == '__main__':
     main()

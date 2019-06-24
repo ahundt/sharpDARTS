@@ -87,6 +87,47 @@ python visualize.py DARTS
 ```
 where `DARTS` can be replaced by any customized architectures in `genotypes.py`.
 
+## Training Temporal Distance Classifier 
+To train the TDC network from scratch, run
+```
+cd cnn && python train_costar.py --data <path to dataset> --arch TDC --epochs 200 --batch_size 128 --feature_mode time_difference_images --num_images_per_example 200
+```
+Default path to dataset is '~/.keras/datasets/costar_block_stacking_dataset_v0.4'
+
+## Training Cross-Modal Temporal Distance Classifier 
+To train the CMC network from scratch, run
+```
+cd cnn && python train_costar.py --data <path to dataset> --arch CMC --epochs 200 --batch_size 128 --feature_mode cross_modal_embeddings --num_images_per_example 200
+```
+## Visualizing the embeddings using tensorboardX
+This requires installation of tensorboardX which can be installed using 
+```
+pip install tensorboardX
+```
+Or see https://github.com/lanpa/tensorboardX for details.
+
+To generate and save embeddings using temporal distance classifier, run
+```
+python visualize_embeddings.py --data <path to dataset> --model_path <path to trained model> --feature_mode time_difference_images
+```
+Or to generate and save embeddings using cross modal temporal distance classifier, run
+```
+python visualize_embeddings.py --data <path to dataset> --model_path <path to trained model> --feature_mode cross_modal_embeddings
+```
+This will create metadata and save it in the following manner:
+```
+-> cnn 
+  -> runs
+    -> yyyy-mm-dd-hh:mm
+      -> default 
+          - metadata.tsv
+          - tensors.tsv
+      -> projector_config.pbtxt
+```
+To visualize using tensorboard,
+```
+tensorboard --logdir <path to folder yyyy-mm-dd-hh:mm created in previous step>
+```
 ## Citation
 If you use any part of this code in your research, please cite our [paper](https://arxiv.org/abs/1806.09055):
 ```

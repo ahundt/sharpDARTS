@@ -510,7 +510,7 @@ class DQNAS(nn.Module):
   def reset_noise(self):
         self.classifier.reset_noise()
 
-class Classifier(nn.Module):
+class LinearBlockClassifier(nn.Module):
   """
     Classifier network for both Temporal Distance Classifier (TDC) and Cross-Modal Temporal Distance Classifier (CMC)
     Reference: Playing Hard Exploration Games by Watching Youtube - https://arxiv.org/abs/1805.11592
@@ -526,7 +526,7 @@ class Classifier(nn.Module):
       of classes(out_channels) is 6. 
   """
   def __init__(self, in_channels = 1024, out_channels = 6):
-    super(Classifier, self).__init__()
+    super(LinearBlockClassifier, self).__init__()
     self.fc1 = nn.Linear(in_channels, 1024)
     self.fc2 = nn.Linear(1024, out_channels)
 
@@ -684,13 +684,13 @@ class TDC(nn.Module):
     super(TDC, self).__init__()
 
     self.featurizer = TDCFeaturizer()
-    self.classifier = Classifier()
+    self.linear_classifier = LinearBlockClassifier()
 
   def forward(self, img1, img2):
     img1_embedding = self.featurizer(img1)
     img2_embedding = self.featurizer(img2)
 
-    output = self.classifier(img1_embedding * img2_embedding)
+    output = self.linear_classifier(img1_embedding * img2_embedding)
 
     return output, None    # Returning logits_aux as None 
 
@@ -712,13 +712,13 @@ class CMC(nn.Module):
 
     self.img_featurizer = TDCFeaturizer()
     self.joint_featurizer = CMCFeaturizer()
-    self.classifier = Classifier()
+    self.linear_classifier = LinearBlockClassifier()
 
   def forward(self, img, joint_vec):
     img_embedding = self.img_featurizer(img)
     joint_embedding = self.joint_featurizer(joint_vec)
 
-    output = self.classifier(img_embedding * joint_embedding)
+    output = self.linear_classifier(img_embedding * joint_embedding)
 
     return output, None    # Returning logits_aux as None
 
