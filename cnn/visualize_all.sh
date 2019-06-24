@@ -1,0 +1,5 @@
+
+python3 visualize.py SHARPER_SCALAR_genotype_skip_none
+python3 visualize.py SHARPER_SCALAR_genotype_no_hack
+python3 visualize.py SHARPER_MAX_W_genotype_no_hack
+python3 visualize.py SHARPER_MAX_W_genotype_skip_none
