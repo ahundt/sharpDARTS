@@ -297,7 +297,7 @@ def main():
           logger.info('weight_int :%s', weight)
           #iterative cost_search
           for demand in range(1, args.demand_limit, args.demand_step):
-            cnn_model.G.nodes["Linear"]['demand'] = -demand
+            cnn_model.G.nodes["Source"]['demand'] = -demand
             cnn_model.G.nodes["Linear"]['demand'] = demand
             flow_cost, flow_dict = nx.network_simplex(cnn_model.G, weight='capacity', capacity='weight_int')
             min_cost_flow_edge = [(u, v) for u in flow_dict for v in flow_dict[u] if flow_dict[u][v] > args.flow_cut]
