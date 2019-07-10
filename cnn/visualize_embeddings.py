@@ -118,7 +118,7 @@ def generate_features(videos_path, model_path, batch_size,feature_mode, version,
 if __name__ == '__main__':
 
     args_parser = argparse.ArgumentParser()
-    args_parser.add_argument('--data', help='Path for training data')
+    args_parser.add_argument('--data', help='Path to dataset', default='~/.keras/datasets/costar_block_stacking_dataset_v0.4')
     args_parser.add_argument('--model_path', help='Path for best model',default='')
     args_parser.add_argument('--batch_size', help='Batch size for visualizing', type=int, default=32)
     args_parser.add_argument('--feature_mode', help = 'cross_modal_embeddings or time_difference_images',default='cross_modal_embeddings')
