@@ -33,6 +33,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision
+from model import TDC, CMC
 
 import numpy as np
 import random
@@ -70,6 +71,8 @@ parser.add_argument('--arch', '-a', metavar='ARCH', default='SHARP_DARTS',
                     # choices=model_names,
                     help='model architecture: ' +
                     ' | '.join(model_names) +
+                    'TDC for temporal distance classifier'
+                    'CMC for cross modal temporal distance classifier'
                     ' (default: SHARP_DARTS)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
@@ -146,8 +149,8 @@ parser.add_argument('--subset_name', type=str, default='success_only',
                     help='which subset to use in the CoSTAR BSD. Options are "success_only", '
                          '"error_failure_only", "task_failure_only", or "task_and_error_failure". Defaults to "success_only"')
 parser.add_argument('--feature_mode', type=str, default='all_features',
-                    help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward", '
-                         'or the default "all_features"')
+                    help='which feature mode to use. Options are "translation_only", "rotation_only", "stacking_reward",'
+                         '"time_difference_images", "cross_modal_embeddings" or the default "all_features"')
 parser.add_argument('--num_images_per_example', type=int, default=200,
                     help='Number of times an example is visited per epoch. Default value is 200. Since the image for each visit to an '
                          'example is randomly chosen, and since the number of images in an example is different, we simply visit each '
@@ -168,7 +171,7 @@ cudnn.benchmark = True
 best_combined_error = float('inf')
 args = parser.parse_args()
 logger = None
-
+model_input_shape = (224,224,3)   # default input shape of images
 VECTOR_SIZE = dataset.costar_vec_size_dict[args.feature_mode]
 
 def fast_collate(batch):
@@ -176,12 +179,10 @@ def fast_collate(batch):
     # data is a list of [image_0, image_1, vector]
     return torch.cat((data[0], data[1]), dim=1), data[2], targets
 
-
 if args.deterministic:
     cudnn.benchmark = False
     cudnn.deterministic = True
     torch.manual_seed(args.local_rank)
-
 
 def main():
     global best_combined_error, args, logger
@@ -222,13 +223,21 @@ def main():
     if args.arch == 'NetworkResNetCOSTAR':
         # baseline model for comparison
         model = NetworkResNetCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, None, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
+        model.drop_path_prob = 0.0
+    elif args.arch == 'TDC':
+        model = TDC()
+        # To check the learnable parameters -
+        #for n, p in model.named_parameters():
+        #    print(n, p.shape)
+    elif args.arch == 'CMC':
+        model = CMC()
     else:
         # create model
         genotype = eval("genotypes.%s" % args.arch)
         # create the neural network
         model = NetworkCOSTAR(args.init_channels, classes, args.layers, args.auxiliary, genotype, vector_size=VECTOR_SIZE, op_dict=op_dict, C_mid=args.mid_channels)
 
-    model.drop_path_prob = 0.0
+        model.drop_path_prob = 0.0
     # if args.pretrained:
     #     logger.info("=> using pre-trained model '{}'".format(args.arch))
     #     model = models.__dict__[args.arch](pretrained=True)
@@ -248,19 +257,26 @@ def main():
         # model = DDP(model)
         # delay_allreduce delays all communication to the end of the backward pass.
         model = DDP(model, delay_allreduce=True)
-
-    # define loss function (criterion) and optimizer
-    criterion = nn.MSELoss().cuda()
-    # NOTE(rexxarchl): MSLE loss, indicated as better for rotation in costar_hyper/costar_block_stacking_train_regression.py
-    #                  is not available in PyTorch by default
-
     # Scale learning rate based on global batch size
     args.learning_rate = args.learning_rate * float(args.batch_size * args.world_size)/256.
     init_lr = args.learning_rate / args.warmup_lr_divisor
-    optimizer = torch.optim.SGD(model.parameters(), init_lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
 
+    # define loss function (criterion) and optimizer
+    if args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings':
+        # 'time_difference_images' is a feature mode where we try to classify time intervals between two frames.
+        # 'cross_modal_embeddings' is another mode where we try to classify time intervals between a frame and a joint embedding.
+        criterion = nn.CrossEntropyLoss().cuda()
+        optimizer = torch.optim.Adam(model.parameters(), lr=init_lr)
+        # Change collate function and model input shape for this feature mode
+        fast_collate = torch.utils.data.dataloader.default_collate
+        model_input_shape = (3,96,128)
+    else:
+        criterion = nn.MSELoss().cuda()
+        # NOTE(rexxarchl): MSLE loss, indicated as better for rotation in costar_hyper/costar_block_stacking_train_regression.py
+        #                  is not available in PyTorch by default
+        optimizer = torch.optim.SGD(model.parameters(), init_lr,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay)
     # epoch_count = args.epochs - args.start_epoch
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(epoch_count))
     # scheduler = warmup_scheduler.GradualWarmupScheduler(
@@ -307,15 +323,14 @@ def main():
         num_workers=args.workers,
         costar_set_name=args.set_name, costar_subset_name=args.subset_name,
         costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
-        costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True, evaluate=evaluate)
-
+        costar_output_shape=model_input_shape, costar_random_augmentation=None, costar_one_hot_encoding=True, evaluate=evaluate)
     if args.evaluate:
         # Load the test set
         test_loader = dataset.get_costar_test_queue(
                 args.data, costar_set_name=args.set_name, costar_subset_name=args.subset_name, collate_fn=fast_collate,
                 costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
-                costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
-        
+                costar_output_shape=model_input_shape, costar_random_augmentation=None, costar_one_hot_encoding=True)
+
         # Evaluate on all splits, without any augmentation
         validate(train_loader, model, criterion, args, prefix='evaluate_train_')
         validate(val_loader, model, criterion, args, prefix='evaluate_val_')
@@ -345,7 +360,8 @@ def main():
             for param_group in optimizer.param_groups:
                 param_group['lr'] = learning_rate
             # scheduler.step()
-            model.drop_path_prob = args.drop_path_prob * float(epoch) / float(args.epochs)
+            if args.feature_mode != 'time_difference_images' and args.feature_mode != 'cross_modal_embeddings':
+                model.drop_path_prob = args.drop_path_prob * float(epoch) / float(args.epochs)
             # train for one epoch
             train_stats = train(train_loader, model, criterion, optimizer, int(epoch), args)
             if args.prof:
@@ -416,20 +432,19 @@ def main():
             num_workers=args.workers,
             costar_set_name=args.set_name, costar_subset_name=args.subset_name,
             costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
-            costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True, evaluate=evaluate)
+            costar_output_shape=model_input_shape, costar_random_augmentation=None, costar_one_hot_encoding=True, evaluate=evaluate)
 
         # Get the test set
         test_loader = dataset.get_costar_test_queue(
             args.data, costar_set_name=args.set_name, costar_subset_name=args.subset_name, collate_fn=fast_collate,
             costar_feature_mode=args.feature_mode, costar_version=args.version, costar_num_images_per_example=args.num_images_per_example,
-            costar_output_shape=(224, 224, 3), costar_random_augmentation=None, costar_one_hot_encoding=True)
+            costar_output_shape=model_input_shape, costar_random_augmentation=None, costar_one_hot_encoding=True)
 
         # Evaluate on all splits, without any augmentation
         validate(train_loader, model, criterion, args, prefix='best_final_train_')
         validate(val_loader, model, criterion, args, prefix='best_final_val_')
         validate(test_loader, model, criterion, args, prefix='best_final_test_')
         logger.info("Final evaluation complete! Save dir: ' + str(args.save)")
-
 
 class data_prefetcher():
     def __init__(self, loader, cutout=False, cutout_length=112, cutout_cuts=1):
@@ -466,7 +481,6 @@ class data_prefetcher():
         self.preload()
         return input_img, input_vec, target
 
-
 def train(train_loader, model, criterion, optimizer, epoch, args):
     loader_len = len(train_loader)
     if loader_len < 2:
@@ -487,6 +501,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
     cart_error, angle_error = [], []
     input_img, input_vec, target = prefetcher.next()
+    if args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings':
+        target = target.type(torch.cuda.LongTensor)
     batch_size = input_img.size(0)
     i = -1
     if args.local_rank == 0:
@@ -507,7 +523,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # compute output
         # note here the term output is equivalent to logits
         output, logits_aux = model(input_img, input_vec)
-        output = sigmoid(output)
+        if args.feature_mode != 'time_difference_images' and args.feature_mode != 'cross_modal_embeddings':
+            output = sigmoid(output)
         loss = criterion(output, target)
         if logits_aux is not None and args.auxiliary:
             logits_aux = sigmoid(logits_aux)
@@ -515,24 +532,29 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        with torch.no_grad():
-            output_np = output.cpu().detach().numpy()
-            target_np = target.cpu().detach().numpy()
-            batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output_np, target_np)
-            abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
-            cart_error.extend(batch_abs_cart_distance)
-            angle_error.extend(batch_abs_angle_distance)
+        if args.feature_mode != 'time_difference_images' and args.feature_mode != 'cross_modal_embeddings':
+            with torch.no_grad():
+                output_np = output.cpu().detach().numpy()
+                target_np = target.cpu().detach().numpy()
+                batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output_np, target_np)
+                abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+                cart_error.extend(batch_abs_cart_distance)
+                angle_error.extend(batch_abs_angle_distance)
 
-        if args.distributed:
-            reduced_loss = reduce_tensor(loss.data)
-            abs_cart_f = reduce_tensor(abs_cart_f)
-            abs_angle_f = reduce_tensor(abs_angle_f)
+            if args.distributed:
+                reduced_loss = reduce_tensor(loss.data)
+                abs_cart_f = reduce_tensor(abs_cart_f)
+                abs_angle_f = reduce_tensor(abs_angle_f)
+            else:
+                reduced_loss = loss.data
+
+            losses.update(reduced_loss, batch_size)
+            abs_cart_m.update(abs_cart_f, batch_size)
+            abs_angle_m.update(abs_angle_f, batch_size)
+
         else:
-            reduced_loss = loss.data
-
-        losses.update(reduced_loss, batch_size)
-        abs_cart_m.update(abs_cart_f, batch_size)
-        abs_angle_m.update(abs_angle_f, batch_size)
+            reduced_loss = reduce_tensor(loss.data) if args.distributed else loss.data
+            losses.update(reduced_loss)
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -545,6 +567,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         end = time.time()
         input_img, input_vec, target = prefetcher.next()
+        if (args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings') and target is not None:
+            target = target.type(torch.cuda.LongTensor)
 
         if args.local_rank == 0:
             progbar.update()
@@ -578,7 +602,6 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         del progbar
     return stats
 
-
 def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle, losses, speed):
     stats = {}
     if progbar is not None:
@@ -593,7 +616,6 @@ def get_stats(progbar, prefix, args, batch_time, data_time, abs_cart, abs_angle,
         prefix + 'images_per_second': '{0:.4f}'.format(speed.avg),
     })
     return stats
-
 
 def validate(val_loader, model, criterion, args, prefix='val_'):
     loader_len = len(val_loader)
@@ -614,6 +636,8 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
     cart_error, angle_error = [], []
     prefetcher = data_prefetcher(val_loader)
     input_img, input_vec, target = prefetcher.next()
+    if args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings':
+        target = target.type(torch.cuda.LongTensor)
     batch_size = input_img.size(0)
     i = -1
     if args.local_rank == 0:
@@ -634,21 +658,25 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data.cpu().numpy(), target.data.cpu().numpy())
-        abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
-        cart_error.extend(batch_abs_cart_distance)
-        angle_error.extend(batch_abs_angle_distance)
+        if args.feature_mode != 'time_difference_images' and args.feature_mode != 'cross_modal_embeddings':
+            batch_abs_cart_distance, batch_abs_angle_distance = accuracy(output.data.cpu().numpy(), target.data.cpu().numpy())
+            abs_cart_f, abs_angle_f = np.mean(batch_abs_cart_distance), np.mean(batch_abs_angle_distance)
+            cart_error.extend(batch_abs_cart_distance)
+            angle_error.extend(batch_abs_angle_distance)
 
-        if args.distributed:
-            reduced_loss = reduce_tensor(loss.data)
-            abs_cart_f = reduce_tensor(abs_cart_f)
-            abs_angle_f = reduce_tensor(abs_angle_f)
+            if args.distributed:
+                reduced_loss = reduce_tensor(loss.data)
+                abs_cart_f = reduce_tensor(abs_cart_f)
+                abs_angle_f = reduce_tensor(abs_angle_f)
+            else:
+                reduced_loss = loss.data
+
+            losses.update(reduced_loss, batch_size)
+            abs_cart_m.update(abs_cart_f, batch_size)
+            abs_angle_m.update(abs_angle_f, batch_size)
         else:
-            reduced_loss = loss.data
-
-        losses.update(reduced_loss, batch_size)
-        abs_cart_m.update(abs_cart_f, batch_size)
-        abs_angle_m.update(abs_angle_f, batch_size)
+            reduced_loss = reduce_tensor(loss.data) if args.distributed else loss.data
+            losses.update(reduced_loss)
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -673,6 +701,8 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
                    abs_cart=abs_cart_m, abs_angle=abs_angle_m))
 
         input_img, input_vec, target = prefetcher.next()
+        if (args.feature_mode == 'time_difference_images' or args.feature_mode == 'cross_modal_embeddings') and target is not None:
+            target = target.type(torch.cuda.LongTensor)
 
     # logger.info(' * combined_error {combined_error.avg:.3f} top5 {top5.avg:.3f}'
     #       .format(combined_error=combined_error, top5=top5))
@@ -690,13 +720,11 @@ def validate(val_loader, model, criterion, args, prefix='val_'):
     # Return the weighted sum of absolute cartesian and angle errors as the metric
     return (args.cart_weight * abs_cart_m.avg + (1-args.cart_weight) * abs_angle_m.avg), stats
 
-
 def save_checkpoint(state, is_best, path='', filename='checkpoint.pth.tar', best_filename='model_best.pth.tar'):
     new_filename = os.path.join(path, filename)
     torch.save(state, new_filename)
     if is_best:
         shutil.copyfile(new_filename, os.path.join(path, best_filename))
-
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -714,7 +742,6 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-
 
 def adjust_learning_rate(optimizer, epoch, step, len_epoch):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
@@ -734,7 +761,6 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
 
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-
 
 def accuracy(output, target):
     """Computes the absolute cartesian and angle distance between output and target"""
@@ -760,13 +786,11 @@ def accuracy(output, target):
 
     return abs_cart_distance, abs_angle_distance
 
-
 def reduce_tensor(tensor):
     rt = tensor.clone()
     dist.all_reduce(rt, op=dist.reduce_op.SUM)
     rt /= args.world_size
     return rt
-
 
 if __name__ == '__main__':
     main()

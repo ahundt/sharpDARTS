@@ -11,6 +11,7 @@ import networkx as nx
 from networkx.readwrite import json_graph
 import json
 import time
+import genotype_extractor
 
 
 class MixedOp(nn.Module):
@@ -29,6 +30,7 @@ class MixedOp(nn.Module):
     self._stride = stride
     if primitives is None:
           primitives = PRIMITIVES
+    self._primitives = primitives
     if op_dict is None:
           op_dict = operations.OPS
     for primitive in primitives:
@@ -44,7 +46,7 @@ class MixedOp(nn.Module):
     # print('-------------------- forward')
     # print('weights shape: ' + str(len(weights)) + ' ops shape: ' + str(len(self._ops)))
     # for i, (w, op) in enumerate(zip(weights, self._ops)):
-    #   print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)) + ' i: ' + str(i) + ' PRIMITIVES[i]: ' + str(PRIMITIVES[i]) + 'x size: ' + str(x.size()) + ' stride: ' + str(self._stride))
+    #   print('w shape: ' + str(w.shape) + ' op type: ' + str(type(op)) + ' i: ' + str(i) + ' self._primitives[i]: ' + str(self._primitives[i]) + 'x size: ' + str(x.size()) + ' stride: ' + str(self._stride))
     #   op_out = op(x)
     #   print('op_out size: ' + str(op_out.size()))
     #   result += w * op_out
@@ -202,54 +204,20 @@ class Network(nn.Module):
     weights = F.softmax(weights_softmax_view, dim=-1)
     return weights
 
-  def genotype(self):
-
-    def _parse(weights):
-      """ Take a weight array and turn it into a list of pairs (primitive_string, node_index).
-      """
-      gene = []
-      n = 2
-      start = 0
-      for i in range(self._steps):
-        # Each step is a separate "add node" in the graph, so i is the integer index of the current node.
-        # A better name for i might be add_node_index.
-        end = start + n
-        # Only look at the weights relevant to this node.
-        # "Nodes" 0 and 1 will always be the output of the previous cells.
-        #
-        # All other nodes will be add nodes which need edges connecting back to the previous nodes:
-        # add node 0 will need 2: rows 0, 1
-        # add node 1 will need 3: rows 2, 3, 4
-        # add node 2 will need 4: rows 5, 6, 7, 8
-        # add node 3 will need 5: rows 9, 10, 11, 12, 13
-        # ...and so on if there are more than 4 nodes.
-        W = weights[start:end].copy()
-        # Each row in the weights is a separate edge, and each column are the possible primitives that edge might use.
-        # The first "add node" can connect back to the two previous cells, which is why the edges are i + 2.
-        # The sorted function orders lists from lowest to highest, so we use -max in the lambda function to sort from highest to lowest.
-        # We currently say there will only be two edges connecting to each node, which is why there is [:2], to select the two highest score edges.
-        # Each later nodes can connect back to the previous cells or an internal node, so the range(i+2) of possible connections increases.
-        edges = sorted(range(i + 2), key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != self.primitives.index('none')))[:2]
-        # We've now selected the two edges we will use for this node, so next let's select the layer primitives.
-        # Each edge needs a particular primitive, so go through all the edges and compare all the possible primitives.
-        for j in edges:
-          k_best = None
-          # note: This probably could be simpler via argmax...
-          # Loop through all the columns to find the highest score primitive for the chosen edge, excluding none.
-          for k in range(len(W[j])):
-            if k != self.primitives.index('none'):
-              if k_best is None or W[j][k] > W[j][k_best]:
-                k_best = k
-          # Once the best primitive is chosen, create the new gene element, which is the
-          # string for the name of the primitive, and the index of the previous node to connect to,
-          gene.append((self.primitives[k_best], j))
-        start = end
-        n += 1
-      # Return the full list of (node, primitive) pairs for this set of weights.
-      return gene
-
-    gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
-    gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
+  def genotype(self, skip_primitive='none'):
+    '''
+    Extract the genotype, or specific connections within a cell, as encoded by the weights.
+    # Arguments
+        skip_primitives: hack was added by DARTS to temporarily workaround the
+            'strong gradient' problem identified in the sharpDARTS paper https://arxiv.org/abs/1903.09900,
+            set skip_primitive=None to not skip any primitives.
+    '''
+    gene_normal = genotype_extractor.parse_cell(
+      F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy(),
+      primitives=self.primitives, steps=self._steps, skip_primitive=skip_primitive)
+    gene_reduce = genotype_extractor.parse_cell(
+      F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy(),
+      primitives=self.primitives, steps=self._steps, skip_primitive=skip_primitive)
 
     concat = range(2+self._steps-self._multiplier, self._steps+2)
     genotype = Genotype(
@@ -566,8 +534,47 @@ class MultiChannelNetwork(nn.Module):
     # out = self.global_pooling(out)
     logits = self.classifier(out.view(out.size(0),-1))
     # print('logits')
+    #print("Optimal_path_forward", nx.algorithms.dag.dag_longest_path(self.G))
+    #print("Top down greedy", self.gen_greedy_path(self.G,"top_down"))
+    #print("Bottom up greedy",self.gen_greedy_path(self.G,"bottom_up"))
     return logits
 
+  def gen_greedy_path(self, G, strategy="top_down"):
+   if strategy == "top_down":
+     start_ = "Source"
+     current_node = "Source"
+     end_node = "Linear"
+     new_G = G
+   elif strategy == "bottom_up":
+     start_ = "Linear"
+     current_node = "Linear"
+     end_node = "Source"
+     new_G = G.reverse(copy=True)
+   wt = 0
+   node_list = []
+   while current_node != end_node:
+      neighbors = [n for n in new_G.neighbors(start_)]
+      for nodes in neighbors:
+          weight_ = new_G.get_edge_data(start_, nodes, "weight")
+          # print(weight_)
+          if len(weight_):
+              weight_ = weight_["weight"]
+          else:
+              weight_ = 0
+  #         print(weight_)
+          if weight_ > wt:
+              wt = weight_
+              current_node = nodes
+      node_list.append(current_node)
+      # print("start",start_)
+      # print(node)
+      start_ = current_node
+      wt = -1
+  # print(node_list)
+   if strategy == "bottom_up":
+     node_list = node_list[::-1]
+     node_list.append("Linear")
+   return node_list
   def arch_weights(self, stride_idx):
     # ops are stored as layer, stride, cin, cout, num_layer_types
     # while weights are ordered stride_index, layer, cin, cout, num_layer_types
@@ -586,7 +593,7 @@ class MultiChannelNetwork(nn.Module):
     return self._criterion(logits, target)
 
   def _initialize_alphas(self, genotype=None):
-    
+
     if genotype is None or genotype[-1] == 'longest_path':
         init_alpha = 1e-3*torch.randn(self.arch_weights_shape)
     else:
