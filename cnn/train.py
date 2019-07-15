@@ -88,6 +88,7 @@ def main():
                          '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
   # TODO(ahundt) remove final path and switch back to genotype
   parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
+  parser.add_argument('--simple_path', type=bool, default=True, help='Final model is a simple path (MultiChannelNetworkModel)')
   args = parser.parse_args()
 
   args = utils.initialize_files_and_args(args)
@@ -139,7 +140,7 @@ def main():
     # TODO(ahundt) remove final path and switch back to genotype
     cnn_model = MultiChannelNetworkModel(
       args.init_channels, DATASET_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells, primitives=primitives,
-      op_dict=op_dict, weighting_algorithm=args.weighting_algorithm, genotype=genotype)
+      op_dict=op_dict, weighting_algorithm=args.weighting_algorithm, genotype=genotype, simple_path=args.simple_path)
   elif args.dataset == 'imagenet':
       cnn_model = NetworkImageNet(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
       flops_shape = [1, 3, 224, 224]

@@ -514,7 +514,7 @@ class MultiChannelNetworkModel(nn.Module):
 
   def __init__(self, C=32, num_classes=10, layers=6, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
                in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False, primitives=None,
-               op_dict=None, weighting_algorithm=None, genotype=None):
+               op_dict=None, weighting_algorithm=None, genotype=None, simple_path=True):
     """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
         op_dict: The dictionary of possible operation creation functions.
         All primitives must be in the op dict.
@@ -574,42 +574,129 @@ class MultiChannelNetworkModel(nn.Module):
 
     self.primitives = primitives
     self.op_dict = op_dict
+    self.simple_path = simple_path
     # self.op_types = [operations.SharpSepConv, operations.ResizablePool]
     # Removed condition as it is not required.
     # if self._genotype is not None and type(self._genotype[0]) is np.str_:
-    model = self._genotype[np.flatnonzero(np.core.defchararray.find(self._genotype, 'add') == -1)]
-    root_ch = self.Cs[int(model[1][-1])]
-    self.stem = nn.ModuleList()
-    s = nn.Sequential(
-        nn.Conv2d(int(in_channels), root_ch, 3, padding=1, bias=False),
-        nn.BatchNorm2d(root_ch))
-    self.stem.append(s)
-    self.op_grid = nn.ModuleList()
-    c_out = 0
-    #Switched to primitives and op_dict like Network
-    # ops = {'SharpSepConv': 0, 'ResizablePool': 1}
+    if self.simple_path:
+      model = self._genotype[np.flatnonzero(np.core.defchararray.find(self._genotype, 'add') == -1)]
+      root_ch = self.Cs[int(model[1][-1])]
+      self.stem = nn.ModuleList()
+      s = nn.Sequential(
+          nn.Conv2d(int(in_channels), root_ch, 3, padding=1, bias=False),
+          nn.BatchNorm2d(root_ch))
+      self.stem.append(s)
+      self.op_grid = nn.ModuleList()
+      c_out = 0
+      #Switched to primitives and op_dict like Network
+      # ops = {'SharpSepConv': 0, 'ResizablePool': 1}
 
-    # Parsing model definition string. Refer genotypes.py for sample model definition string.
-    for layers in model[3:-4]:
-        layer = layers.split("_")
-        # fetching primitive and other parameters from saved model.
-        primitive = self.primitives[ops[layer[-1]]]
-        stride = layer[3]
-        c_in = layer[6]
-        c_out = layer[9]
-        # self.op_grid.append(OpType(int(c_in), int(c_out), kernel_size=3, stride=int(stride)))
-        op = self.op_dict[primitive](c_in, c_out, int(stride), False)
-        # Consistent with MixedOp
-        if 'pool' in primitive:
-            op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
-        # Decreasing feature maps so that output is as expected.
-        if 'none' in primitive or ('skip_connect' in primitive and stride_idx == 0):
-            op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
-        self.op_grid.append(op)
-    self.base = nn.ModuleList()
-    self.base.append(operations.SharpSepConv(int(c_out), int(final_linear_filters), 3))
-    self.global_pooling = nn.AdaptiveAvgPool2d(1)
-    self.classifier = nn.Linear(final_linear_filters, num_classes)
+      # Parsing model definition string. Refer genotypes.py for sample model definition string.
+      for layers in model[3:-4]:
+          layer = layers.split("_")
+          # fetching primitive and other parameters from saved model.
+          primitive = self.primitives[ops[layer[-1]]]
+          stride = layer[3]
+          c_in = layer[6]
+          c_out = layer[9]
+          # self.op_grid.append(OpType(int(c_in), int(c_out), kernel_size=3, stride=int(stride)))
+          op = self.op_dict[primitive](c_in, c_out, int(stride), False)
+          # Consistent with MixedOp
+          if 'pool' in primitive:
+              op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
+          # Decreasing feature maps so that output is as expected.
+          if 'none' in primitive or ('skip_connect' in primitive and stride_idx == 0):
+              op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
+          self.op_grid.append(op)
+      self.base = nn.ModuleList()
+      self.base.append(operations.SharpSepConv(int(c_out), int(final_linear_filters), 3))
+      self.global_pooling = nn.AdaptiveAvgPool2d(1)
+      self.classifier = nn.Linear(final_linear_filters, num_classes)
+
+    else:
+      self.stem = nn.ModuleList()
+
+      for i, c in enumerate(self.Cs):
+        if "Conv3x3_"+str(i) in self._genotype:
+          s = nn.Sequential(
+            nn.Conv2d(int(in_channels), int(c), 3, padding=1, bias=False),
+            nn.BatchNorm2d(c)
+          )
+          self.stem.append(s)
+
+      self.op_grid = nn.ModuleList()
+      for layer_idx in range(self._layers):
+        stride_modules = nn.ModuleList()
+        for stride_idx in self.strides:
+          in_modules = nn.ModuleList()
+          for C_in_idx in range(self.C_size):
+            out_modules = nn.ModuleList()
+            # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
+            for C_out_idx in range(self.C_size):
+              out_node = 'layer_'+str(layer_idx)+'_add_'+'c_out_'+str(self.Cs[C_out_idx])+'_stride_' + str(stride_idx+1)
+              type_modules = nn.ModuleList()
+
+              # switching to primitives
+              # for OpType in self.op_types:
+              for primitive_idx, primitive in enumerate(self.primitives):
+                  cin = C_in[C_in_idx][C_out_idx]
+                  cout = C_out[C_in_idx][C_out_idx]
+                  # print('cin: ' + str(cin) + ' cout: ' + str(cout))
+                  name = 'layer_' + str(layer_idx) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(self.Cs[C_in_idx]) + '_c_out_' + str(self.Cs[C_out_idx]) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
+                  if name in self._genotype:
+                    op = self.op_dict[primitive](int(cin), int(cout), int(stride_idx + 1), False)
+                    # Consistent with MixedOp
+                    if 'pool' in primitive:
+                        op = nn.Sequential(op, nn.BatchNorm2d(int(cout), affine=False))
+                    # Decreasing feature maps so that output is as expected.
+                    if 'none' in primitive or ('skip_connect' in primitive and stride_idx == 0):
+                        op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
+                    type_modules.append(op)
+                  else:
+                    continue
+              if len(type_modules) > 0:
+                out_modules.append(type_modules)
+            if len(out_modules) > 0:
+              in_modules.append(out_modules)
+          # op grid is stride_modules
+          stride_modules.append(in_modules)
+        self.op_grid.append(stride_modules)
+
+      self.base = nn.ModuleList()
+
+      # for C_out_idx in range(self.C_size):
+      #   self.G.add_edge('layer_'+str(self._layers-1)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(self.strides[-1] + 1), "Add-SharpSep")
+      for c in self.Cs:
+        if "SharpSepConv"+str(c) in self._genotype:
+          # out_node = 'layer_'+str(self._layers-1)+'_add_'+'c_out_'+str(c)+'_stride_' + str(self.strides[-1] + 1)
+          self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
+      # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
+      # C_in will be defined by the previous layer's c_out
+      self.arch_weights_shape = [len(self.strides), self._layers, self.C_size, self.C_size, len(self.primitives)]
+      # number of weights total
+      self.weight_count = np.prod(self.arch_weights_shape)
+      # number of weights in a softmax call
+      self.softmax_weight_count = np.prod(self.arch_weights_shape[2:])
+      # minimum score for a layer to continue being trained
+      self.min_score = float(1 / (self.softmax_weight_count * self.softmax_weight_count))
+
+      self.global_pooling = nn.AdaptiveAvgPool2d(1)
+      self.classifier = nn.Linear(final_linear_filters, num_classes)
+      # self.G.add_node("global_pooling")
+      # self.G.add_edge("add-SharpSep", "global_pooling")
+      # self.G.add_node("Linear")
+      # self.G.nodes["Linear"]['demand'] = 1
+      # self.G.add_edge("global_pooling", "Linear")
+      # self.G["global_pooling"]["Linear"]["weight"] = 800
+      # # print("Nodes in graph")
+      # # print(self.G.nodes())
+      # # print("Edges in graph")
+      # # print(self.G.edges())
+      # print("Saving graph...")
+      # nx.write_gpickle(self.G, "network_test.graph")
+
+      if not self._visualization:
+        self._initialize_alphas(genotype)
 
 
   def new(self):
@@ -620,14 +707,113 @@ class MultiChannelNetworkModel(nn.Module):
 
   def forward(self, input_batch):
     # [in, normal_out, reduce_out]
-    x = input_batch
-    for i in range(len(self.stem)):
-        x = self.stem[i](x)
-    for i in range(len(self.op_grid)):
-        x = self.op_grid[i](x)
-    out = self.global_pooling(self.base[0](x))
-    logits = self.classifier(out.view(out.size(0), -1))
-    return logits
+    if self.simple_path:
+      x = input_batch
+      for i in range(len(self.stem)):
+          x = self.stem[i](x)
+      for i in range(len(self.op_grid)):
+          x = self.op_grid[i](x)
+      out = self.global_pooling(self.base[0](x))
+      logits = self.classifier(out.view(out.size(0), -1))
+      return logits
+
+    else:
+
+      self.C_size = len(self.Cs)
+      s0s = [[], [None] * self.C_size, [None] * self.C_size]
+      for operation in self.stem:
+        # Make the set of features with different numbers of channels.
+        s0s[0] += [operation(input_batch)]
+
+      # calculate weights, there are two weight views according to stride
+      weight_views = []
+      if not self._visualization:
+        for stride_idx in self.strides:
+          # ops are stored as layer, stride, cin, cout, num_layer_types
+          # while weights are ordered stride_index, layer, cout, num_layer_types
+          # first exclude the stride_idx because we already know that
+          weight_views += [self.arch_weights(stride_idx)]
+      # Duplicate s0s to account for 2 different strides
+      # s0s += [[]]
+      # s1s = [None] * layers + 1
+
+      for layer in range(self._layers):
+        # layer is how many times we've called everything, i.e. the number of "layers"
+        # this is different from the number of layer types which is len([SharpSepConv, ResizablePool]) == 2
+        layer_st_time = time.time()
+        for stride_idx in self.strides:
+          stride = 1 + stride_idx
+          # we don't pass the gradient along max_w because it is the weight for a different operation.
+          # TODO(ahundt) is there a better way to create this variable without gradients & reallocating repeatedly?
+          # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
+          # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
+          if not self._visualization and self._weighting_algorithm is not None and self._weighting_algorithm == 'max_w':
+            max_w = torch.max(weight_views[stride_idx][layer, :, :, :])
+          for C_out_idx, C_out in enumerate(self.Cs):
+            # take all the layers with the same output so we can sum them
+            # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
+            out_node = 'layer_'+str(layer)+'_add_'+'c_out_'+str(C_out)+'_stride_' + str(stride_idx+1)
+            c_outs = []
+            for C_in_idx, C_in in enumerate(self.Cs):
+              for primitive_idx, primitive in enumerate(self.primitives):
+
+                if self.training is False:
+                  op_st_time = time.time()
+                # get the specific weight for this op
+                name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
+                # layer is present in final model architecture.
+                if name in self._genotype:
+                  if not self._visualization:
+                    w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, primitive_idx]
+                    # self.G.add_edge(name, out_node, {weight: w})
+                    self.G[name][out_node]["weight"] = float(w.clone().cpu().detach().numpy())
+                    self.G[name][out_node]["weight_int"] = int(float(w.clone().cpu().detach().numpy()) * 1e+5)
+                  # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
+                  # apply the operation then weight, equivalent to
+                  # w * op(input_feature_map)
+                  # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
+                  if self._always_apply_ops or w > self.min_score:
+                    # only apply an op if weight score isn't too low: w > 1/(N*N)
+                    # x = 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
+                    s = s0s[stride_idx][C_in_idx]
+                    if s is not None:
+                      if not self._visualization:
+                        if self._weighting_algorithm is None or self._weighting_algorithm == 'scalar':
+                          x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
+                        elif self._weighting_algorithm == 'max_w':
+                          # print(name)
+                          # print(s.size())
+                          x = (1. - max_w + w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
+                          # self.G[name][out_node]["weight"] = (1. - max_w + w)
+                        else:
+                          raise ValueError(
+                            'MultiChannelNetwork.forward(): Unsupported weighting algorithm: ' +
+                            str(self._weighting_algorithm) + ' try "scalar" or "max_w"')
+                      else:
+                        # doing visualization, skip the weights
+                        x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
+                      c_outs += [x]
+
+            # only apply updates to layers of sufficient quality
+            if c_outs:
+              # print('combining c_outs forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
+              # combined values with the same c_out dimension
+              combined = sum(c_outs)
+              if s0s[stride][C_out_idx] is None:
+                # first call sets the value
+                s0s[stride][C_out_idx] = combined
+              else:
+                s0s[stride][C_out_idx] += combined
+
+        # downscale reduced input as next output
+        s0s = [s0s[stride], [None] * self.C_size, [None] * self.C_size]
+
+      # combine results
+      # use SharpSepConv to match dimension of final linear layer
+      # then add up all remaining outputs and pool the result
+      out = self.global_pooling(sum(op(x) for op, x in zip(self.base, s0s[0]) if x is not None))
+      logits = self.classifier(out.view(out.size(0),-1))
+      return logits
 
 
   def arch_weights(self, stride_idx):
