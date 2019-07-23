@@ -726,9 +726,6 @@ class MultiChannelNetworkModel(nn.Module):
         # Make the set of features with different numbers of channels.
         s0s[0] += [operation(input_batch)]
 
-      # calculate weights, there are two weight views according to stride
-      weight_views = []
-
       # Duplicate s0s to account for 2 different strides
       # s0s += [[]]
       # s1s = [None] * layers + 1
@@ -757,13 +754,10 @@ class MultiChannelNetworkModel(nn.Module):
                   # apply the operation then weight, equivalent to
                   # w * op(input_feature_map)
                   # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
-                  if self._always_apply_ops or w > self.min_score:
-                    # only apply an op if weight score isn't too low: w > 1/(N*N)
-                    # x = 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
-                    s = s0s[stride_idx][C_in_idx]
-                    if s is not None:
-                      x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
-                      c_outs += [x]
+                s = s0s[stride_idx][C_in_idx]
+                if s is not None:
+                  x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
+                  c_outs += [x] 
 
             # only apply updates to layers of sufficient quality
             if c_outs:
