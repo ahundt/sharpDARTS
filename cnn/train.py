@@ -88,7 +88,7 @@ def main():
                          '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
   # TODO(ahundt) remove final path and switch back to genotype
   parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
-  parser.add_argument('--simple_path', type=bool, default=True, help='Final model is a simple path (MultiChannelNetworkModel)')
+  parser.add_argument('--simple_path', type=bool, default=True, action='store_false' ,help='Final model is a simple path (MultiChannelNetworkModel)')
   args = parser.parse_args()
 
   args = utils.initialize_files_and_args(args)
