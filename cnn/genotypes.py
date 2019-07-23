@@ -33,6 +33,12 @@ DARTS_PRIMITIVES = [
     'dil_conv_5x5'
 ]
 
+# Primitives for the multichannelnet search space
+MULTICHANNELNET_PRIMITIVES = [
+    'ResizablePool',
+    'SharpSepConv'
+]
+
 NASNet = Genotype(
   normal = [
     ('sep_conv_5x5', 1),

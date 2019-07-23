@@ -5,7 +5,7 @@ import numpy as np
 from operations import *
 import operations
 from torch.autograd import Variable
-from genotypes import PRIMITIVES
+from genotypes import PRIMITIVES, MULTICHANNELNET_PRIMITIVES
 from genotypes import Genotype
 import networkx as nx
 from networkx.readwrite import json_graph
@@ -308,9 +308,9 @@ class MultiChannelNetwork(nn.Module):
     self._weighting_algorithm = weighting_algorithm
 
     if primitives is None:
-        primitives = PRIMITIVES
+        primitives = MULTICHANNELNET_PRIMITIVES
     if op_dict is None:
-        op_dict = operations.OPS
+        op_dict = operations.MULTICHANNELNET_OPS
 
     self.primitives = primitives
     self.op_dict = op_dict

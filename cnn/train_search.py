@@ -98,9 +98,6 @@ parser.add_argument('--weighting_algorithm', type=str, default='scalar',
 # TODO(ahundt) remove final path and switch back to genotype
 parser.add_argument('--final_path', type=str, default=None, help='path for final model')
 parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
-parser.add_argument('--demand_limit', type=int, default=2, help='Set the demand limit for the iterative cost search for best model')
-parser.add_argument('--demand_step', type=int, default=1, help='Set the demand step size for the iterative cost search for best model')
-parser.add_argument('--flow_cut', type=float, default=0, help='Set the threshold for the edges to be included in iterative cost search for best model. Default is a good choice.')
 args = parser.parse_args()
 
 args.arch = args.primitives + '-' + args.ops
@@ -273,13 +270,13 @@ def main():
       if valid_acc > best_valid_acc:
         # new best epoch, save weights
 
-        if args.multi_channel:
-          capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-          weight = nx.get_edge_attributes(cnn_model.G, "weight_int")
-          for u, v, d in cnn_model.G.edges(data=True):
-            if u is not "Source" or v is not "Linear":
-              if "capacity" in d:
-                d['capacity'] = int(d['capacity']*1e+5)
+        # if args.multi_channel:
+        #   capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
+        #   weight = nx.get_edge_attributes(cnn_model.G, "weight_int")
+        #   for u, v, d in cnn_model.G.edges(data=True):
+        #     if u is not "Source" or v is not "Linear":
+        #       if "capacity" in d:
+        #         d['capacity'] = int(d['capacity']*1e+5)
       #     if "weight" in d:
       #        d['weight'] = int(d['weight']*1e+7)
         utils.save(cnn_model, weights_file)
@@ -291,22 +288,22 @@ def main():
       #    if len(temp):
       #      new_mincost_flow[key] = temp
         if args.multi_channel:
-          capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
+          # capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
         #  weight = nx.get_edge_attributes(cnn_model.G, "weight")
-          logger.info('capacity :%s', capacity)
-          logger.info('weight_int :%s', weight)
+          # logger.info('capacity :%s', capacity)
+          # logger.info('weight_int :%s', weight)
           #iterative cost_search
-          for demand in range(1, args.demand_limit, args.demand_step):
-            cnn_model.G.nodes["Source"]['demand'] = -demand
-            cnn_model.G.nodes["Linear"]['demand'] = demand
-            flow_cost, flow_dict = nx.network_simplex(cnn_model.G, weight='capacity', capacity='weight_int')
-            min_cost_flow_edge = [(u, v) for u in flow_dict for v in flow_dict[u] if flow_dict[u][v] > args.flow_cut]
-            logger.info('min_cost_flow_edge with demand: %d %s', demand, min_cost_flow_edge)
-            new_g = nx.DiGraph()
+          # for demand in range(1, args.demand_limit, args.demand_step):
+          #   cnn_model.G.nodes["Source"]['demand'] = -demand
+          #   cnn_model.G.nodes["Linear"]['demand'] = demand
+          #   flow_cost, flow_dict = nx.network_simplex(cnn_model.G, weight='capacity', capacity='weight_int')
+          #   min_cost_flow_edge = [(u, v) for u in flow_dict for v in flow_dict[u] if flow_dict[u][v] > args.flow_cut]
+          #   logger.info('min_cost_flow_edge with demand: %d %s', demand, min_cost_flow_edge)
+          #   new_g = nx.DiGraph()
 
             # create graph form added nodes
-            new_path = new_g.add_edges_from(min_cost_flow_edge)
-            logger.info('min_cost_flow_path with demand: %d %s', demand, new_path.nodes)  
+            # new_path = new_g.add_edges_from(min_cost_flow_edge)
+            # logger.info('min_cost_flow_path with demand: %d %s', demand, new_path.nodes)  
         #  mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
         #  np.save(mincostFlow_path_filename, new_mincost_flow)
           graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')
