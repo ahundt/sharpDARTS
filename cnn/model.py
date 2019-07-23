@@ -699,9 +699,6 @@ class MultiChannelNetworkModel(nn.Module):
       # print("Saving graph...")
       # nx.write_gpickle(self.G, "network_test.graph")
 
-      if not self._visualization:
-        self._initialize_alphas(genotype)
-
 
   def new(self):
     model_new = Network(self._C, self._num_classes, self._layers, self._criterion).cuda()
@@ -731,12 +728,7 @@ class MultiChannelNetworkModel(nn.Module):
 
       # calculate weights, there are two weight views according to stride
       weight_views = []
-      if not self._visualization:
-        for stride_idx in self.strides:
-          # ops are stored as layer, stride, cin, cout, num_layer_types
-          # while weights are ordered stride_index, layer, cout, num_layer_types
-          # first exclude the stride_idx because we already know that
-          weight_views += [self.arch_weights(stride_idx)]
+
       # Duplicate s0s to account for 2 different strides
       # s0s += [[]]
       # s1s = [None] * layers + 1
@@ -747,12 +739,7 @@ class MultiChannelNetworkModel(nn.Module):
         layer_st_time = time.time()
         for stride_idx in self.strides:
           stride = 1 + stride_idx
-          # we don't pass the gradient along max_w because it is the weight for a different operation.
-          # TODO(ahundt) is there a better way to create this variable without gradients & reallocating repeatedly?
-          # max_w = torch.Variable(torch.max(weight_views[stride_idx][layer, :, :, :]), requires_grad=False).cuda()
-          # find the maximum comparable weight, copy it and make sure we don't pass gradients along that path
-          if not self._visualization and self._weighting_algorithm is not None and self._weighting_algorithm == 'max_w':
-            max_w = torch.max(weight_views[stride_idx][layer, :, :, :])
+
           for C_out_idx, C_out in enumerate(self.Cs):
             # take all the layers with the same output so we can sum them
             # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
@@ -766,12 +753,6 @@ class MultiChannelNetworkModel(nn.Module):
                 # get the specific weight for this op
                 name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
                 # layer is present in final model architecture.
-                if name in self._genotype:
-                  if not self._visualization:
-                    w = weight_views[stride_idx][layer, C_in_idx, C_out_idx, primitive_idx]
-                    # self.G.add_edge(name, out_node, {weight: w})
-                    self.G[name][out_node]["weight"] = float(w.clone().cpu().detach().numpy())
-                    self.G[name][out_node]["weight_int"] = int(float(w.clone().cpu().detach().numpy()) * 1e+5)
                   # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
                   # apply the operation then weight, equivalent to
                   # w * op(input_feature_map)
@@ -781,21 +762,7 @@ class MultiChannelNetworkModel(nn.Module):
                     # x = 1 - max_w + w so that max_w gets a score of 1 and everything else gets a lower score accordingly.
                     s = s0s[stride_idx][C_in_idx]
                     if s is not None:
-                      if not self._visualization:
-                        if self._weighting_algorithm is None or self._weighting_algorithm == 'scalar':
-                          x = w * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
-                        elif self._weighting_algorithm == 'max_w':
-                          # print(name)
-                          # print(s.size())
-                          x = (1. - max_w + w) * self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
-                          # self.G[name][out_node]["weight"] = (1. - max_w + w)
-                        else:
-                          raise ValueError(
-                            'MultiChannelNetwork.forward(): Unsupported weighting algorithm: ' +
-                            str(self._weighting_algorithm) + ' try "scalar" or "max_w"')
-                      else:
-                        # doing visualization, skip the weights
-                        x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
+                      x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
                       c_outs += [x]
 
             # only apply updates to layers of sufficient quality
