@@ -81,10 +81,10 @@ parser.add_argument('--unrolled', action='store_true', default=False, help='use 
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
 parser.add_argument('--multi_channel', action='store_true', default=False, help='perform multi channel search, a completely separate search space')
-parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
+parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS, DARTS_OPS and MULTICHANNELNET_OPS')
 parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                     help='which primitive layers to use inside a cell search space,'
-                         ' options are PRIMITIVES and DARTS_PRIMITIVES')
+                         ' options are PRIMITIVES, DARTS_PRIMITIVES AND MULTICHANNELNET_PRIMITIVES')
 parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
                     help='evaluate model at specified path on training, test, and validation datasets')
 parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
