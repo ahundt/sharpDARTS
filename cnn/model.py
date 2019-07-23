@@ -733,7 +733,7 @@ class MultiChannelNetworkModel(nn.Module):
       for layer in range(self._layers):
         # layer is how many times we've called everything, i.e. the number of "layers"
         # this is different from the number of layer types which is len([SharpSepConv, ResizablePool]) == 2
-        layer_st_time = time.time()
+        # layer_st_time = time.time()
         for stride_idx in self.strides:
           stride = 1 + stride_idx
 
@@ -745,19 +745,18 @@ class MultiChannelNetworkModel(nn.Module):
             for C_in_idx, C_in in enumerate(self.Cs):
               for primitive_idx, primitive in enumerate(self.primitives):
 
-                if self.training is False:
-                  op_st_time = time.time()
                 # get the specific weight for this op
                 name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
-                # layer is present in final model architecture.
-                  # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
-                  # apply the operation then weight, equivalent to
-                  # w * op(input_feature_map)
-                  # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
-                s = s0s[stride_idx][C_in_idx]
-                if s is not None:
-                  x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
-                  c_outs += [x] 
+                if name in self._genotype:
+                  # layer is present in final model architecture.
+                    # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
+                    # apply the operation then weight, equivalent to
+                    # w * op(input_feature_map)
+                    # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
+                  s = s0s[stride_idx][C_in_idx]
+                  if s is not None:
+                    x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
+                    c_outs += [x] 
 
             # only apply updates to layers of sufficient quality
             if c_outs:
