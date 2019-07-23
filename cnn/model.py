@@ -4,7 +4,6 @@ import torch.nn as nn
 from torch.nn import functional as F
 import numpy as np
 from genotypes import PRIMITIVES, MULTICHANNELNET_PRIMITIVES
-from genotypes import Genotype
 from operations import *
 import operations
 # from . import operations
@@ -600,7 +599,7 @@ class MultiChannelNetworkModel(nn.Module):
       for layers in model[3:-4]:
           layer = layers.split("_")
           # fetching primitive and other parameters from saved model.
-          primitive = self.primitives[ops[layer[-1]]]
+          primitive = self.primitives[layer[-1]]
           stride = layer[3]
           c_in = layer[6]
           c_out = layer[9]

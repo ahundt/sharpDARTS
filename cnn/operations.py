@@ -46,8 +46,8 @@ DARTS_OPS = {
 }
 
 MULTICHANNELNET_OPS = {
-  'ResizablePool': lambda C_in, C_out, stride, affine, C_mid=None: ResizablePool(C_in, C_out, 3, stride, padding=1, affine=affine),
-  'SharpSepConv': lambda C_in, C_out, stride, affine, C_mid=None: SharpSepConv(C_in, C_out, 3, stride, padding=1, affine=affine),
+  'ResizablePool': lambda C_in, C_out, stride, C_mid=None: ResizablePool(C_in, C_out, 3, stride, padding=1, affine=True),
+  'SharpSepConv': lambda C_in, C_out, stride, C_mid=None: SharpSepConv(C_in, C_out, 3, stride, padding=1, affine=True),
 
 }
 

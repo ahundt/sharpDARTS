@@ -6,7 +6,7 @@ from operations import *
 import operations
 from torch.autograd import Variable
 from genotypes import PRIMITIVES, MULTICHANNELNET_PRIMITIVES
-from genotypes import Genotype
+# from genotypes import Genotype
 import networkx as nx
 from networkx.readwrite import json_graph
 import json
