@@ -2,6 +2,11 @@ import math
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import numpy as np
+from genotypes import PRIMITIVES, MULTICHANNELNET_PRIMITIVES
+from genotypes import Genotype
+from operations import *
+import operations
 # from . import operations
 # from . import genotypes
 # from .operations import ReLUConvBN
