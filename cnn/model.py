@@ -599,12 +599,12 @@ class MultiChannelNetworkModel(nn.Module):
       for layers in model[3:-4]:
           layer = layers.split("_")
           # fetching primitive and other parameters from saved model.
-          primitive = self.primitives[layer[-1]]
+          primitive = self.primitives[int(layer[-1])]
           stride = layer[3]
           c_in = layer[6]
           c_out = layer[9]
           # self.op_grid.append(OpType(int(c_in), int(c_out), kernel_size=3, stride=int(stride)))
-          op = self.op_dict[primitive](c_in, c_out, int(stride), False)
+          op = self.op_dict[primitive](c_in, c_out, stride=int(stride))
           # Consistent with MixedOp
           if 'pool' in primitive:
               op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
