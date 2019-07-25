@@ -743,6 +743,7 @@ class MultiChannelNetworkModel(nn.Module):
             out_node = 'layer_'+str(layer)+'_add_'+'c_out_'+str(C_out)+'_stride_' + str(stride_idx+1)
             c_outs = []
             for C_in_idx, C_in in enumerate(self.Cs):
+              primitive_list_id = 0
               for primitive_idx, primitive in enumerate(self.primitives):
 
                 # get the specific weight for this op
@@ -755,8 +756,9 @@ class MultiChannelNetworkModel(nn.Module):
                     # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
                   s = s0s[stride_idx][C_in_idx]
                   if s is not None:
-                    x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
-                    c_outs += [x] 
+                    x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_list_id](s)
+                    c_outs += [x]
+                    primitive_list_id += 1
 
             # only apply updates to layers of sufficient quality
             if c_outs:
