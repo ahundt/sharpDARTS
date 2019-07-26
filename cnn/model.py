@@ -629,16 +629,20 @@ class MultiChannelNetworkModel(nn.Module):
           self.stem.append(s)
 
       self.op_grid = nn.ModuleList()
+      self.op_grid_list = []
       for layer_idx in range(self._layers):
         stride_modules = nn.ModuleList()
         for stride_idx in self.strides:
           in_modules = nn.ModuleList()
+          self.in_modules_param = []
           for C_in_idx in range(self.C_size):
             out_modules = nn.ModuleList()
+            self.out_modules_param = []
             # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
             for C_out_idx in range(self.C_size):
               out_node = 'layer_'+str(layer_idx)+'_add_'+'c_out_'+str(self.Cs[C_out_idx])+'_stride_' + str(stride_idx+1)
               type_modules = nn.ModuleList()
+              self.type_modules_list = []
 
               # switching to primitives
               # for OpType in self.op_types:
@@ -656,12 +660,15 @@ class MultiChannelNetworkModel(nn.Module):
                     if 'none' in primitive or ('skip_connect' in primitive and stride_idx == 0):
                         op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
                     type_modules.append(op)
+                    self.type_modules_list.append(primitive)
                   else:
                     continue
               if len(type_modules) > 0:
                 out_modules.append(type_modules)
+                self.out_modules_param.append(self.Cs[C_out_idx])
             if len(out_modules) > 0:
               in_modules.append(out_modules)
+              self.in_modules_param.append(self.Cs[C_in_idx])
           # op grid is stride_modules
           stride_modules.append(in_modules)
         self.op_grid.append(stride_modules)
@@ -737,14 +744,12 @@ class MultiChannelNetworkModel(nn.Module):
         for stride_idx in self.strides:
           stride = 1 + stride_idx
 
-          for C_out_idx, C_out in enumerate(self.Cs):
+          for C_out_idx, C_out in enumerate(self.out_modules_param):
             # take all the layers with the same output so we can sum them
             # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
-            out_node = 'layer_'+str(layer)+'_add_'+'c_out_'+str(C_out)+'_stride_' + str(stride_idx+1)
             c_outs = []
-            for C_in_idx, C_in in enumerate(self.Cs):
-              primitive_list_id = 0
-              for primitive_idx, primitive in enumerate(self.primitives):
+            for C_in_idx, C_in in enumerate(self.in_modules_param):
+              for primitive_idx, primitive in enumerate(self.type_modules_list):
 
                 # get the specific weight for this op
                 name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
@@ -756,9 +761,8 @@ class MultiChannelNetworkModel(nn.Module):
                     # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
                   s = s0s[stride_idx][C_in_idx]
                   if s is not None:
-                    x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_list_id](s)
+                    x = self.op_grid[layer][stride_idx][C_in_id][C_out_id][primitive_idx](s)
                     c_outs += [x]
-                    primitive_list_id += 1
 
             # only apply updates to layers of sufficient quality
             if c_outs:
