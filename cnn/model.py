@@ -670,7 +670,7 @@ class MultiChannelNetworkModel(nn.Module):
                     continue
               if len(type_modules) > 0:
                 out_modules.append(type_modules)
-                out_modules_param.append((self.Cs[C_out_idx], type_modules_list))
+                out_modules_param.append((self.Cs[C_out_idx], self.type_modules_list))
                 self.outCs.append((layer_idx, stride_idx, self.Cs[C_out_idx]))
             if len(out_modules) > 0:
               in_modules.append(out_modules)
@@ -766,7 +766,7 @@ class MultiChannelNetworkModel(nn.Module):
               for primitive_idx, primitive in enumerate(self.type_modules_list):
 
                 # get the specific weight for this op
-                name = 'layer_' + str(layer) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
+                name = 'layer_' + str(layer) + '_stride_' + str(stride) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
                 if name in self._genotype:
                   # layer is present in final model architecture.
                     # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
@@ -790,7 +790,8 @@ class MultiChannelNetworkModel(nn.Module):
                 s0s[stride][C_out_idx] += combined
 
         # downscale reduced input as next output
-        s0s = [s0s[stride], [None] * self.C_size, [None] * self.C_size]
+        self.bC_size = len(self.baseCs)
+        s0s = [s0s[stride], [None] * self.bC_size, [None] * self.bC_size]
 
       # combine results
       # use SharpSepConv to match dimension of final linear layer
