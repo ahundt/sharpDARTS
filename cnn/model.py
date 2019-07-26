@@ -675,12 +675,12 @@ class MultiChannelNetworkModel(nn.Module):
             if len(out_modules) > 0:
               in_modules.append(out_modules)
               in_modules_param.append((self.Cs[C_in_idx], out_modules_param))
-              self.inCs.append((layer_idx, strde_idx, self.Cs[C_out_idx], self.Cs[C_in_idx]))
+              self.inCs.append((layer_idx, stride_idx, self.Cs[C_out_idx], self.Cs[C_in_idx]))
           # op grid is stride_modules
           stride_modules.append(in_modules)
           stride_modules_param.append((stride_idx, in_modules_param))
         self.op_grid.append(stride_modules)
-        self.op_grid_list.append(layer_idx, stride_modules_param)
+        self.op_grid_list.append((layer_idx, stride_modules_param))
 
       self.base = nn.ModuleList()
 
@@ -748,13 +748,13 @@ class MultiChannelNetworkModel(nn.Module):
       # s0s += [[]]
       # s1s = [None] * layers + 1
 
-      for layer in range(self.op_grid_list):
+      for layer in self.op_grid_list:
         # layer is how many times we've called everything, i.e. the number of "layers"
         # this is different from the number of layer types which is len([SharpSepConv, ResizablePool]) == 2
         # layer_st_time = time.time()
         layer_idx = layer[0]
-        for strides in self.layer[1]:
-          stride = 1 + stride_idx[0]
+        for strides in layer[1]:
+          stride = 1 + strides[0]
 
           C_out_layer = [x for x in self.outCs if x[0] == layer[0] and x[1] == strides[0]]
           for C_out_idx, C_out in enumerate(C_out_layer):
@@ -775,7 +775,7 @@ class MultiChannelNetworkModel(nn.Module):
                     # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
                   s = s0s[stride_idx][C_in_idx]
                   if s is not None:
-                    x = self.op_grid[layer][stride_idx][C_in_id][C_out_id][primitive_idx](s)
+                    x = self.op_grid[layer][stride][C_in_idx][C_out_idx][primitive_idx](s)
                     c_outs += [x]
 
             # only apply updates to layers of sufficient quality
