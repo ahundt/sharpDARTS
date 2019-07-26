@@ -647,7 +647,7 @@ class MultiChannelNetworkModel(nn.Module):
             for C_out_idx in range(self.C_size):
               out_node = 'layer_'+str(layer_idx)+'_add_'+'c_out_'+str(self.Cs[C_out_idx])+'_stride_' + str(stride_idx+1)
               type_modules = nn.ModuleList()
-              type_modules_list = []
+              self.type_modules_list = []
 
               # switching to primitives
               # for OpType in self.op_types:
@@ -665,7 +665,7 @@ class MultiChannelNetworkModel(nn.Module):
                     if 'none' in primitive or ('skip_connect' in primitive and stride_idx == 0):
                         op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
                     type_modules.append(op)
-                    type_modules_list.append(primitive)
+                    self.type_modules_list.append(primitive)
                   else:
                     continue
               if len(type_modules) > 0:
