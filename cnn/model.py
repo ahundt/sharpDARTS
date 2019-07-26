@@ -671,11 +671,11 @@ class MultiChannelNetworkModel(nn.Module):
               if len(type_modules) > 0:
                 out_modules.append(type_modules)
                 out_modules_param.append((self.Cs[C_out_idx], type_modules_list))
-                self.outCs.append((layer, stride_idx, self.Cs[C_out_idx]))
+                self.outCs.append((layer_idx, stride_idx, self.Cs[C_out_idx]))
             if len(out_modules) > 0:
               in_modules.append(out_modules)
               in_modules_param.append((self.Cs[C_in_idx], out_modules_param))
-              self.inCs.append((layer, strde_idx, self.Cs[C_out_idx], self.Cs[C_in_idx]))
+              self.inCs.append((layer_idx, strde_idx, self.Cs[C_out_idx], self.Cs[C_in_idx]))
           # op grid is stride_modules
           stride_modules.append(in_modules)
           stride_modules_param.append((stride_idx, in_modules_param))
