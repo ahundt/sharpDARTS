@@ -670,15 +670,15 @@ class MultiChannelNetworkModel(nn.Module):
                     continue
               if len(type_modules) > 0:
                 out_modules.append(type_modules)
-                self.out_modules_param.append((self.Cs[C_out_idx], type_modules_list))
+                out_modules_param.append((self.Cs[C_out_idx], type_modules_list))
                 self.outCs.append((layer, stride_idx, self.Cs[C_out_idx]))
             if len(out_modules) > 0:
               in_modules.append(out_modules)
-              self.in_modules_param.append((self.Cs[C_in_idx], out_modules_param))
+              in_modules_param.append((self.Cs[C_in_idx], out_modules_param))
               self.inCs.append((layer, strde_idx, self.Cs[C_out_idx], self.Cs[C_in_idx]))
           # op grid is stride_modules
           stride_modules.append(in_modules)
-          self.stride_modules_param.append((stride_idx, in_modules_param))
+          stride_modules_param.append((stride_idx, in_modules_param))
         self.op_grid.append(stride_modules)
         self.op_grid_list.append(layer_idx, stride_modules_param)
 
