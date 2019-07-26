@@ -756,12 +756,12 @@ class MultiChannelNetworkModel(nn.Module):
         for strides in layer[1]:
           stride = 1 + strides[0]
 
-          C_out_layer = [x for x in self.outCs if x[0] == layer[0] and x[1] == strides[0]]
+          C_out_layer = [x[2] for x in self.outCs if x[0] == layer[0] and x[1] == strides[0]]
           for C_out_idx, C_out in enumerate(C_out_layer):
             # take all the layers with the same output so we can sum them
             # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
             c_outs = []
-            C_in_layer = [x for x in self.inCs if x[0] == layer[0] and x[1] == strides[0] and x[2] == C_out]
+            C_in_layer = [x[3] for x in self.inCs if x[0] == layer[0] and x[1] == strides[0] and x[2] == C_out]
             for C_in_idx, C_in in enumerate(C_in_layer):
               for primitive_idx, primitive in enumerate(self.type_modules_list):
 
