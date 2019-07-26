@@ -619,6 +619,7 @@ class MultiChannelNetworkModel(nn.Module):
 
     else:
       self.stem = nn.ModuleList()
+      self.stemCs = []
 
       for i, c in enumerate(self.Cs):
         if "Conv3x3_"+str(i) in self._genotype:
@@ -626,6 +627,7 @@ class MultiChannelNetworkModel(nn.Module):
             nn.Conv2d(int(in_channels), int(c), 3, padding=1, bias=False),
             nn.BatchNorm2d(c)
           )
+          self.stemCs.append(c)
           self.stem.append(s)
 
       self.op_grid = nn.ModuleList()
@@ -727,7 +729,7 @@ class MultiChannelNetworkModel(nn.Module):
 
     else:
 
-      self.C_size = len(self.Cs)
+      self.C_size = len(self.stemCs)
       s0s = [[], [None] * self.C_size, [None] * self.C_size]
       for operation in self.stem:
         # Make the set of features with different numbers of channels.
