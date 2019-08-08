@@ -798,7 +798,7 @@ class MultiChannelNetworkModel(nn.Module):
                 s0s[stride][C_out_idx] += combined
 
         # downscale reduced input as next output
-        self.C_out_size = len(C_out)
+        self.C_out_size = len(C_outs)
 
         s0s = [s0s[stride], [None] * self.C_out_size, [None] * self.C_out_size]
 
