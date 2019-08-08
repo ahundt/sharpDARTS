@@ -27,6 +27,7 @@ import json
 # from learning_rate_schedulers import CosineWithRestarts
 import operations
 import genotypes
+from genotypes import Genotype
 import dataset
 from cosine_power_annealing import cosine_power_annealing
 import matplotlib.pyplot as plt
@@ -303,7 +304,7 @@ def main():
 
             # create graph form added nodes
             # new_path = new_g.add_edges_from(min_cost_flow_edge)
-            # logger.info('min_cost_flow_path with demand: %d %s', demand, new_path.nodes)  
+            # logger.info('min_cost_flow_path with demand: %d %s', demand, new_path.nodes)
         #  mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
         #  np.save(mincostFlow_path_filename, new_mincost_flow)
           graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')

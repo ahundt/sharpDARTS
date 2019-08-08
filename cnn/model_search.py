@@ -5,8 +5,9 @@ import numpy as np
 from operations import *
 import operations
 from torch.autograd import Variable
-from genotypes import PRIMITIVES, MULTICHANNELNET_PRIMITIVES
-# from genotypes import Genotype
+from genotypes import PRIMITIVES
+from genotypes import MULTICHANNELNET_PRIMITIVES
+from genotypes import Genotype
 import networkx as nx
 from networkx.readwrite import json_graph
 import json
@@ -340,7 +341,7 @@ class MultiChannelNetwork(nn.Module):
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]
     #  [ 32.  64. 128. 256. 512.]]
-    
+
     # Switching to primitives.
     # self.op_types = [operations.SharpSepConv, operations.ResizablePool]
 
@@ -588,7 +589,7 @@ class MultiChannelNetwork(nn.Module):
     return self._criterion(logits, target)
 
   def _initialize_alphas(self, genotype=None):
-    
+
     if genotype is None or genotype[-1] == 'longest_path':
         init_alpha = 1e-3*torch.randn(self.arch_weights_shape)
     else:
