@@ -783,9 +783,9 @@ class MultiChannelNetworkModel(nn.Module):
                     # apply the operation then weight, equivalent to
                     # w * op(input_feature_map)
                     # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
-                  s = s0s[stride_idx][C_in_idx]
+                  s = s0s[stride_idx][C_in_grid_idx]
                   if s is not None:
-                    x = self.op_grid[layer_idx][stride_idx][C_in_grid_idx][C_out_grid_idx][primitive_grid_idx](s)
+                    x = self.op_grid[layer_idx][stride_idx][C_in_grid_id][C_out_grid_id][primitive_grid_idx](s)
                     c_outs += [x]
 
             # only apply updates to layers of sufficient quality
@@ -793,11 +793,11 @@ class MultiChannelNetworkModel(nn.Module):
               # print('combining c_outs forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
               # combined values with the same c_out dimension
               combined = sum(c_outs)
-              if s0s[stride][C_out_idx] is None:
+              if s0s[stride][C_out_grid_idx] is None:
                 # first call sets the value
-                s0s[stride][C_out_idx] = combined
+                s0s[stride][C_out_grid_idx] = combined
               else:
-                s0s[stride][C_out_idx] += combined
+                s0s[stride][C_out_grid_idx] += combined
 
         # downscale reduced input as next output
         self.C_out_size = len(C_outs)
