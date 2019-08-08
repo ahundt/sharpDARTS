@@ -793,11 +793,11 @@ class MultiChannelNetworkModel(nn.Module):
               # print('combining c_outs forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]) + ' c_in: ' + str(self.Cs[C_in_idx]) + ' op type: ' + str(op_type_idx))
               # combined values with the same c_out dimension
               combined = sum(c_outs)
-              if s0s[stride][C_out_grid_idx] is None:
+              if s0s[stride][C_out_grid_id] is None:
                 # first call sets the value
-                s0s[stride][C_out_grid_idx] = combined
+                s0s[stride][C_out_grid_id] = combined
               else:
-                s0s[stride][C_out_grid_idx] += combined
+                s0s[stride][C_out_grid_id] += combined
 
         # downscale reduced input as next output
         self.C_out_size = len(C_outs)
