@@ -765,13 +765,13 @@ class MultiChannelNetworkModel(nn.Module):
 
           # C_out_layer = [x[2] for x in self.outCs if x[0] == layer[0] and x[1] == strides[0]]
           # C_outs = strides[1]
-          for C_out, C_ins in C_outs:
+          for C_out_grid_id, (C_out, C_ins) in enumerate(C_outs):
             # take all the layers with the same output so we can sum them
             # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
             C_out_idx = np.where(self.Cs == C_out)[0]
             c_outs = []
             # C_in_layer = [x[3] for x in self.inCs if x[0] == layer[0] and x[1] == strides[0] and x[2] == C_out]
-            for C_in, primitives in C_ins:
+            for C_in_grid_id, (C_in, primitives) in enumerate(C_ins):
               C_in_idx = np.where(self.Cs == C_in)[0]
               for primitive_grid_idx, (primitive_idx, primitive) in enumerate(primitives):
 
@@ -785,7 +785,7 @@ class MultiChannelNetworkModel(nn.Module):
                     # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
                   s = s0s[stride_idx][C_in_idx]
                   if s is not None:
-                    x = self.op_grid[layer_idx][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
+                    x = self.op_grid[layer_idx][stride_idx][C_in_grid_idx][C_out_grid_idx][primitive_grid_idx](s)
                     c_outs += [x]
 
             # only apply updates to layers of sufficient quality
