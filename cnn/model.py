@@ -755,7 +755,7 @@ class MultiChannelNetworkModel(nn.Module):
       # s0s += [[]]
       # s1s = [None] * layers + 1
 
-      for layer in range(self.op_grid_list):
+      for layer in self.op_grid_list:
         # layer is how many times we've called everything, i.e. the number of "layers"
         # this is different from the number of layer types which is len([SharpSepConv, ResizablePool]) == 2
         # layer_st_time = time.time()
