@@ -798,14 +798,15 @@ class MultiChannelNetworkModel(nn.Module):
                 s0s[stride][C_out_idx] += combined
 
         # downscale reduced input as next output
-        self.bC_size = len(self.baseCs)
-        s0s = [s0s[stride], [None] * self.bC_size, [None] * self.bC_size]
+        self.C_out_size = len(C_out)
+
+        s0s = [s0s[stride], [None] * self.C_out_size, [None] * self.C_out_size]
 
       # combine results
       # use SharpSepConv to match dimension of final linear layer
       # then add up all remaining outputs and pool the result
       out = self.global_pooling(sum(op(x) for op, x in zip(self.base, s0s[0]) if x is not None))
-      logits = self.classifier(out.view(out.size(0),-1))
+      logits = self.classifier(out.view(out.size(0), -1))
       return logits
 
 
