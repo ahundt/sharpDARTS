@@ -783,7 +783,7 @@ class MultiChannelNetworkModel(nn.Module):
                     # apply the operation then weight, equivalent to
                     # w * op(input_feature_map)
                     # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
-                  s = s0s[stride_idx][C_in_grid_idx]
+                  s = s0s[stride_idx][C_in_grid_id]
                   if s is not None:
                     x = self.op_grid[layer_idx][stride_idx][C_in_grid_id][C_out_grid_id][primitive_grid_idx](s)
                     c_outs += [x]
