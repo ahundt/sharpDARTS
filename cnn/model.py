@@ -666,7 +666,7 @@ class MultiChannelNetworkModel(nn.Module):
                         op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
                     type_modules.append(op)
                     # input_Cs.append(self.Cs[C_in])
-                    type_modules_list.append(primitive)
+                    type_modules_list.append((primitive_idx, primitive))
                   else:
                     continue
               if len(type_modules) > 0:
@@ -760,21 +760,23 @@ class MultiChannelNetworkModel(nn.Module):
         # this is different from the number of layer types which is len([SharpSepConv, ResizablePool]) == 2
         # layer_st_time = time.time()
         layer_idx = layer[0]
-        for stride_idx, strides in enumerate(layer[1]):
-          stride = 1 + strides[0]
+        for stride_idx, C_outs in layer[1]:
+          stride = 1 + stride_idx
 
           # C_out_layer = [x[2] for x in self.outCs if x[0] == layer[0] and x[1] == strides[0]]
-          C_outs = strides[1]
-          for C_out_idx, (C_out, C_ins) in enumerate(C_outs):
+          # C_outs = strides[1]
+          for C_out, C_ins in C_outs:
             # take all the layers with the same output so we can sum them
             # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
+            C_out_idx = self.Cs.index(C_out)
             c_outs = []
             # C_in_layer = [x[3] for x in self.inCs if x[0] == layer[0] and x[1] == strides[0] and x[2] == C_out]
-            for C_in_idx, (C_in, primitives) in enumerate(C_ins):
-              for primitive_idx, primitive in enumerate(primitives):
+            for C_in, primitives in enumerate(C_ins):
+              C_in_idx = self.Cs.index(C_in)
+              for primitive_idx, primitive in primitives:
 
                 # get the specific weight for this op
-                name = 'layer_' + str(layer) + '_stride_' + str(stride) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
+                name = 'layer_' + str(layer_idx) + '_stride_' + str(stride) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
                 if name in self._genotype:
                   # layer is present in final model architecture.
                     # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
@@ -783,7 +785,7 @@ class MultiChannelNetworkModel(nn.Module):
                     # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
                   s = s0s[stride_idx][C_in_idx]
                   if s is not None:
-                    x = self.op_grid[layer][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
+                    x = self.op_grid[layer_idx][stride_idx][C_in_idx][C_out_idx][primitive_idx](s)
                     c_outs += [x]
 
             # only apply updates to layers of sufficient quality
@@ -799,7 +801,6 @@ class MultiChannelNetworkModel(nn.Module):
 
         # downscale reduced input as next output
         self.C_out_size = len(C_outs)
-
         s0s = [s0s[stride], [None] * self.C_out_size, [None] * self.C_out_size]
 
       # combine results
