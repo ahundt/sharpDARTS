@@ -768,11 +768,11 @@ class MultiChannelNetworkModel(nn.Module):
           for C_out_grid_id, (C_out, C_ins) in enumerate(C_outs):
             # take all the layers with the same output so we can sum them
             # print('forward layer: ' + str(layer) + ' stride: ' + str(stride) + ' c_out: ' + str(self.Cs[C_out_idx]))
-            C_out_idx = np.where(self.Cs == C_out)[0]
+            C_out_idx = np.where(self.Cs == C_out)[0][0]
             c_outs = []
             # C_in_layer = [x[3] for x in self.inCs if x[0] == layer[0] and x[1] == strides[0] and x[2] == C_out]
             for C_in_grid_id, (C_in, primitives) in enumerate(C_ins):
-              C_in_idx = np.where(self.Cs == C_in)[0]
+              C_in_idx = np.where(self.Cs == C_in)[0][0]
               for primitive_grid_idx, (primitive_idx, primitive) in enumerate(primitives):
 
                 # get the specific weight for this op
