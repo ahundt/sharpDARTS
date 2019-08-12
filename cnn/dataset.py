@@ -12,6 +12,7 @@ import genotypes
 import torch.utils
 import torchvision.datasets as dset
 import torch.backends.cudnn as cudnn
+import matplotlib.pyplot as plt
 try:
   import costar_dataset
 except ImportError:
@@ -27,6 +28,7 @@ SVHN_CLASSES = 10
 STL10_CLASSES = 10
 DEVANAGARI_CLASSES = 46
 IMAGENET_CLASSES = 1000
+STACK_HEIGHT_CLASSES = 4
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
@@ -52,7 +54,8 @@ class_dict = {'cifar10': CIFAR_CLASSES,
               'svhn': SVHN_CLASSES,
               'stl10': STL10_CLASSES,
               'devanagari' : DEVANAGARI_CLASSES,
-              'imagenet' : IMAGENET_CLASSES}
+              'imagenet' : IMAGENET_CLASSES,
+              'stack_height': STACK_HEIGHT_CLASSES}
 
 mean_dict = {'cifar10': CIFAR_MEAN,
              'mnist' : MNIST_MEAN,
@@ -61,7 +64,8 @@ mean_dict = {'cifar10': CIFAR_MEAN,
              'svhn': SVHN_MEAN,
              'stl10': STL10_MEAN,
              'devanagari' : DEVANAGARI_MEAN,
-             'imagenet' : IMAGENET_MEAN}
+             'imagenet' : IMAGENET_MEAN,
+             'stack_height' : IMAGENET_MEAN}
 
 std_dict = {'cifar10': CIFAR_STD,
             'mnist' : MNIST_STD,
@@ -70,7 +74,8 @@ std_dict = {'cifar10': CIFAR_STD,
             'svhn': SVHN_STD,
             'stl10': STL10_STD,
             'devanagari' : DEVANAGARI_STD,
-            'imagenet' : IMAGENET_STD}
+            'imagenet' : IMAGENET_STD,
+            'stack_height': IMAGENET_STD}
 
 inp_channel_dict = {'cifar10': 3,
                     'mnist' : 1,
@@ -78,8 +83,9 @@ inp_channel_dict = {'cifar10': 3,
                     'fashion': 1,
                     'svhn': 3,
                     'stl10': 3,
-                    'devanagari' : 1,
-                    'imagenet': 3}
+                    'devanagari': 1,
+                    'imagenet': 3,
+                    'stack_height': 3}
 
 costar_class_dict = {'translation_only': 3,
                      'rotation_only': 5,
@@ -93,6 +99,41 @@ costar_vec_size_dict = {'translation_only': 44,
 
 COSTAR_SET_NAMES = ['blocks_only', 'blocks_with_plush_toy']
 COSTAR_SUBSET_NAMES = ['success_only', 'error_failure_only', 'task_failure_only', 'task_and_error_failure']
+
+
+def get_simulation_training_val_data(training_data_path, label_text):
+  png_files = [os.path.join(training_data_path,file) for file in os.listdir(training_data_path) if file.lower().endswith(('.png'))]
+  train_data = []
+  val_data = []
+  X =[]
+  y =[]
+  for idx, file in enumerate(png_files):
+      with open(label_text, 'r') as File:
+          infoFile = File.readlines()
+          for line in infoFile:
+              words = line.split()
+              filename = words[0]
+              if os.path.basename(file) == filename:
+                  image = plt.imread(file)
+                  img = np.asarray(image)
+                  img.astype(np.uint8)
+                  one_hot = np.zeros(4)
+                  one_hot[int(words[2])] = 1
+                  #label = int(words[2])
+                  #training_data.append((img,label))
+                  X.append(img)
+                  y.append(one_hot)
+
+  # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42, shuffle=True)
+  # print(X_train)
+  # for idx, data in enumerate(X_train):
+  #     train_data.append([X_train[idx],y_train[idx]])
+  # for idx, data in enumerate(X_test):
+  #     print(data)
+  #     val_data.append([X_test[idx],y_test[idx]])
+
+  return np.array(X), np.array(y)
+
 
 def get_training_queues(dataset_name, train_transform, valid_transform, dataset_location=None, batch_size=32, train_proportion=1.0, search_architecture=False,
                         costar_version='v0.4', costar_set_name=None, costar_subset_name=None, costar_feature_mode=None, costar_output_shape=(224, 224, 3),
@@ -111,6 +152,7 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
   elif dataset_name == 'cifar10':
     print("Using CIFAR10 training set")
     train_data = dset.CIFAR10(root=dataset_location, train=True, download=True, transform=train_transform)
+    print('train_data_shape: ' + str(len(train_data)))
   elif dataset_name == 'mnist':
     print("Using MNIST training set")
     train_data = dset.MNIST(root=dataset_location, train=True, download=True, transform=train_transform)
@@ -156,6 +198,12 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
                       split='train', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
                       random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
                       verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=not evaluate)
+  elif dataset_name == 'stack_height':
+    # valid_dir = os.path.join(dataset_location, 'train')
+    # label_text = os.path.join(dataset_location, 'stack_label.txt')
+    # train_data = get_simulation_training_val_data(dataset_location, label_text)
+    train_dir = os.path.join(dataset_location, 'train')
+    train_data = dset.ImageFolder(root=train_dir, transform=train_transform)
 
   else:
     assert False, "Cannot get training queue for dataset"
@@ -212,6 +260,11 @@ def get_training_queues(dataset_name, train_transform, valid_transform, dataset_
                           split='val', feature_mode=costar_feature_mode, output_shape=costar_output_shape,
                           random_augmentation=costar_random_augmentation, one_hot_encoding=costar_one_hot_encoding,
                           verbose=verbose, num_images_per_example=costar_num_images_per_example, is_training=False)
+    elif dataset_name == 'stack_height':
+      valid_dir = os.path.join(dataset_location, 'val')
+      # label_text = os.path.join(dataset_location, 'stack_label.txt')
+      # valid_data = get_simulation_training_val_data(dataset_location, label_text)
+      valid_data = dset.ImageFolder(root=valid_dir, transform=valid_transform)
     else:
         assert False, "Cannot get training queue for dataset"
 

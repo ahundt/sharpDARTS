@@ -58,6 +58,16 @@ from cosine_power_annealing import cosine_power_annealing
 from train import evaluate
 import cifar10_1
 
+try:
+    import efficientnet_pytorch
+    from efficientnet_pytorch import EfficientNet
+except ImportError:
+    print('efficientnet_pytorch is not available, using densenet. '
+          'EfficientNets can be installed with the command:'
+          '    pip3 install efficientnet-pytorch --user --upgrade'
+          'See https://github.com/lukemelas/EfficientNet-PyTorch for details')
+    efficientnet_pytorch = None
+
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
@@ -142,6 +152,7 @@ parser.add_argument('--load_args', type=str, default='',  metavar='PATH',
                          'all currently set args except for --evaluate, and arguments '
                          'that did not exist when the json file was originally saved out.')
 
+
 cudnn.benchmark = True
 
 best_top1 = 0
@@ -150,6 +161,10 @@ logger = None
 DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
 DATASET_MEAN = dataset.mean_dict[args.dataset]
 DATASET_STD = dataset.std_dict[args.dataset]
+if args.dataset in dataset.class_dict:
+    TOP_K = min(5, dataset.class_dict[args.dataset])
+else:
+    TOP_K = 5
 # print('>>>>>>>DATASET_CHANNELS: ' + str(DATASET_CHANNELS))
 
 def fast_collate(batch):
@@ -216,11 +231,17 @@ def main():
     primitives = eval(primitives_to_load)
     logger.info('primitives: ' + str(primitives))
     # create model
-    genotype = eval("genotypes.%s" % args.arch)
+    if args.arch != 'efficientnet':
+        genotype = eval("genotypes.%s" % args.arch)
     # get the number of output channels
     classes = dataset.class_dict[args.dataset]
     # create the neural network
-    if args.dataset == 'imagenet':
+    if args.arch == 'efficientnet':
+        # print('dataset_class_size: ' + str(dataset.class_dict[args.dataset]))
+        num_class = int(dataset.class_dict[args.dataset])
+        model = EfficientNet.from_pretrained('efficientnet-b0', num_classes=num_class)
+        flops_shape = [1, 3, 224, 224]
+    elif args.dataset == 'imagenet':
         model = NetworkImageNet(args.init_channels, classes, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
         flops_shape = [1, 3, 224, 224]
     else:
@@ -515,6 +536,8 @@ class data_prefetcher():
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
     loader_len = len(train_loader)
+    # #hkwon214: delete after
+    # print('loader_len: ' + str(loader_len))
     if loader_len < 2:
         raise ValueError('train_loader only supports 2 or more batches and loader_len: ' + str(loader_len))
 
@@ -552,14 +575,20 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         # loss = criterion(output, target)
 
         # note here the term output is equivalent to logits
-        output, logits_aux = model(input)
+        if args.arch == 'efficientnet':
+            output = model(input)
+            logits_aux = None
+        else:
+            output, logits_aux = model(input)
+        # print('target: '+ str(target))
+        # print('output: '+ str(output))
         loss = criterion(output, target)
         if logits_aux is not None and args.auxiliary:
             loss_aux = criterion(logits_aux, target)
             loss += args.auxiliary_weight * loss_aux
 
         # measure accuracy and record loss
-        top1f, top5f = accuracy(output.data, target, topk=(1, 5))
+        top1f, top5f = accuracy(output.data, target, topk=(1, TOP_K))
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -662,11 +691,14 @@ def validate(val_loader, model, criterion, args):
             # output = model(input)
             # loss = criterion(output, target)
             # note here the term output is equivalent to logits
-            output, _ = model(input)
+            if args.arch == 'efficientnet':
+                output = model(input)
+            else:
+                output, _ = model(input)
             loss = criterion(output, target)
 
         # measure accuracy and record loss
-        top1f, top5f = accuracy(output.data, target, topk=(1, 5))
+        top1f, top5f = accuracy(output.data, target, topk=(1, TOP_K))
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
@@ -687,6 +719,7 @@ def validate(val_loader, model, criterion, args):
             progbar.update()
         if args.local_rank == 0 and i % args.print_freq == 0:
             speed.update(args.world_size * args.batch_size / batch_time.val)
+            #TODO(hkwon214): change top5 labels to TOP_K
             progbar.set_description(
                 # 'Test: [{0}/{1}]\t'
                   'Valid (cur/avg)  '
