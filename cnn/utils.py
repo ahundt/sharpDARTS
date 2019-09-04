@@ -325,6 +325,8 @@ def get_data_transforms(args, normalize_as_tensor=True):
     return _data_transforms_devanagari(args, normalize_as_tensor)
   if args.dataset == 'imagenet':
     return _data_transforms_imagenet(args, normalize_as_tensor)
+  if args.dataset == 'stack_height':
+    return _data_transforms_imagenet(args, normalize_as_tensor)
   assert False, "Cannot get Transform for dataset"
 
 

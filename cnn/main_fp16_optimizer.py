@@ -162,7 +162,7 @@ DATASET_CHANNELS = dataset.inp_channel_dict[args.dataset]
 DATASET_MEAN = dataset.mean_dict[args.dataset]
 DATASET_STD = dataset.std_dict[args.dataset]
 if args.dataset in dataset.class_dict:
-    TOP_K = min(5, dataset.class_dict[args.dataset])
+    TOP_K = min(5, int(dataset.class_dict[args.dataset] / 2))
 else:
     TOP_K = 5
 # print('>>>>>>>DATASET_CHANNELS: ' + str(DATASET_CHANNELS))
