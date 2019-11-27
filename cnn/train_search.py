@@ -244,25 +244,7 @@ def main():
         logger.info('Saving updated weight graph: ' + str(graph_filename))
         nx.write_gpickle(cnn_model.G, graph_filename)
         logger.info('optimal_path  : %s', optimal_path)
-        #capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-        #logger.info('capacity :%s', capacity)
 
-      # for key in cnn_model.state_dict():
-      #  updated_state_dict[key] = cnn_model.state_dict()[key].clone()
-
-
-      # logger.info("gradients computed")
-      # for name, parameter in cnn_model.named_parameters():
-      #   if parameter.requires_grad:
-      #     logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
-
-      # updated_state_keys = set()
-      # for key in state_dict:
-      #   if not (state_dict[key] == updated_state_dict[key]).all():
-      #     # logger.info('Update in {}'.format(key))
-      #     updated_state_keys.add(key)
-      # logger.info('Total updates = {}'.format(len(updated_state_keys)))
-      # logger.info('Parameters not updated {}'.format(og_state_keys - updated_state_keys))
 
       # validation
       valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
@@ -270,62 +252,12 @@ def main():
       if valid_acc > best_valid_acc:
         # new best epoch, save weights
 
-        # if args.multi_channel:
-        #   capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-        #   weight = nx.get_edge_attributes(cnn_model.G, "weight_int")
-        #   for u, v, d in cnn_model.G.edges(data=True):
-        #     if u is not "Source" or v is not "Linear":
-        #       if "capacity" in d:
-        #         d['capacity'] = int(d['capacity']*1e+5)
-      #     if "weight" in d:
-      #        d['weight'] = int(d['weight']*1e+7)
         utils.save(cnn_model, weights_file)
-      #  mincostFlow = nx.max_flow_min_cost(cnn_model.G, "Source", "Linear", weight='capacity', capacity='weight')
-      #  new_mincost_flow = {}
-      #  for key in mincostFlow:
-      #    dic = mincostFlow[key]
-      #    temp = {k: v for k, v in dic.items() if v != 0}
-      #    if len(temp):
-      #      new_mincost_flow[key] = temp
-        if args.multi_channel:
-          # capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-        #  weight = nx.get_edge_attributes(cnn_model.G, "weight")
-          # logger.info('capacity :%s', capacity)
-          # logger.info('weight_int :%s', weight)
-          #iterative cost_search
-          # for demand in range(1, args.demand_limit, args.demand_step):
-          #   cnn_model.G.nodes["Source"]['demand'] = -demand
-          #   cnn_model.G.nodes["Linear"]['demand'] = demand
-          #   flow_cost, flow_dict = nx.network_simplex(cnn_model.G, weight='capacity', capacity='weight_int')
-          #   min_cost_flow_edge = [(u, v) for u in flow_dict for v in flow_dict[u] if flow_dict[u][v] > args.flow_cut]
-          #   logger.info('min_cost_flow_edge with demand: %d %s', demand, min_cost_flow_edge)
-          #   new_g = nx.DiGraph()
 
-            # create graph form added nodes
-            # new_path = new_g.add_edges_from(min_cost_flow_edge)
-            # logger.info('min_cost_flow_path with demand: %d %s', demand, new_path.nodes)  
-        #  mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
-        #  np.save(mincostFlow_path_filename, new_mincost_flow)
+        if args.multi_channel:
+
           graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')
           logger.info('Saving updated weight graph: ' + str(graph_filename))
-
-          # path using max_flow_min_cost
-          # mincostFlow = nx.max_flow_min_cost(cnn_model.G, "Source", "Linear", weight='capacity', capacity='weight')
-          # new_mincost_flow = {}
-          # for key in mincostFlow:
-          #   dic = mincostFlow[key]
-          #   temp = {k: v for k, v in dic.items() if v != 0}
-          #   if len(temp):
-          #     new_mincost_flow[key] = temp
-          # capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-          # capacity = nx.get_edge_attributes(cnn_model.G, "weight")
-          # logger.info('capacity :%s', capacity)
-          # logger.info('weight :%s', weight)
-          # logger.info('mincostFlow  : %s', new_mincost_flow)
-          # mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
-          # np.save(mincostFlow_path_filename, new_mincost_flow)
-          # graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')
-          # logger.info('Saving updated weight graph: ' + str(graph_filename))
 
         best_epoch = epoch
         best_valid_acc = valid_acc

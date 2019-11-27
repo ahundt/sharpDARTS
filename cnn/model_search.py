@@ -277,6 +277,11 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 class MultiChannelNetwork(nn.Module):
+  """
+    This class is used to perform Differentiable Grid Search using a set of primitives of your choice (refer to genotypes.py and operations.py for 
+    more information on the different types of primitives available and their definition).
+    For more information about the search please refer to section 4 of the paper https://arxiv.org/abs/1903.09900
+  """
 
   def __init__(self, C=32, num_classes=10, layers=6, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
                in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False, primitives=None, op_dict=None,
@@ -410,8 +415,6 @@ class MultiChannelNetwork(nn.Module):
     self.G.add_node("add-SharpSep")
     self.time_between_layers = AverageMeter()
 
-    # for C_out_idx in range(self.C_size):
-    #   self.G.add_edge('layer_'+str(self._layers-1)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(self.strides[-1] + 1), "Add-SharpSep")
     for c in self.Cs:
       self.G.add_node("SharpSepConv" + str(c))
       out_node = 'layer_'+str(self._layers-1)+'_add_'+'c_out_'+str(c)+'_stride_' + str(self.strides[-1] + 1)
@@ -436,10 +439,7 @@ class MultiChannelNetwork(nn.Module):
     self.G.nodes["Linear"]['demand'] = 1
     self.G.add_edge("global_pooling", "Linear")
     self.G["global_pooling"]["Linear"]["weight"] = 800
-    # print("Nodes in graph")
-    # print(self.G.nodes())
-    # print("Edges in graph")
-    # print(self.G.edges())
+
     print("Saving graph...")
     nx.write_gpickle(self.G, "network_test.graph")
 

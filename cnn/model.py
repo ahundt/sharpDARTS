@@ -515,13 +515,19 @@ class DQNAS(nn.Module):
         self.classifier.reset_noise()
 
 class MultiChannelNetworkModel(nn.Module):
+  """
+    This class is used to initialize a sub-graph or linear model found after running a MultiChannelNet search (refer to MultiChannelNetwork 
+    in model_search.py) and using graph operations found in multichannelnet_graph_operations.py.
+    To see an example of how final model architectures are stored, refer to genotypes.py
+    For more information about MultiChannelNet (Differentiable Grid Search) refer to section 4 of the paper https://arxiv.org/abs/1903.09900
+  """
 
   def __init__(self, C=32, num_classes=10, layers=6, criterion=None, steps=5, multiplier=4, stem_multiplier=3,
                in_channels=3, final_linear_filters=768, always_apply_ops=False, visualization=False, primitives=None,
                op_dict=None, weighting_algorithm=None, genotype=None, simple_path=True):
     """ C is the mimimum number of channels. Layers is how many output scaling factors and layers should be in the network.
         op_dict: The dictionary of possible operation creation functions.
-        All primitives must be in the op dict.
+        All primitives must be in the op dict. (Refer to operations.py and genotypes.py for all the primitives available)
         genotype is used to get the architecture of final model to be generated.
 
     """
@@ -603,7 +609,6 @@ class MultiChannelNetworkModel(nn.Module):
           stride = int(layer[3])
           c_in = int(layer[6])
           c_out = int(layer[9])
-          # self.op_grid.append(OpType(int(c_in), int(c_out), kernel_size=3, stride=int(stride)))
           op = self.op_dict[primitive](c_in, c_out, stride=stride)
           # Consistent with MixedOp
           if 'pool' in primitive:
@@ -632,8 +637,7 @@ class MultiChannelNetworkModel(nn.Module):
 
       self.op_grid = nn.ModuleList()
       self.op_grid_list = []
-      # self.outCs = []
-      # self.inCs = []
+
       self.type_modules_list = []
       for layer_idx in range(self._layers):
         stride_modules = nn.ModuleList()
@@ -644,17 +648,15 @@ class MultiChannelNetworkModel(nn.Module):
           for C_out_idx in range(self.C_size):
             in_modules = nn.ModuleList()
             in_modules_param = []
-            # print('init layer: ' + str(layer_idx) + ' stride: ' + str(stride_idx+1) + ' c_in: ' + str(self.Cs[C_in_idx]))
+
             for C_in_idx in range(self.C_size):
               out_node = 'layer_'+str(layer_idx)+'_add_'+'c_out_'+str(self.Cs[C_out_idx])+'_stride_' + str(stride_idx+1)
               type_modules = nn.ModuleList()
               type_modules_list = []
-              # switching to primitives
-              # for OpType in self.op_types:
+
               for primitive_idx, primitive in enumerate(self.primitives):
                   cin = C_in[C_in_idx][C_out_idx]
                   cout = C_out[C_in_idx][C_out_idx]
-                  # print('cin: ' + str(cin) + ' cout: ' + str(cout))
                   name = 'layer_' + str(layer_idx) + '_stride_' + str(stride_idx+1) + '_c_in_' + str(self.Cs[C_in_idx]) + '_c_out_' + str(self.Cs[C_out_idx]) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
                   if name in self._genotype:
                     op = self.op_dict[primitive](int(cin), int(cout), int(stride_idx + 1), False)
@@ -665,21 +667,17 @@ class MultiChannelNetworkModel(nn.Module):
                     if 'none' in primitive or ('skip_connect' in primitive and stride_idx == 0):
                         op = nn.Sequential(op, nn.Conv2d(int(cin), int(cout), 1))
                     type_modules.append(op)
-                    # input_Cs.append(self.Cs[C_in])
                     type_modules_list.append((primitive_idx, primitive))
                   else:
                     continue
               if len(type_modules) > 0:
-                # type_modules_list.append(type_modules_list)
-                # self.in_modules_params.append(self.Cs[C_in_idx])
                 in_modules.append(type_modules)
                 in_modules_param.append((self.Cs[C_in_idx], type_modules_list))
-                # self.inCs.append((layer_idx, stride_idx, self.Cs[C_in_idx]))
             if len(in_modules) > 0:
               out_modules.append(in_modules)
-              # self.out_modules_param.append(self.Cs[C_out_idx], )
+
               out_modules_param.append((self.Cs[C_out_idx], in_modules_param))
-              # self.outCs.append((layer_idx, stride_idx, self.Cs[C_out_idx], self.Cs[C_in_idx]))
+
           # op grid is stride_modules
           if len(out_modules) > 0:
             stride_modules.append(out_modules)
@@ -691,12 +689,10 @@ class MultiChannelNetworkModel(nn.Module):
 
       self.base = nn.ModuleList()
 
-      # for C_out_idx in range(self.C_size):
-      #   self.G.add_edge('layer_'+str(self._layers-1)+'_add_'+'c_out'+str(self.Cs[C_out_idx])+'_stride_' + str(self.strides[-1] + 1), "Add-SharpSep")
       self.baseCs=[]
       for c in self.Cs:
         if "SharpSepConv"+str(c) in self._genotype:
-          # out_node = 'layer_'+str(self._layers-1)+'_add_'+'c_out_'+str(c)+'_stride_' + str(self.strides[-1] + 1)
+
           self.baseCs.append(c)
           self.base.append(operations.SharpSepConv(int(c), int(final_linear_filters), 3))
       # TODO(ahundt) there should be one more layer of normal convolutions to set the final linear layer size
@@ -711,18 +707,6 @@ class MultiChannelNetworkModel(nn.Module):
 
       self.global_pooling = nn.AdaptiveAvgPool2d(1)
       self.classifier = nn.Linear(final_linear_filters, num_classes)
-      # self.G.add_node("global_pooling")
-      # self.G.add_edge("add-SharpSep", "global_pooling")
-      # self.G.add_node("Linear")
-      # self.G.nodes["Linear"]['demand'] = 1
-      # self.G.add_edge("global_pooling", "Linear")
-      # self.G["global_pooling"]["Linear"]["weight"] = 800
-      # # print("Nodes in graph")
-      # # print(self.G.nodes())
-      # # print("Edges in graph")
-      # # print(self.G.edges())
-      # print("Saving graph...")
-      # nx.write_gpickle(self.G, "network_test.graph")
 
 
   def new(self):
@@ -777,12 +761,9 @@ class MultiChannelNetworkModel(nn.Module):
 
                 # get the specific weight for this op
                 name = 'layer_' + str(layer_idx) + '_stride_' + str(stride) + '_c_in_' + str(C_in) + '_c_out_' + str(C_out) + '_op_type_' + str(primitive) + '_opid_' + str(primitive_idx)
+                
+                # layer is present in final model architecture.
                 if name in self._genotype:
-                  # layer is present in final model architecture.
-                    # print('w weight_views[stride_idx][layer, C_in_idx, C_out_idx, op_type_idx]: ' + str(w))
-                    # apply the operation then weight, equivalent to
-                    # w * op(input_feature_map)
-                    # TODO(ahundt) fix conditionally evaluating calls with high ratings, there is currently a bug
                   s = s0s[stride_idx][C_in_grid_id]
                   if s is not None:
                     x = self.op_grid[layer_idx][stride_idx][C_in_grid_id][C_out_grid_id][primitive_grid_idx](s)
