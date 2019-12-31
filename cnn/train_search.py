@@ -81,10 +81,10 @@ parser.add_argument('--unrolled', action='store_true', default=False, help='use 
 parser.add_argument('--arch_learning_rate', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_weight_decay', type=float, default=1e-3, help='weight decay for arch encoding')
 parser.add_argument('--multi_channel', action='store_true', default=False, help='perform multi channel search, a completely separate search space')
-parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS and DARTS_OPS')
+parser.add_argument('--ops', type=str, default='OPS', help='which operations to use, options are OPS, DARTS_OPS and MULTICHANNELNET_OPS')
 parser.add_argument('--primitives', type=str, default='PRIMITIVES',
                     help='which primitive layers to use inside a cell search space,'
-                         ' options are PRIMITIVES and DARTS_PRIMITIVES')
+                         ' options are PRIMITIVES, DARTS_PRIMITIVES AND MULTICHANNELNET_PRIMITIVES')
 parser.add_argument('-e', '--evaluate', dest='evaluate', type=str, metavar='PATH', default='',
                     help='evaluate model at specified path on training, test, and validation datasets')
 parser.add_argument('--load', type=str, default='',  metavar='PATH', help='load weights at specified location')
@@ -145,9 +145,9 @@ def main():
     if args.load_genotype is not None:
       genotype = getattr(genotypes, args.load_genotype)
     cnn_model = model_search.MultiChannelNetwork(
-      args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      weighting_algorithm=args.weighting_algorithm, genotype=genotype)
-    save_graph(cnn_model.G, os.path.join(args.save, 'network_graph.pdf'))
+      args.init_channels, CIFAR_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells, primitives=primitives,
+      op_dict=op_dict, weighting_algorithm=args.weighting_algorithm, genotype=genotype)
+    #save_graph(cnn_model.G, os.path.join(args.save, 'network_graph.pdf'))
     if args.load_genotype is not None:
       # TODO(ahundt) support other batch shapes
       data_shape = [1, 3, 32, 32]
@@ -244,57 +244,21 @@ def main():
         logger.info('Saving updated weight graph: ' + str(graph_filename))
         nx.write_gpickle(cnn_model.G, graph_filename)
         logger.info('optimal_path  : %s', optimal_path)
-        capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-        logger.info('capacity :%s', capacity)
 
-      # for key in cnn_model.state_dict():
-      #  updated_state_dict[key] = cnn_model.state_dict()[key].clone()
-
-
-      # logger.info("gradients computed")
-      # for name, parameter in cnn_model.named_parameters():
-      #   if parameter.requires_grad:
-      #     logger.info("{}  gradient  {}".format(name, parameter.grad.data.sum()))
-
-      # updated_state_keys = set()
-      # for key in state_dict:
-      #   if not (state_dict[key] == updated_state_dict[key]).all():
-      #     # logger.info('Update in {}'.format(key))
-      #     updated_state_keys.add(key)
-      # logger.info('Total updates = {}'.format(len(updated_state_keys)))
-      # logger.info('Parameters not updated {}'.format(og_state_keys - updated_state_keys))
 
       # validation
       valid_acc, valid_obj = infer(valid_queue, cnn_model, criterion)
 
       if valid_acc > best_valid_acc:
         # new best epoch, save weights
+
+        utils.save(cnn_model, weights_file)
+
         if args.multi_channel:
-          capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-          weight = nx.get_edge_attributes(cnn_model.G, "weight")
-          for u, v, d in cnn_model.G.edges(data=True):
-            if u is not "Source" or v is not "Linear":
-              if "capacity" in d:
-                d['capacity'] = int(d['capacity']*1e+5)
-              if "weight" in d:
-                d['weight'] = int(d['weight']*1e+7)
-          utils.save(cnn_model, weights_file)
-          mincostFlow = nx.max_flow_min_cost(cnn_model.G, "Source", "Linear", weight='capacity', capacity='weight')
-          new_mincost_flow = {}
-          for key in mincostFlow:
-            dic = mincostFlow[key]
-            temp = {k: v for k, v in dic.items() if v != 0}
-            if len(temp):
-              new_mincost_flow[key] = temp
-          capacity = nx.get_edge_attributes(cnn_model.G, "capacity")
-          capacity = nx.get_edge_attributes(cnn_model.G, "weight")
-          logger.info('capacity :%s', capacity)
-          logger.info('weight :%s', weight)
-          logger.info('mincostFlow  : %s', new_mincost_flow)
-          mincostFlow_path_filename = os.path.join(args.save, 'micostFlow_path_layer_sequence.npy')
-          np.save(mincostFlow_path_filename, new_mincost_flow)
+
           graph_filename = os.path.join(args.save, 'network_graph_best_valid' + str(epoch) + '.graph')
           logger.info('Saving updated weight graph: ' + str(graph_filename))
+
         best_epoch = epoch
         best_valid_acc = valid_acc
         prog_epoch.set_description(
@@ -343,6 +307,7 @@ def train(train_queue, valid_queue, cnn_model, architect, criterion, optimizer, 
     input_search, target_search = next(iter(valid_queue))
     input_search = Variable(input_search, requires_grad=False).cuda(non_blocking=True)
     target_search = Variable(target_search, requires_grad=False).cuda(non_blocking=True)
+    cnn_model.time_between_layers.reset()
 
     # define validation loss for analyzing the importance of hyperparameters
     if architect is not None:
