@@ -25,7 +25,7 @@ import cifar10_1
 import dataset
 import flops_counter
 from cosine_power_annealing import cosine_power_annealing
-from model_search import MultiChannelNetwork
+from model import MultiChannelNetworkModel
 
 def main():
   parser = argparse.ArgumentParser("Common Argument Parser")
@@ -88,6 +88,7 @@ def main():
                          '"max_w" (1. - max_w + w) * op, and scalar (w * op)')
   # TODO(ahundt) remove final path and switch back to genotype
   parser.add_argument('--load_genotype', type=str, default=None, help='Name of genotype to be used')
+  parser.add_argument('--simple_path', default=True, action='store_false', help='Final model is a simple path (MultiChannelNetworkModel)')
   args = parser.parse_args()
 
   args = utils.initialize_files_and_args(args)
@@ -137,9 +138,9 @@ def main():
       if type(genotype[0]) is str:
         logger.info('Path :%s', genotype)
     # TODO(ahundt) remove final path and switch back to genotype
-    cnn_model = MultiChannelNetwork(
-      args.init_channels, DATASET_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells,
-      weighting_algorithm=args.weighting_algorithm, genotype=genotype)
+    cnn_model = MultiChannelNetworkModel(
+      args.init_channels, DATASET_CLASSES, layers=args.layers_of_cells, criterion=criterion, steps=args.layers_in_cells, primitives=primitives,
+      op_dict=op_dict, weighting_algorithm=args.weighting_algorithm, genotype=genotype, simple_path=args.simple_path)
   elif args.dataset == 'imagenet':
       cnn_model = NetworkImageNet(args.init_channels, DATASET_CLASSES, args.layers, args.auxiliary, genotype, op_dict=op_dict, C_mid=args.mid_channels)
       flops_shape = [1, 3, 224, 224]
