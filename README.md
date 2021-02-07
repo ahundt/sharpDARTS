@@ -29,6 +29,8 @@ Requires pytorch 1.0. References and licenses for external code sources are incl
 
 To see the configuration options, run `python3 train_search.py --help` from the directory `cnn`. The code is also commented.
 
+![cifar10 table](img/sharpdarts_cifar10_table.png)
+
 ### Scalar Search
 
 Here is how to do a search configured to find a model like SharpSepConvDARTS:
@@ -82,6 +84,8 @@ ack-grep  --match "cifar10.1" */*.txt > cifar10.1_results_femur.txt
 ```
 
 ### ImageNet Training
+
+![imagenet table](img/sharpdarts_imagenet_table.png)
 
 We train with a modified version the fp16 optimizer from [APEX](https://github.com/NVIDIA/apex), we suspect this means results will be slightly below the ideal possible accuracy, but training time is substantially reduced.
 These configurations are designed for an NVIDIA RTX 1080Ti, `--fp16` should be removed for older GPUs.
