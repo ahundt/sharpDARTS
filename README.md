@@ -2,6 +2,8 @@
 
 ![Differentiable Hyperparameter Search Example Graph](img/multi_channel_net_2x2_x2x2x2.svg)
 
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/sharpdarts-faster-and-more-accurate/neural-architecture-search-on-cifar-10)](https://paperswithcode.com/sota/neural-architecture-search-on-cifar-10?p=sharpdarts-faster-and-more-accurate)
+
 Please cite [sharpDARTS: Faster and More Accurate Differentiable Architecture Search](http://arxiv.org/abs/1903.09900) if you use this code as part of your research! By using any part of the code you are agreeing to comply with our permissive Apache 2.0 license.
 
 ```
